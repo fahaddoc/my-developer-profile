@@ -1419,44 +1419,41 @@
 
             <div class="resume-section" style="margin-bottom: 48px;">
                 <div class="resume-card" id="resumeCard">
-                    <div class="resume-upload-area" id="resumeUploadArea">
-                        <div class="file-upload-icon">📄</div>
-                        <div class="file-upload-text"><strong>Click to upload</strong> or drag and drop your resume</div>
-                        <div class="file-upload-hint">PDF files only • Max 5MB</div>
-                        <input type="file" class="file-upload-input" id="resumeInput" accept=".pdf,application/pdf">
-                    </div>
-                    <div class="resume-preview" id="resumePreview" style="display: none;">
+                    <div class="resume-info-box" id="resumeInfoBox">
                         <div class="resume-file-info">
                             <div class="resume-file-icon">📄</div>
                             <div class="resume-file-details">
-                                <div class="resume-file-name" id="resumeFileName">resume.pdf</div>
-                                <div class="resume-file-size" id="resumeFileSize">0 KB</div>
+                                <div class="resume-file-name">Shah_Fahad_Resume.pdf</div>
+                                <div class="resume-file-size" id="resumeFileStatus">Checking...</div>
                             </div>
                         </div>
                         <div class="resume-actions">
-                            <button class="btn btn-secondary btn-sm" onclick="previewResume()">
+                            <a href="assets/Shah_Fahad_Resume.pdf" target="_blank" class="btn btn-secondary btn-sm" id="resumePreviewBtn">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                                     <circle cx="12" cy="12" r="3"/>
                                 </svg>
                                 Preview
-                            </button>
-                            <button class="btn btn-secondary btn-sm" onclick="downloadResume()">
+                            </a>
+                            <a href="assets/Shah_Fahad_Resume.pdf" download class="btn btn-secondary btn-sm" id="resumeDownloadBtn">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                                     <polyline points="7 10 12 15 17 10"/>
                                     <line x1="12" y1="15" x2="12" y2="3"/>
                                 </svg>
                                 Download
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteResume()">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="3 6 5 6 21 6"/>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                </svg>
-                                Delete
-                            </button>
+                            </a>
                         </div>
+                    </div>
+                    <div class="resume-instructions" style="padding: 20px 24px; border-top: 1px solid var(--border); background: var(--bg-secondary);">
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+                            <strong style="color: var(--text-primary);">📁 How to update resume:</strong>
+                        </p>
+                        <ol style="font-size: 13px; color: var(--text-secondary); padding-left: 20px; line-height: 1.8;">
+                            <li>Rename your resume to <code style="background: var(--bg-hover); padding: 2px 6px; border-radius: 4px;">Shah_Fahad_Resume.pdf</code></li>
+                            <li>Add it to <code style="background: var(--bg-hover); padding: 2px 6px; border-radius: 4px;">assets/</code> folder</li>
+                            <li>Push to GitHub: <code style="background: var(--bg-hover); padding: 2px 6px; border-radius: 4px;">git add . && git commit -m "Update resume" && git push</code></li>
+                        </ol>
                     </div>
                 </div>
             </div>
@@ -2100,119 +2097,24 @@
         // ========================================
         // RESUME MANAGEMENT
         // ========================================
-        const resumeUploadArea = document.getElementById('resumeUploadArea');
-        const resumeInput = document.getElementById('resumeInput');
-        const resumePreview = document.getElementById('resumePreview');
-
         function loadResume() {
-            const resumeData = localStorage.getItem('portfolio_resume');
-            if (resumeData) {
-                const resume = JSON.parse(resumeData);
-                showResumePreview(resume);
-                document.getElementById('resumeStatus').textContent = '✓';
-            } else {
-                document.getElementById('resumeStatus').textContent = '--';
-                resumeUploadArea.style.display = 'block';
-                resumePreview.style.display = 'none';
-            }
-        }
-
-        function showResumePreview(resume) {
-            document.getElementById('resumeFileName').textContent = resume.name;
-            document.getElementById('resumeFileSize').textContent = formatFileSize(resume.size);
-            resumeUploadArea.style.display = 'none';
-            resumePreview.style.display = 'flex';
-            document.getElementById('resumeStatus').textContent = '✓';
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-        }
-
-        resumeUploadArea.addEventListener('click', () => resumeInput.click());
-
-        resumeUploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            resumeUploadArea.classList.add('dragover');
-        });
-
-        resumeUploadArea.addEventListener('dragleave', () => {
-            resumeUploadArea.classList.remove('dragover');
-        });
-
-        resumeUploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            resumeUploadArea.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file) handleResumeFile(file);
-        });
-
-        resumeInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) handleResumeFile(file);
-        });
-
-        function handleResumeFile(file) {
-            if (file.type !== 'application/pdf') {
-                showToast('Error', 'Please upload a PDF file only', 'error');
-                return;
-            }
-
-            if (file.size > 5 * 1024 * 1024) {
-                showToast('Error', 'File size must be less than 5MB', 'error');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const resumeData = {
-                    name: file.name,
-                    size: file.size,
-                    data: e.target.result,
-                    uploadedAt: new Date().toISOString()
-                };
-
-                try {
-                    localStorage.setItem('portfolio_resume', JSON.stringify(resumeData));
-                    showResumePreview(resumeData);
-                    showToast('Success', 'Resume uploaded successfully', 'success');
-                } catch (err) {
-                    showToast('Error', 'File too large for storage. Try a smaller PDF.', 'error');
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function previewResume() {
-            const resumeData = localStorage.getItem('portfolio_resume');
-            if (resumeData) {
-                const resume = JSON.parse(resumeData);
-                const win = window.open();
-                win.document.write(`<iframe src="${resume.data}" style="width:100%;height:100%;border:none;position:fixed;top:0;left:0;"></iframe>`);
-            }
-        }
-
-        function downloadResume() {
-            const resumeData = localStorage.getItem('portfolio_resume');
-            if (resumeData) {
-                const resume = JSON.parse(resumeData);
-                const link = document.createElement('a');
-                link.href = resume.data;
-                link.download = resume.name || 'Shah_Fahad_Resume.pdf';
-                link.click();
-            }
-        }
-
-        function deleteResume() {
-            if (confirm('Are you sure you want to delete the resume?')) {
-                localStorage.removeItem('portfolio_resume');
-                resumeUploadArea.style.display = 'block';
-                resumePreview.style.display = 'none';
-                document.getElementById('resumeStatus').textContent = '--';
-                showToast('Deleted', 'Resume has been removed', 'success');
-            }
+            fetch('assets/Shah_Fahad_Resume.pdf', { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        document.getElementById('resumeStatus').textContent = '✓';
+                        document.getElementById('resumeFileStatus').textContent = 'File exists ✓';
+                        document.getElementById('resumeFileStatus').style.color = 'var(--success)';
+                    } else {
+                        document.getElementById('resumeStatus').textContent = '--';
+                        document.getElementById('resumeFileStatus').textContent = 'Not uploaded yet';
+                        document.getElementById('resumeFileStatus').style.color = 'var(--warning)';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('resumeStatus').textContent = '--';
+                    document.getElementById('resumeFileStatus').textContent = 'Not uploaded yet';
+                    document.getElementById('resumeFileStatus').style.color = 'var(--warning)';
+                });
         }
 
         // Init

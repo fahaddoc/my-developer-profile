@@ -635,25 +635,30 @@ document.head.appendChild(style);
 // ========================================
 // RESUME DOWNLOAD
 // ========================================
+const RESUME_PATH = 'assets/Shah_Fahad_Resume.pdf';
+
 function initResume() {
     const resumeBtn = document.getElementById('downloadResumeBtn');
     if (!resumeBtn) return;
 
-    const resumeData = localStorage.getItem('portfolio_resume');
-    if (resumeData) {
-        resumeBtn.style.display = 'inline-flex';
-    }
+    // Check if resume file exists
+    fetch(RESUME_PATH, { method: 'HEAD' })
+        .then(response => {
+            if (response.ok) {
+                resumeBtn.style.display = 'inline-flex';
+            }
+        })
+        .catch(() => {
+            // File doesn't exist, hide button
+            resumeBtn.style.display = 'none';
+        });
 }
 
 function downloadResume() {
-    const resumeData = localStorage.getItem('portfolio_resume');
-    if (resumeData) {
-        const resume = JSON.parse(resumeData);
-        const link = document.createElement('a');
-        link.href = resume.data;
-        link.download = resume.name || 'Shah_Fahad_Resume.pdf';
-        link.click();
-    }
+    const link = document.createElement('a');
+    link.href = RESUME_PATH;
+    link.download = 'Shah_Fahad_Resume.pdf';
+    link.click();
 }
 
 // Console
