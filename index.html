@@ -501,7 +501,8 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>© 2024 Shah Fahad. All rights reserved.</p>
+                <p>© <span id="currentYear"></span> Shah Fahad. All rights reserved.</p>
+                <script>document.getElementById('currentYear').textContent = new Date().getFullYear();</script>
                 <a href="#" class="back-top">Back to top <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></a>
             </div>
         </div>
@@ -512,6 +513,8 @@
     <!-- GSAP -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <!-- EmailJS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <!-- Custom Script -->
     <script src="script.js"></script>
 </body>

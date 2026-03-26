@@ -515,11 +515,23 @@ function initScrollAnimations() {
 }
 
 // ========================================
-// CONTACT FORM
+// CONTACT FORM (EmailJS Integration)
 // ========================================
+// EmailJS Configuration - Replace with your credentials
+const EMAILJS_CONFIG = {
+    publicKey: '35TUGIzR3rDAsxanA',
+    serviceId: 'service_o38uddm',
+    templateId: 'template_vrueasq'
+};
+
 function initContactForm() {
     const form = document.getElementById('contactForm');
     if (!form) return;
+
+    // Initialize EmailJS
+    if (typeof emailjs !== 'undefined') {
+        emailjs.init(EMAILJS_CONFIG.publicKey);
+    }
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -530,17 +542,41 @@ function initContactForm() {
         btn.disabled = true;
         btnText.textContent = 'Sending...';
 
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+            // Send email using EmailJS
+            await emailjs.send(
+                EMAILJS_CONFIG.serviceId,
+                EMAILJS_CONFIG.templateId,
+                {
+                    from_name: form.querySelector('#name').value,
+                    from_email: form.querySelector('#email').value,
+                    subject: form.querySelector('#subject').value,
+                    message: form.querySelector('#message').value,
+                    to_name: 'Shah Fahad'
+                }
+            );
 
-        btnText.textContent = 'Message Sent!';
-        btn.style.background = '#22c55e';
-        form.reset();
+            btnText.textContent = 'Message Sent!';
+            btn.style.background = '#22c55e';
+            form.reset();
 
-        setTimeout(() => {
-            btn.disabled = false;
-            btnText.textContent = originalText;
-            btn.style.background = '';
-        }, 3000);
+            setTimeout(() => {
+                btn.disabled = false;
+                btnText.textContent = originalText;
+                btn.style.background = '';
+            }, 3000);
+
+        } catch (error) {
+            console.error('EmailJS Error:', error);
+            btnText.textContent = 'Failed! Try Again';
+            btn.style.background = '#ef4444';
+
+            setTimeout(() => {
+                btn.disabled = false;
+                btnText.textContent = originalText;
+                btn.style.background = '';
+            }, 3000);
+        }
     });
 }
 

@@ -210,8 +210,8 @@ img { max-width: 100%; display: block; }
 .theme-toggle {
     position: fixed;
     top: 24px;
-    right: 24px;
-    z-index: 100;
+    right: 140px;
+    z-index: 1001;
     width: 48px;
     height: 48px;
     background: var(--bg-card);
@@ -1801,7 +1801,7 @@ section {
 @media (max-width: 768px) {
     .nav { padding: 16px 20px; }
     .nav-links { display: none; }
-    .theme-toggle { top: 16px; right: 70px; }
+    .theme-toggle { top: 16px; right: 120px; }
 
     .hero { padding: 100px 20px 60px; }
 
