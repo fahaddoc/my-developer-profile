@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initScrollAnimations();
     initContactForm();
     initSmoothScroll();
+    initResume();
 });
 
 // ========================================
@@ -630,6 +631,30 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// ========================================
+// RESUME DOWNLOAD
+// ========================================
+function initResume() {
+    const resumeBtn = document.getElementById('downloadResumeBtn');
+    if (!resumeBtn) return;
+
+    const resumeData = localStorage.getItem('portfolio_resume');
+    if (resumeData) {
+        resumeBtn.style.display = 'inline-flex';
+    }
+}
+
+function downloadResume() {
+    const resumeData = localStorage.getItem('portfolio_resume');
+    if (resumeData) {
+        const resume = JSON.parse(resumeData);
+        const link = document.createElement('a');
+        link.href = resume.data;
+        link.download = resume.name || 'Shah_Fahad_Resume.pdf';
+        link.click();
+    }
+}
 
 // Console
 console.log('%c👋 Hey there!', 'font-size: 24px; font-weight: bold; color: #f97316;');
