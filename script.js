@@ -633,32 +633,48 @@ style.textContent = `
 document.head.appendChild(style);
 
 // ========================================
-// RESUME DOWNLOAD
+// RESUME DOWNLOAD (JSONBin.io)
 // ========================================
-const RESUME_PATH = 'assets/Shah_Fahad_Resume.pdf';
+const JSONBIN_BIN_ID = 'YOUR_BIN_ID';  // Same as admin panel
+let resumeUrl = null;
 
-function initResume() {
+async function initResume() {
     const resumeBtn = document.getElementById('downloadResumeBtn');
     if (!resumeBtn) return;
 
-    // Check if resume file exists
-    fetch(RESUME_PATH, { method: 'HEAD' })
-        .then(response => {
-            if (response.ok) {
+    try {
+        // Fetch resume URL from JSONBin (public read)
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+            headers: { 'X-Access-Key': '$2a$10$xxxxxxxx' } // Will be replaced with actual key
+        });
+        const data = await response.json();
+
+        if (data.record && data.record.resumeUrl) {
+            resumeUrl = data.record.resumeUrl;
+            resumeBtn.style.display = 'inline-flex';
+        }
+    } catch (error) {
+        // Fallback to local file
+        try {
+            const localResponse = await fetch('assets/Shah_Fahad_Resume.pdf', { method: 'HEAD' });
+            if (localResponse.ok) {
+                resumeUrl = 'assets/Shah_Fahad_Resume.pdf';
                 resumeBtn.style.display = 'inline-flex';
             }
-        })
-        .catch(() => {
-            // File doesn't exist, hide button
+        } catch (e) {
             resumeBtn.style.display = 'none';
-        });
+        }
+    }
 }
 
 function downloadResume() {
-    const link = document.createElement('a');
-    link.href = RESUME_PATH;
-    link.download = 'Shah_Fahad_Resume.pdf';
-    link.click();
+    if (resumeUrl) {
+        const link = document.createElement('a');
+        link.href = resumeUrl;
+        link.download = 'Shah_Fahad_Resume.pdf';
+        link.target = '_blank';
+        link.click();
+    }
 }
 
 // Console
