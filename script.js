@@ -1,17 +1,197 @@
 // ========================================
 // SHAH FAHAD PORTFOLIO
-// Premium Interactive Experience
+// Three.js + Dynamic Projects
 // ========================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    initThreeJS();
     initThemeToggle();
     initNavigation();
+    initProjects();
     initScrollAnimations();
-    initProjectFilter();
-    initProjectModal();
     initContactForm();
     initSmoothScroll();
 });
+
+// ========================================
+// THREE.JS HERO ANIMATION
+// ========================================
+function initThreeJS() {
+    const canvas = document.getElementById('heroCanvas');
+    if (!canvas || typeof THREE === 'undefined') return;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    // Get theme colors
+    const getAccentColor = () => {
+        return document.documentElement.getAttribute('data-theme') === 'dark' ? 0xfb923c : 0xf97316;
+    };
+
+    // Particles
+    const particlesCount = 1500;
+    const positions = new Float32Array(particlesCount * 3);
+    const colors = new Float32Array(particlesCount * 3);
+    const sizes = new Float32Array(particlesCount);
+
+    for (let i = 0; i < particlesCount; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 15;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 15;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 15;
+
+        // Orange to blue gradient
+        const t = Math.random();
+        colors[i * 3] = 0.98 * (1 - t) + 0.23 * t;     // R
+        colors[i * 3 + 1] = 0.45 * (1 - t) + 0.51 * t; // G
+        colors[i * 3 + 2] = 0.09 * (1 - t) + 0.96 * t; // B
+
+        sizes[i] = Math.random() * 3 + 1;
+    }
+
+    const particlesGeometry = new THREE.BufferGeometry();
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+    const particlesMaterial = new THREE.PointsMaterial({
+        size: 0.02,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true
+    });
+
+    const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particles);
+
+    // Floating geometric shapes
+    const shapes = [];
+    const geometries = [
+        new THREE.OctahedronGeometry(0.3, 0),
+        new THREE.TetrahedronGeometry(0.3, 0),
+        new THREE.IcosahedronGeometry(0.25, 0),
+        new THREE.TorusGeometry(0.2, 0.08, 8, 16),
+        new THREE.BoxGeometry(0.3, 0.3, 0.3)
+    ];
+
+    for (let i = 0; i < 8; i++) {
+        const geometry = geometries[i % geometries.length];
+        const material = new THREE.MeshBasicMaterial({
+            color: i % 2 === 0 ? 0xf97316 : 0x3b82f6,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.3
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+
+        mesh.position.x = (Math.random() - 0.5) * 12;
+        mesh.position.y = (Math.random() - 0.5) * 12;
+        mesh.position.z = (Math.random() - 0.5) * 8 - 2;
+
+        mesh.rotation.x = Math.random() * Math.PI;
+        mesh.rotation.y = Math.random() * Math.PI;
+
+        shapes.push({
+            mesh,
+            rotationSpeed: { x: (Math.random() - 0.5) * 0.01, y: (Math.random() - 0.5) * 0.01 },
+            floatSpeed: Math.random() * 0.5 + 0.3,
+            floatOffset: Math.random() * Math.PI * 2,
+            originalY: mesh.position.y
+        });
+
+        scene.add(mesh);
+    }
+
+    // Large torus in background
+    const torusGeometry = new THREE.TorusGeometry(3, 0.02, 16, 100);
+    const torusMaterial = new THREE.MeshBasicMaterial({
+        color: 0xf97316,
+        transparent: true,
+        opacity: 0.15
+    });
+    const torus = new THREE.Mesh(torusGeometry, torusMaterial);
+    torus.position.z = -5;
+    torus.rotation.x = Math.PI / 4;
+    scene.add(torus);
+
+    // Second torus
+    const torus2Geometry = new THREE.TorusGeometry(2, 0.015, 16, 100);
+    const torus2Material = new THREE.MeshBasicMaterial({
+        color: 0x3b82f6,
+        transparent: true,
+        opacity: 0.1
+    });
+    const torus2 = new THREE.Mesh(torus2Geometry, torus2Material);
+    torus2.position.z = -4;
+    torus2.rotation.x = -Math.PI / 6;
+    scene.add(torus2);
+
+    camera.position.z = 5;
+
+    // Mouse interaction
+    let mouseX = 0, mouseY = 0;
+    let targetX = 0, targetY = 0;
+
+    document.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+        mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    // Scroll effect
+    let scrollY = 0;
+    window.addEventListener('scroll', () => {
+        scrollY = window.scrollY;
+    });
+
+    // Animation
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const elapsedTime = clock.getElapsedTime();
+
+        // Smooth mouse following
+        targetX += (mouseX - targetX) * 0.02;
+        targetY += (mouseY - targetY) * 0.02;
+
+        // Rotate particles
+        particles.rotation.x = targetY * 0.2;
+        particles.rotation.y = targetX * 0.2 + elapsedTime * 0.02;
+
+        // Scroll parallax
+        particles.position.y = -scrollY * 0.001;
+
+        // Animate torus
+        torus.rotation.x = Math.PI / 4 + elapsedTime * 0.05;
+        torus.rotation.y = elapsedTime * 0.03;
+        torus2.rotation.x = -Math.PI / 6 - elapsedTime * 0.04;
+        torus2.rotation.y = -elapsedTime * 0.02;
+
+        // Animate shapes
+        shapes.forEach((shape) => {
+            shape.mesh.rotation.x += shape.rotationSpeed.x;
+            shape.mesh.rotation.y += shape.rotationSpeed.y;
+            shape.mesh.position.y = shape.originalY + Math.sin(elapsedTime * shape.floatSpeed + shape.floatOffset) * 0.5;
+        });
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Resize
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+}
 
 // ========================================
 // THEME TOGGLE
@@ -20,7 +200,6 @@ function initThemeToggle() {
     const toggle = document.getElementById('themeToggle');
     const html = document.documentElement;
 
-    // Check for saved preference or system preference
     const savedTheme = localStorage.getItem('theme');
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
@@ -30,18 +209,11 @@ function initThemeToggle() {
         html.setAttribute('data-theme', 'dark');
     }
 
-    toggle.addEventListener('click', () => {
+    toggle?.addEventListener('click', () => {
         const currentTheme = html.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
         html.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
-
-        // Add animation
-        toggle.style.transform = 'rotate(360deg) scale(1.1)';
-        setTimeout(() => {
-            toggle.style.transform = '';
-        }, 300);
     });
 }
 
@@ -55,14 +227,12 @@ function initNavigation() {
     window.addEventListener('scroll', () => {
         const currentScrollY = window.scrollY;
 
-        // Add scrolled class
         if (currentScrollY > 50) {
             nav.classList.add('scrolled');
         } else {
             nav.classList.remove('scrolled');
         }
 
-        // Hide/show nav on scroll direction
         if (currentScrollY > lastScrollY && currentScrollY > 300) {
             nav.style.transform = 'translateY(-100%)';
         } else {
@@ -72,152 +242,177 @@ function initNavigation() {
         lastScrollY = currentScrollY;
     });
 
-    // Add transition
     nav.style.transition = 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
 }
 
 // ========================================
-// SCROLL ANIMATIONS
+// PROJECTS - Dynamic Loading from LocalStorage
 // ========================================
-function initScrollAnimations() {
-    // Register GSAP plugins if available
-    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
-        gsap.registerPlugin(ScrollTrigger);
 
-        // Animate section headers
-        gsap.utils.toArray('.section-header').forEach(header => {
-            gsap.from(header, {
-                scrollTrigger: {
-                    trigger: header,
-                    start: 'top 80%',
-                    toggleActions: 'play none none reverse'
-                },
-                y: 50,
-                opacity: 0,
-                duration: 0.8,
-                ease: 'power3.out'
-            });
-        });
-
-        // Animate bento cards
-        gsap.utils.toArray('.bento-card').forEach((card, i) => {
-            gsap.from(card, {
-                scrollTrigger: {
-                    trigger: card,
-                    start: 'top 85%',
-                    toggleActions: 'play none none reverse'
-                },
-                y: 60,
-                opacity: 0,
-                duration: 0.6,
-                delay: i * 0.1,
-                ease: 'power3.out'
-            });
-        });
-
-        // Animate project cards
-        gsap.utils.toArray('.project-card').forEach((card, i) => {
-            gsap.from(card, {
-                scrollTrigger: {
-                    trigger: card,
-                    start: 'top 85%',
-                    toggleActions: 'play none none reverse'
-                },
-                y: 80,
-                opacity: 0,
-                duration: 0.7,
-                delay: i * 0.15,
-                ease: 'power3.out'
-            });
-        });
-
-        // Animate timeline items
-        gsap.utils.toArray('.timeline-item').forEach((item, i) => {
-            gsap.from(item, {
-                scrollTrigger: {
-                    trigger: item,
-                    start: 'top 85%',
-                    toggleActions: 'play none none reverse'
-                },
-                x: -50,
-                opacity: 0,
-                duration: 0.6,
-                delay: i * 0.1,
-                ease: 'power3.out'
-            });
-        });
-
-        // Animate contact links
-        gsap.utils.toArray('.contact-link').forEach((link, i) => {
-            gsap.from(link, {
-                scrollTrigger: {
-                    trigger: link,
-                    start: 'top 90%',
-                    toggleActions: 'play none none reverse'
-                },
-                x: -30,
-                opacity: 0,
-                duration: 0.5,
-                delay: i * 0.1,
-                ease: 'power3.out'
-            });
-        });
-
-    } else {
-        // Fallback: Use Intersection Observer
-        const observerOptions = {
-            root: null,
-            rootMargin: '0px 0px -100px 0px',
-            threshold: 0.1
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('animate-in');
-                }
-            });
-        }, observerOptions);
-
-        // Add CSS for fallback animations
-        const style = document.createElement('style');
-        style.textContent = `
-            .bento-card, .project-card, .timeline-item, .contact-link, .section-header {
-                opacity: 0;
-                transform: translateY(40px);
-                transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-            }
-            .animate-in {
-                opacity: 1 !important;
-                transform: translateY(0) !important;
-            }
-        `;
-        document.head.appendChild(style);
-
-        document.querySelectorAll('.bento-card, .project-card, .timeline-item, .contact-link, .section-header')
-            .forEach(el => observer.observe(el));
+// Default projects
+const defaultProjects = [
+    {
+        id: 'eocean',
+        title: 'WhatsApp ChatBot System',
+        company: 'E-OCEAN',
+        category: 'web',
+        year: '2024',
+        featured: true,
+        description: 'Developed a sophisticated ChatBot System to preview chatbot flows and guide WhatsApp users engaging with e-Ocean\'s services. The system simulates chatbot interactions for testing and engagement.',
+        tech: ['React.js', 'Redux', 'Tailwind CSS', 'jQuery'],
+        image: null,
+        color: '#f97316',
+        icon: '🤖',
+        liveUrl: null,
+        githubUrl: null,
+        gallery: []
+    },
+    {
+        id: 'konnect',
+        title: 'Konnect - Communication Platform',
+        company: 'MILETAP',
+        category: 'realtime',
+        year: '2024',
+        featured: false,
+        description: 'Real-time communication platform with messaging and video conferencing. Built with emphasis on high performance, low latency, and scalability.',
+        tech: ['React.js', 'SignalR', 'WebRTC', 'Redux'],
+        image: null,
+        color: '#3b82f6',
+        icon: '📹',
+        liveUrl: null,
+        githubUrl: null,
+        gallery: []
+    },
+    {
+        id: 'opd',
+        title: 'OPD Entry Software',
+        company: 'KHADIM-E-INSANIYAT',
+        category: 'mobile',
+        year: '2023',
+        featured: false,
+        description: 'Healthcare OPD management software built with Flutter. Cross-platform compatibility for Android and iOS with offline support.',
+        tech: ['Flutter', 'Floor ORM', 'SQLite', 'Dart'],
+        image: null,
+        color: '#22c55e',
+        icon: '🏥',
+        liveUrl: null,
+        githubUrl: null,
+        gallery: []
     }
+];
+
+function getProjects() {
+    const stored = localStorage.getItem('portfolio_projects');
+    if (stored) {
+        return JSON.parse(stored);
+    }
+    // Initialize with defaults
+    localStorage.setItem('portfolio_projects', JSON.stringify(defaultProjects));
+    return defaultProjects;
 }
 
-// ========================================
-// PROJECT FILTER
-// ========================================
+function generateProjectImage(project) {
+    // Generate SVG placeholder with project colors
+    const color = project.color || '#f97316';
+    const icon = project.icon || '📁';
+
+    return `
+        <svg viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg" class="project-svg">
+            <defs>
+                <linearGradient id="grad-${project.id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:${color};stop-opacity:0.2" />
+                    <stop offset="100%" style="stop-color:${color};stop-opacity:0.05" />
+                </linearGradient>
+                <pattern id="grid-${project.id}" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="${color}" stroke-width="0.5" opacity="0.3"/>
+                </pattern>
+            </defs>
+            <rect width="400" height="250" fill="url(#grad-${project.id})"/>
+            <rect width="400" height="250" fill="url(#grid-${project.id})"/>
+            <circle cx="200" cy="100" r="60" fill="${color}" opacity="0.15"/>
+            <circle cx="200" cy="100" r="40" fill="${color}" opacity="0.2"/>
+            <text x="200" y="115" text-anchor="middle" font-size="50">${icon}</text>
+            <text x="200" y="200" text-anchor="middle" font-family="system-ui" font-size="14" fill="${color}" font-weight="600">${project.company}</text>
+        </svg>
+    `;
+}
+
+function renderProjects() {
+    const grid = document.getElementById('projectsGrid');
+    if (!grid) return;
+
+    const projects = getProjects();
+
+    grid.innerHTML = projects.map(project => `
+        <article class="project-card ${project.featured ? 'featured' : ''}" data-category="${project.category}" data-project="${project.id}">
+            <div class="project-media">
+                <div class="project-thumbnail">
+                    ${project.image ? `<img src="${project.image}" alt="${project.title}">` : generateProjectImage(project)}
+                </div>
+                <div class="project-badges">
+                    ${project.featured ? '<span class="badge">Featured</span>' : ''}
+                    <span class="badge">${project.year}</span>
+                </div>
+                ${project.gallery && project.gallery.length > 0 ? `
+                    <button class="project-play" aria-label="View gallery">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                    </button>
+                ` : ''}
+            </div>
+            <div class="project-content">
+                <span class="project-company">${project.company}</span>
+                <h3 class="project-title">${project.title}</h3>
+                <p class="project-desc">${project.description}</p>
+                <div class="project-tech">
+                    ${project.tech.map(t => `<span>${t}</span>`).join('')}
+                </div>
+                <div class="project-actions">
+                    <button class="btn-view" onclick="openProjectModal('${project.id}')">
+                        View Details
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </article>
+    `).join('');
+
+    // Add "More coming" card
+    grid.innerHTML += `
+        <article class="project-card add-project">
+            <div class="add-content">
+                <div class="add-icon">+</div>
+                <span>More projects coming soon...</span>
+            </div>
+        </article>
+    `;
+}
+
+function initProjects() {
+    renderProjects();
+    initProjectFilter();
+    initProjectModal();
+}
+
 function initProjectFilter() {
     const filterBtns = document.querySelectorAll('.filter-btn');
-    const projects = document.querySelectorAll('.project-card');
 
     filterBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Update active button
             filterBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
             const filter = btn.dataset.filter;
+            const projects = document.querySelectorAll('.project-card');
 
-            // Filter projects
             projects.forEach((project, index) => {
                 const category = project.dataset.category;
-                const shouldShow = filter === 'all' || category === filter;
+                const shouldShow = filter === 'all' || category === filter || !category;
 
                 if (shouldShow) {
                     project.style.display = '';
@@ -230,197 +425,94 @@ function initProjectFilter() {
     });
 }
 
-// Add fadeInUp animation
-const filterStyles = document.createElement('style');
-filterStyles.textContent = `
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-`;
-document.head.appendChild(filterStyles);
-
 // ========================================
 // PROJECT MODAL
 // ========================================
-// Project data - Add your screenshots and videos here
-const projectData = {
-    eocean: {
-        company: 'E-OCEAN',
-        title: 'WhatsApp ChatBot System',
-        description: `
-            <p>Developed a sophisticated ChatBot System to preview chatbot flows and guide WhatsApp users engaging with e-Ocean's services.</p>
-            <p>The system was designed to simulate chatbot interactions, providing a seamless and user-friendly experience for testing and user engagement.</p>
-            <h4>Key Features:</h4>
-            <ul>
-                <li>Visual flow builder for chatbot conversations</li>
-                <li>Real-time preview of WhatsApp messages</li>
-                <li>User engagement analytics dashboard</li>
-                <li>Integration with WhatsApp Business API</li>
-            </ul>
-        `,
-        tech: ['React.js', 'Redux', 'Tailwind CSS', 'jQuery', 'REST API'],
-        gallery: [
-            // Add your screenshots here:
-            // { type: 'image', src: 'projects/eocean/screenshot1.png', alt: 'Dashboard View' },
-            // { type: 'image', src: 'projects/eocean/screenshot2.png', alt: 'Chat Flow Builder' },
-            // { type: 'video', src: 'projects/eocean/demo.mp4', poster: 'projects/eocean/poster.png' },
-        ],
-        links: {
-            live: null, // Add live demo URL
-            github: null // Add GitHub URL
-        }
-    },
-    konnect: {
-        company: 'MILETAP',
-        title: 'Konnect - Real-Time Communication Platform',
-        description: `
-            <p>Built a real-time communication platform designed to facilitate seamless interactions through messaging and video conferencing.</p>
-            <p>The project emphasized high performance, low latency, and scalability to support a broad user base.</p>
-            <h4>Key Features:</h4>
-            <ul>
-                <li>Real-time messaging with SignalR</li>
-                <li>Video conferencing using WebRTC</li>
-                <li>Screen sharing capabilities</li>
-                <li>User presence and typing indicators</li>
-                <li>Message encryption for security</li>
-            </ul>
-        `,
-        tech: ['React.js', 'SignalR', 'WebRTC', 'Redux', 'React Hooks'],
-        gallery: [
-            // Add your screenshots here
-        ],
-        links: {
-            live: null,
-            github: null
-        }
-    },
-    opd: {
-        company: 'KHADIM-E-INSANIYAT',
-        title: 'OPD Entry Software',
-        description: `
-            <p>Developed a robust and user-friendly OPD Entry Software designed to streamline outpatient department operations.</p>
-            <p>The application was built using Flutter for a cross-platform interface, ensuring compatibility across Android and iOS devices.</p>
-            <h4>Key Features:</h4>
-            <ul>
-                <li>Patient registration and management</li>
-                <li>Appointment scheduling system</li>
-                <li>Medical history tracking</li>
-                <li>Offline functionality with local database</li>
-                <li>Report generation and analytics</li>
-            </ul>
-        `,
-        tech: ['Flutter', 'Floor ORM', 'SQLite', 'Dart'],
-        gallery: [
-            // Add your screenshots here
-        ],
-        links: {
-            live: null,
-            github: null
-        }
-    }
-};
-
 function initProjectModal() {
-    const modal = document.getElementById('projectModal');
-
-    // Close on escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal.classList.contains('active')) {
-            closeProjectModal();
-        }
+        if (e.key === 'Escape') closeProjectModal();
     });
 }
 
 function openProjectModal(projectId) {
-    const modal = document.getElementById('projectModal');
-    const project = projectData[projectId];
-
+    const projects = getProjects();
+    const project = projects.find(p => p.id === projectId);
     if (!project) return;
 
-    // Populate modal content
+    const modal = document.getElementById('projectModal');
+
     document.getElementById('modalCompany').textContent = project.company;
     document.getElementById('modalTitle').textContent = project.title;
-    document.getElementById('modalDescription').innerHTML = `<h3>About this project</h3>${project.description}`;
 
-    // Populate tech tags
-    const techContainer = document.getElementById('modalTech');
-    techContainer.innerHTML = project.tech.map(t => `<span>${t}</span>`).join('');
+    document.getElementById('modalDescription').innerHTML = `
+        <h3>About this project</h3>
+        <p>${project.description}</p>
+    `;
 
-    // Populate gallery
-    const galleryContainer = document.getElementById('modalGallery');
+    document.getElementById('modalTech').innerHTML = project.tech.map(t => `<span>${t}</span>`).join('');
+
+    // Gallery
+    const gallery = document.getElementById('modalGallery');
     if (project.gallery && project.gallery.length > 0) {
-        galleryContainer.innerHTML = project.gallery.map(item => {
-            if (item.type === 'image') {
-                return `<div class="gallery-item"><img src="${item.src}" alt="${item.alt}" loading="lazy"></div>`;
-            } else if (item.type === 'video') {
-                return `
-                    <div class="gallery-item video">
-                        <video controls poster="${item.poster || ''}">
-                            <source src="${item.src}" type="video/mp4">
-                        </video>
-                    </div>
-                `;
+        gallery.innerHTML = project.gallery.map(item => {
+            if (item.type === 'video') {
+                return `<div class="gallery-item"><video controls src="${item.url}"></video></div>`;
             }
+            return `<div class="gallery-item"><img src="${item.url}" alt="${item.alt || project.title}"></div>`;
         }).join('');
     } else {
-        galleryContainer.innerHTML = `
+        gallery.innerHTML = `
             <div class="gallery-placeholder">
-                <p>Add screenshots and videos to showcase your project</p>
-                <span>Add images to: projects/${projectId}/</span>
+                ${generateProjectImage(project)}
+                <p style="margin-top: 20px;">Screenshots and videos coming soon</p>
             </div>
         `;
     }
 
-    // Populate links
-    const linksContainer = document.getElementById('modalLinks');
-    linksContainer.innerHTML = '';
-    if (project.links.live) {
-        linksContainer.innerHTML += `
-            <a href="${project.links.live}" target="_blank" class="modal-link">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-                    <polyline points="15 3 21 3 21 9"/>
-                    <line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
-                Live Demo
-            </a>
-        `;
+    // Links
+    const links = document.getElementById('modalLinks');
+    let linksHtml = '';
+    if (project.liveUrl) {
+        linksHtml += `<a href="${project.liveUrl}" target="_blank" class="modal-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Live Demo
+        </a>`;
     }
-    if (project.links.github) {
-        linksContainer.innerHTML += `
-            <a href="${project.links.github}" target="_blank" class="modal-link">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                </svg>
-                Source Code
-            </a>
-        `;
+    if (project.githubUrl) {
+        linksHtml += `<a href="${project.githubUrl}" target="_blank" class="modal-link">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+            Source Code
+        </a>`;
     }
-    if (!project.links.live && !project.links.github) {
-        linksContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Links coming soon...</p>';
-    }
+    links.innerHTML = linksHtml || '<p style="color: var(--text-muted); font-size: 13px;">Links coming soon...</p>';
 
-    // Show modal
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
 }
 
 function closeProjectModal() {
-    const modal = document.getElementById('projectModal');
-    modal.classList.remove('active');
+    document.getElementById('projectModal')?.classList.remove('active');
     document.body.style.overflow = '';
 }
 
-// Make functions globally available
 window.openProjectModal = openProjectModal;
 window.closeProjectModal = closeProjectModal;
+
+// ========================================
+// SCROLL ANIMATIONS
+// ========================================
+function initScrollAnimations() {
+    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+        gsap.registerPlugin(ScrollTrigger);
+
+        gsap.utils.toArray('.section-header, .bento-card, .timeline-item, .contact-link').forEach((el, i) => {
+            gsap.from(el, {
+                scrollTrigger: { trigger: el, start: 'top 85%', toggleActions: 'play none none reverse' },
+                y: 60, opacity: 0, duration: 0.7, delay: i * 0.05, ease: 'power3.out'
+            });
+        });
+    }
+}
 
 // ========================================
 // CONTACT FORM
@@ -431,28 +523,19 @@ function initContactForm() {
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-
         const btn = form.querySelector('button[type="submit"]');
         const btnText = btn.querySelector('span');
         const originalText = btnText.textContent;
 
-        // Loading state
         btn.disabled = true;
         btnText.textContent = 'Sending...';
-        btn.style.opacity = '0.7';
 
-        // Simulate sending (replace with actual API call)
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Success state
         btnText.textContent = 'Message Sent!';
         btn.style.background = '#22c55e';
-        btn.style.opacity = '1';
-
-        // Reset form
         form.reset();
 
-        // Reset button after delay
         setTimeout(() => {
             btn.disabled = false;
             btnText.textContent = originalText;
@@ -470,74 +553,48 @@ function initSmoothScroll() {
             e.preventDefault();
             const target = document.querySelector(this.getAttribute('href'));
             if (target) {
-                const offset = 100;
-                const top = target.getBoundingClientRect().top + window.scrollY - offset;
-                window.scrollTo({
-                    top,
-                    behavior: 'smooth'
-                });
+                const top = target.getBoundingClientRect().top + window.scrollY - 100;
+                window.scrollTo({ top, behavior: 'smooth' });
             }
         });
     });
 }
 
 // ========================================
-// UTILITY: Add hover effects
+// STYLES
 // ========================================
-document.querySelectorAll('.btn-primary, .btn-secondary, .btn-outline, .btn-view').forEach(btn => {
-    btn.addEventListener('mouseenter', function() {
-        this.style.transform = 'translateY(-2px)';
-    });
-    btn.addEventListener('mouseleave', function() {
-        this.style.transform = '';
-    });
-});
-
-// ========================================
-// CONSOLE MESSAGE
-// ========================================
-console.log('%c👋 Hey there!', 'font-size: 24px; font-weight: bold; color: #f97316;');
-console.log('%cWelcome to my portfolio. Looking to hire?', 'font-size: 14px; color: #888;');
-console.log('%cEmail: fahaddoc600@gmail.com', 'font-size: 14px; color: #f97316;');
-console.log('%cPhone: +92 304 2186009', 'font-size: 14px; color: #f97316;');
-
-// ========================================
-// GALLERY STYLES (for modal)
-// ========================================
-const galleryStyles = document.createElement('style');
-galleryStyles.textContent = `
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .project-svg {
+        width: 100%;
+        height: 100%;
+    }
     .gallery-item {
         border-radius: 12px;
         overflow: hidden;
         margin-bottom: 16px;
     }
-    .gallery-item img {
+    .gallery-item img, .gallery-item video {
         width: 100%;
-        height: auto;
         display: block;
     }
-    .gallery-item video {
-        width: 100%;
-        height: auto;
-        display: block;
+    .gallery-placeholder {
+        text-align: center;
+        padding: 20px;
     }
-    .gallery-item.video {
-        position: relative;
-    }
-    #modalDescription h4 {
-        font-size: 16px;
-        font-weight: 600;
-        margin: 20px 0 12px;
-    }
-    #modalDescription ul {
-        padding-left: 20px;
-        color: var(--text-secondary);
-    }
-    #modalDescription li {
-        margin-bottom: 8px;
-    }
-    #modalDescription p {
-        margin-bottom: 12px;
+    .gallery-placeholder .project-svg {
+        max-width: 300px;
+        margin: 0 auto;
+        border-radius: 12px;
+        overflow: hidden;
     }
 `;
-document.head.appendChild(galleryStyles);
+document.head.appendChild(style);
+
+// Console
+console.log('%c👋 Hey there!', 'font-size: 24px; font-weight: bold; color: #f97316;');
+console.log('%cAdmin Panel: /admin.html', 'font-size: 14px; color: #888;');
