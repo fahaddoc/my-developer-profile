@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shah Fahad — Software Engineer</title>
-    <meta name="description" content="Senior Software Engineer with 8+ years of experience. Specializing in React, Flutter, and real-time applications.">
+    <meta name="description" content="Senior Software Engineer with 6+ years of experience. Specializing in React, Flutter, and real-time applications.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +13,24 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Preloader -->
+    <div class="preloader" id="preloader">
+        <div class="preloader-content">
+            <div class="preloader-logo">SF</div>
+            <div class="preloader-bar">
+                <div class="preloader-progress" id="preloaderProgress"></div>
+            </div>
+            <div class="preloader-text">Loading<span class="preloader-dots"></span></div>
+        </div>
+    </div>
+
+    <!-- Custom Cursor -->
+    <div class="cursor" id="cursor">
+        <div class="cursor-dot"></div>
+        <div class="cursor-ring"></div>
+    </div>
+    <div class="cursor-trail" id="cursorTrail"></div>
+
     <!-- Three.js Canvas -->
     <canvas id="heroCanvas"></canvas>
 
@@ -37,10 +55,10 @@
         </a>
 
         <div class="nav-links">
-            <a href="#about">About</a>
-            <a href="#projects">Projects</a>
-            <a href="#experience">Experience</a>
-            <a href="#contact">Contact</a>
+            <a href="#about" data-text="About">About</a>
+            <a href="#projects" data-text="Projects">Projects</a>
+            <a href="#experience" data-text="Experience">Experience</a>
+            <a href="#contact" data-text="Contact">Contact</a>
         </div>
 
         <a href="#contact" class="nav-cta">
@@ -57,13 +75,13 @@
                 Available for opportunities
             </div>
 
-            <h1 class="hero-title">
-                <span class="title-line">Software</span>
-                <span class="title-line">Engineer<span class="title-accent">.</span></span>
+            <h1 class="hero-title" data-scramble>
+                <span class="title-line" data-parallax="0.1">Software</span>
+                <span class="title-line" data-parallax="0.15">Engineer<span class="title-accent">.</span></span>
             </h1>
 
             <p class="hero-subtitle">
-                I'm <strong>Shah Fahad</strong>, a passionate developer with <strong>8+ years</strong> of experience
+                I'm <strong>Shah Fahad</strong>, a passionate developer with <strong>6+ years</strong> of experience
                 crafting high-performance web & mobile applications. Currently at <strong>DigitalHire</strong>,
                 based in <span class="location">Karachi, Pakistan</span>.
             </p>
@@ -90,7 +108,7 @@
 
             <div class="hero-stats">
                 <div class="stat">
-                    <span class="stat-num">8+</span>
+                    <span class="stat-num">6+</span>
                     <span class="stat-text">Years Exp.</span>
                 </div>
                 <div class="stat">
@@ -148,9 +166,10 @@
     </header>
 
     <!-- About Section - Bento Grid -->
-    <section class="about" id="about">
+    <section class="about" id="about" data-section="01">
         <div class="container">
             <div class="section-header">
+                <span class="section-number">01</span>
                 <span class="section-tag">About Me</span>
                 <h2 class="section-title">Turning ideas into reality through code</h2>
             </div>
@@ -212,7 +231,7 @@
 
                 <!-- Experience Highlight -->
                 <div class="bento-card exp-card">
-                    <div class="exp-number">8<span>+</span></div>
+                    <div class="exp-number">6<span>+</span></div>
                     <div class="exp-label">Years of Experience</div>
                     <div class="exp-bar"><div class="exp-progress"></div></div>
                 </div>
@@ -237,9 +256,10 @@
     </section>
 
     <!-- Projects Section -->
-    <section class="projects" id="projects">
+    <section class="projects" id="projects" data-section="02">
         <div class="container">
             <div class="section-header">
+                <span class="section-number">02</span>
                 <span class="section-tag">My Work</span>
                 <h2 class="section-title">Featured Projects</h2>
                 <p class="section-desc">A collection of projects I've built. Click to view details, screenshots, and videos.</p>
@@ -300,9 +320,10 @@
     </div>
 
     <!-- Experience Section -->
-    <section class="experience" id="experience">
+    <section class="experience" id="experience" data-section="03">
         <div class="container">
             <div class="section-header">
+                <span class="section-number">03</span>
                 <span class="section-tag">Experience</span>
                 <h2 class="section-title">My Journey</h2>
             </div>
@@ -316,7 +337,7 @@
                                 <h3>Software Engineer</h3>
                                 <span class="company">DigitalHire</span>
                             </div>
-                            <span class="timeline-date">2024 - Present</span>
+                            <span class="timeline-date">Jan 2023 - Present</span>
                         </div>
                         <p>Leading frontend development initiatives, building scalable web applications with React.js and modern JavaScript.</p>
                         <div class="timeline-tech">
@@ -391,10 +412,11 @@
     </section>
 
     <!-- Contact Section -->
-    <section class="contact" id="contact">
+    <section class="contact" id="contact" data-section="04">
         <div class="container">
             <div class="contact-wrapper">
                 <div class="contact-info">
+                    <span class="section-number">04</span>
                     <span class="section-tag">Contact</span>
                     <h2 class="contact-title">Let's work together</h2>
                     <p class="contact-subtitle">Have a project in mind or looking to hire? I'm currently open to new opportunities.</p>
@@ -521,6 +543,10 @@
     <!-- GSAP -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <!-- Lenis Smooth Scroll -->
+    <script src="https://unpkg.com/lenis@1.1.18/dist/lenis.min.js"></script>
+    <!-- SplitType for text animations -->
+    <script src="https://unpkg.com/split-type@0.3.4/umd/index.min.js"></script>
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <!-- Custom Script -->

@@ -1,18 +1,410 @@
 // ========================================
 // SHAH FAHAD PORTFOLIO
-// Three.js + Dynamic Projects
+// Artefakt.mov Inspired Premium Effects
 // ========================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    initPreloader();
+    initCustomCursor();
+    initLenisSmoothScroll();
     initThreeJS();
     initThemeToggle();
     initNavigation();
     initProjects();
+    initParallaxEffects();
+    initTextAnimations();
     initScrollAnimations();
     initContactForm();
-    initSmoothScroll();
     initResume();
 });
+
+// ========================================
+// PRELOADER
+// ========================================
+function initPreloader() {
+    const preloader = document.getElementById('preloader');
+    const progress = document.getElementById('preloaderProgress');
+    if (!preloader || !progress) return;
+
+    let loadProgress = 0;
+    const interval = setInterval(() => {
+        loadProgress += Math.random() * 15;
+        if (loadProgress >= 100) {
+            loadProgress = 100;
+            clearInterval(interval);
+            setTimeout(() => {
+                preloader.classList.add('loaded');
+                document.body.classList.add('page-loaded');
+                // Trigger reveal animations after preloader
+                setTimeout(triggerPageReveal, 300);
+            }, 500);
+        }
+        progress.style.width = loadProgress + '%';
+    }, 100);
+
+    // Fallback: hide preloader after 3 seconds max
+    setTimeout(() => {
+        if (!preloader.classList.contains('loaded')) {
+            preloader.classList.add('loaded');
+            document.body.classList.add('page-loaded');
+            triggerPageReveal();
+        }
+    }, 3000);
+}
+
+function triggerPageReveal() {
+    // Add visible class to page reveal elements
+    document.querySelectorAll('.page-reveal').forEach((el, i) => {
+        setTimeout(() => el.classList.add('visible'), i * 100);
+    });
+    document.querySelectorAll('.stagger-reveal').forEach(el => {
+        el.classList.add('visible');
+    });
+}
+
+// ========================================
+// CUSTOM CURSOR SYSTEM
+// ========================================
+function initCustomCursor() {
+    // Check for touch device
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        return; // Don't init cursor on touch devices
+    }
+
+    const cursor = document.getElementById('cursor');
+    const cursorTrail = document.getElementById('cursorTrail');
+    if (!cursor || !cursorTrail) return;
+
+    const dot = cursor.querySelector('.cursor-dot');
+    const ring = cursor.querySelector('.cursor-ring');
+
+    let mouseX = 0, mouseY = 0;
+    let dotX = 0, dotY = 0;
+    let ringX = 0, ringY = 0;
+
+    // Create trail particles
+    const trailCount = 20;
+    const trailParticles = [];
+    for (let i = 0; i < trailCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'trail-particle';
+        particle.style.cssText = `
+            position: absolute;
+            width: ${4 - (i * 0.15)}px;
+            height: ${4 - (i * 0.15)}px;
+            background: var(--accent);
+            border-radius: 50%;
+            opacity: 0;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        `;
+        cursorTrail.appendChild(particle);
+        trailParticles.push({
+            el: particle,
+            x: 0,
+            y: 0
+        });
+    }
+
+    // Track mouse position
+    document.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+    });
+
+    // Animate cursor
+    function animateCursor() {
+        // Smooth dot following
+        dotX += (mouseX - dotX) * 0.2;
+        dotY += (mouseY - dotY) * 0.2;
+
+        // Smoother ring following (more delay)
+        ringX += (mouseX - ringX) * 0.1;
+        ringY += (mouseY - ringY) * 0.1;
+
+        // Apply transforms
+        dot.style.transform = `translate(${dotX}px, ${dotY}px) translate(-50%, -50%)`;
+        ring.style.transform = `translate(${ringX}px, ${ringY}px) translate(-50%, -50%)`;
+
+        // Animate trail
+        for (let i = trailParticles.length - 1; i > 0; i--) {
+            trailParticles[i].x = trailParticles[i - 1].x;
+            trailParticles[i].y = trailParticles[i - 1].y;
+        }
+        trailParticles[0].x = dotX;
+        trailParticles[0].y = dotY;
+
+        trailParticles.forEach((p, i) => {
+            p.el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
+            p.el.style.opacity = (1 - i / trailCount) * 0.4;
+        });
+
+        requestAnimationFrame(animateCursor);
+    }
+    animateCursor();
+
+    // Hover effects on interactive elements
+    const hoverElements = document.querySelectorAll('a, button, .project-card, .bento-card, .filter-btn, .tech-item');
+    hoverElements.forEach(el => {
+        el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+        el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+    });
+
+    // Text hover effect on headings
+    const textElements = document.querySelectorAll('h1, h2, .hero-title');
+    textElements.forEach(el => {
+        el.addEventListener('mouseenter', () => {
+            cursor.classList.remove('hover');
+            cursor.classList.add('text');
+        });
+        el.addEventListener('mouseleave', () => cursor.classList.remove('text'));
+    });
+
+    // Hide cursor when leaving window
+    document.addEventListener('mouseleave', () => cursor.classList.add('hidden'));
+    document.addEventListener('mouseenter', () => cursor.classList.remove('hidden'));
+
+    // Magnetic effect on buttons
+    const magneticElements = document.querySelectorAll('.btn-primary, .btn-secondary, .nav-cta');
+    magneticElements.forEach(el => {
+        el.addEventListener('mousemove', (e) => {
+            const rect = el.getBoundingClientRect();
+            const x = e.clientX - rect.left - rect.width / 2;
+            const y = e.clientY - rect.top - rect.height / 2;
+            el.style.transform = `translate(${x * 0.2}px, ${y * 0.2}px)`;
+        });
+        el.addEventListener('mouseleave', () => {
+            el.style.transform = '';
+        });
+    });
+}
+
+// ========================================
+// LENIS SMOOTH SCROLL
+// ========================================
+let lenis = null;
+
+function initLenisSmoothScroll() {
+    // Don't init on mobile for performance
+    if (window.innerWidth < 768 || 'ontouchstart' in window) {
+        return;
+    }
+
+    if (typeof Lenis === 'undefined') return;
+
+    lenis = new Lenis({
+        duration: 1.2,
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        orientation: 'vertical',
+        gestureOrientation: 'vertical',
+        smoothWheel: true,
+        wheelMultiplier: 1,
+        touchMultiplier: 2,
+        infinite: false
+    });
+
+    // Connect Lenis to GSAP ScrollTrigger
+    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+        lenis.on('scroll', ScrollTrigger.update);
+
+        gsap.ticker.add((time) => {
+            lenis.raf(time * 1000);
+        });
+
+        gsap.ticker.lagSmoothing(0);
+    }
+
+    function raf(time) {
+        lenis.raf(time);
+        requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+
+    // Handle anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                lenis.scrollTo(target, { offset: -100 });
+            }
+        });
+    });
+}
+
+// ========================================
+// PARALLAX EFFECTS
+// ========================================
+function initParallaxEffects() {
+    if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Hero title parallax
+    const heroTitleLines = document.querySelectorAll('.title-line[data-parallax]');
+    heroTitleLines.forEach((line) => {
+        const speed = parseFloat(line.dataset.parallax) || 0.1;
+        gsap.to(line, {
+            y: () => window.innerHeight * speed,
+            ease: 'none',
+            scrollTrigger: {
+                trigger: '.hero',
+                start: 'top top',
+                end: 'bottom top',
+                scrub: true
+            }
+        });
+    });
+
+    // Section fade-in on scroll
+    gsap.utils.toArray('section').forEach(section => {
+        gsap.from(section, {
+            opacity: 0.8,
+            y: 50,
+            scrollTrigger: {
+                trigger: section,
+                start: 'top 80%',
+                end: 'top 50%',
+                scrub: 1
+            }
+        });
+    });
+
+    // Project cards scale on scroll
+    gsap.utils.toArray('.project-card').forEach((card, i) => {
+        gsap.from(card, {
+            scale: 0.9,
+            opacity: 0,
+            y: 60,
+            scrollTrigger: {
+                trigger: card,
+                start: 'top 85%',
+                end: 'top 60%',
+                scrub: 1
+            }
+        });
+    });
+
+    // Bento cards staggered reveal
+    const bentoCards = gsap.utils.toArray('.bento-card');
+    bentoCards.forEach((card, i) => {
+        gsap.from(card, {
+            opacity: 0,
+            y: 80,
+            scale: 0.95,
+            duration: 0.8,
+            delay: i * 0.1,
+            scrollTrigger: {
+                trigger: card,
+                start: 'top 85%',
+                toggleActions: 'play none none reverse'
+            }
+        });
+    });
+
+    // Timeline items
+    gsap.utils.toArray('.timeline-item').forEach((item, i) => {
+        gsap.from(item, {
+            opacity: 0,
+            x: -50,
+            duration: 0.6,
+            delay: i * 0.15,
+            scrollTrigger: {
+                trigger: item,
+                start: 'top 80%',
+                toggleActions: 'play none none reverse'
+            }
+        });
+    });
+}
+
+// ========================================
+// TEXT ANIMATIONS
+// ========================================
+function initTextAnimations() {
+    // Text scramble effect on nav links
+    const navLinks = document.querySelectorAll('.nav-links a');
+
+    navLinks.forEach(link => {
+        const originalText = link.textContent;
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+
+        link.addEventListener('mouseenter', () => {
+            let iteration = 0;
+            const interval = setInterval(() => {
+                link.textContent = originalText
+                    .split('')
+                    .map((char, index) => {
+                        if (index < iteration) {
+                            return originalText[index];
+                        }
+                        return chars[Math.floor(Math.random() * chars.length)];
+                    })
+                    .join('');
+
+                if (iteration >= originalText.length) {
+                    clearInterval(interval);
+                }
+                iteration += 1 / 3;
+            }, 30);
+        });
+
+        link.addEventListener('mouseleave', () => {
+            link.textContent = originalText;
+        });
+    });
+
+    // Hero title character animation with SplitType
+    if (typeof SplitType !== 'undefined') {
+        const heroTitle = document.querySelector('.hero-title');
+        if (heroTitle) {
+            // Wait for fonts to load
+            setTimeout(() => {
+                const split = new SplitType(heroTitle, { types: 'chars' });
+
+                gsap.from(split.chars, {
+                    opacity: 0,
+                    y: 50,
+                    rotateX: -90,
+                    stagger: 0.02,
+                    duration: 0.8,
+                    ease: 'back.out(1.7)',
+                    delay: 0.5 // After preloader
+                });
+            }, 100);
+        }
+    }
+
+    // Section titles reveal animation
+    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+        gsap.utils.toArray('.section-title').forEach(title => {
+            gsap.from(title, {
+                opacity: 0,
+                y: 30,
+                duration: 0.8,
+                scrollTrigger: {
+                    trigger: title,
+                    start: 'top 85%',
+                    toggleActions: 'play none none reverse'
+                }
+            });
+        });
+
+        // Section numbers animation
+        gsap.utils.toArray('.section-number').forEach(num => {
+            gsap.from(num, {
+                opacity: 0,
+                x: -30,
+                duration: 0.6,
+                scrollTrigger: {
+                    trigger: num,
+                    start: 'top 85%',
+                    toggleActions: 'play none none reverse'
+                }
+            });
+        });
+    }
+}
 
 // ========================================
 // THREE.JS HERO ANIMATION
@@ -254,35 +646,86 @@ function initNavigation() {
 const defaultProjects = [
     {
         id: 'eocean',
-        title: 'WhatsApp ChatBot System',
+        title: 'WhatsApp ChatBot Simulator',
         company: 'E-OCEAN',
         category: 'web',
         year: '2024',
         featured: true,
-        description: 'Developed a sophisticated ChatBot System to preview chatbot flows and guide WhatsApp users engaging with e-Ocean\'s services. The system simulates chatbot interactions for testing and engagement.',
-        tech: ['React.js', 'Redux', 'Tailwind CSS', 'jQuery'],
-        image: null,
+        description: 'Developed a sophisticated ChatBot Simulator with visual Flow Builder to design, preview and test WhatsApp chatbot flows. Features real-time state viewer, drag-and-drop flow creation, and live WhatsApp preview for testing user interactions.',
+        tech: ['React.js', 'Redux', 'Tailwind CSS', 'Node.js'],
+        image: 'assets/projects/chatbot.jpg',
         color: '#f97316',
         icon: '🤖',
         liveUrl: null,
         githubUrl: null,
-        gallery: []
+        gallery: [{ type: 'image', url: 'assets/projects/chatbot.jpg', alt: 'ChatBot Flow Builder' }]
     },
     {
         id: 'konnect',
-        title: 'Konnect - Communication Platform',
+        title: 'Konnect.im - Video Conferencing',
         company: 'MILETAP',
         category: 'realtime',
         year: '2024',
-        featured: false,
-        description: 'Real-time communication platform with messaging and video conferencing. Built with emphasis on high performance, low latency, and scalability.',
+        featured: true,
+        description: 'Enterprise-grade video conferencing platform supporting multi-participant calls with real-time chat integration. Features screen sharing, participant management, and seamless WebRTC-powered communication.',
         tech: ['React.js', 'SignalR', 'WebRTC', 'Redux'],
-        image: null,
+        image: 'assets/projects/konnect.im.jpg',
         color: '#3b82f6',
         icon: '📹',
         liveUrl: null,
         githubUrl: null,
-        gallery: []
+        gallery: [{ type: 'image', url: 'assets/projects/konnect.im.jpg', alt: 'Konnect Video Call' }]
+    },
+    {
+        id: 'helpers',
+        title: 'Helpers - Service Booking App',
+        company: 'Freelance',
+        category: 'mobile',
+        year: '2024',
+        featured: false,
+        description: 'Mobile app connecting users with skilled professionals for home services. Features include service categories (Plumbing, Cleaning, Electrician, AC Repair), helper ratings, real-time booking status, and in-app messaging.',
+        tech: ['Flutter', 'Firebase', 'Google Maps', 'Stripe'],
+        image: 'assets/projects/helpers.jpg',
+        color: '#f97316',
+        icon: '🔧',
+        liveUrl: null,
+        githubUrl: null,
+        gallery: [{ type: 'image', url: 'assets/projects/helpers.jpg', alt: 'Helpers App' }]
+    },
+    {
+        id: 'khawateen',
+        title: 'Khawateen Rozgar Services',
+        company: 'EXACT',
+        category: 'web',
+        year: '2023',
+        featured: false,
+        description: 'Women empowerment job portal connecting female candidates with employers. Features job search, candidate profiles, workshops, and resources for women re-entering the workforce across IT, Healthcare, Teaching, and Marketing sectors.',
+        tech: ['React.js', 'Node.js', 'MongoDB', 'Express'],
+        image: 'assets/projects/khawateen.jpg',
+        color: '#ec4899',
+        icon: '👩‍💼',
+        liveUrl: null,
+        githubUrl: null,
+        gallery: [
+            { type: 'image', url: 'assets/projects/khawateen.jpg', alt: 'Khawateen Portal' },
+            { type: 'image', url: 'assets/projects/khawateen_rozgar_services_cover.jpeg', alt: 'Khawateen Logo' }
+        ]
+    },
+    {
+        id: 'kistpay',
+        title: 'Kistpay Admin Portal',
+        company: 'KISTPAY',
+        category: 'web',
+        year: '2023',
+        featured: false,
+        description: 'Installment management system for tracking customer payments. Dashboard with analytics for total installments, active customers, pending payments (8.4M PKR), payment graphs, and role-based access control.',
+        tech: ['React.js', 'Redux', 'Chart.js', 'REST API'],
+        image: 'assets/projects/kistpay-portal.jpg',
+        color: '#14b8a6',
+        icon: '💳',
+        liveUrl: null,
+        githubUrl: null,
+        gallery: [{ type: 'image', url: 'assets/projects/kistpay-portal.jpg', alt: 'Kistpay Dashboard' }]
     },
     {
         id: 'opd',
@@ -291,23 +734,68 @@ const defaultProjects = [
         category: 'mobile',
         year: '2023',
         featured: false,
-        description: 'Healthcare OPD management software built with Flutter. Cross-platform compatibility for Android and iOS with offline support.',
+        description: 'Healthcare OPD management app for patient registration and tracking. Features daily patient count, pending cases, patient search, new entry forms, and full offline support with local database sync.',
         tech: ['Flutter', 'Floor ORM', 'SQLite', 'Dart'],
-        image: null,
+        image: 'assets/projects/opd-entry.jpg',
         color: '#22c55e',
         icon: '🏥',
         liveUrl: null,
         githubUrl: null,
-        gallery: []
+        gallery: [{ type: 'image', url: 'assets/projects/opd-entry.jpg', alt: 'OPD Entry App' }]
+    },
+    {
+        id: 'reapagro',
+        title: 'Reap Agro - Loan Management',
+        company: 'REAP AGRO',
+        category: 'web',
+        year: '2023',
+        featured: false,
+        description: 'Agricultural loan management system for farmers. Track total loans, active loans, document uploads, land records, agreements, and repayment schedules with intuitive dashboard interface.',
+        tech: ['React.js', 'Node.js', 'PostgreSQL', 'AWS'],
+        image: 'assets/projects/reap-agro.jpg',
+        color: '#84cc16',
+        icon: '🌾',
+        liveUrl: null,
+        githubUrl: null,
+        gallery: [{ type: 'image', url: 'assets/projects/reap-agro.jpg', alt: 'Reap Agro Dashboard' }]
+    },
+    {
+        id: 'screening',
+        title: 'Digital Display Manager',
+        company: 'SCREENING',
+        category: 'web',
+        year: '2022',
+        featured: false,
+        description: 'Content management system for digital signage displays. Features playlist builder, live preview, zone management, content scheduling with calendar, and multi-display support for corporate environments.',
+        tech: ['React.js', 'Electron', 'Node.js', 'WebSocket'],
+        image: 'assets/projects/screening.jpg',
+        color: '#f59e0b',
+        icon: '🖥️',
+        liveUrl: null,
+        githubUrl: null,
+        gallery: [{ type: 'image', url: 'assets/projects/screening.jpg', alt: 'Screening Dashboard' }]
+    },
+    {
+        id: 'leavesystem',
+        title: 'Leave Management System',
+        company: 'DR. RUTH K.M. PFAU CIVIL HOSPITAL',
+        category: 'web',
+        year: '2019',
+        featured: false,
+        description: 'Employee leave application and management system for Civil Hospital Karachi. Features pending requests, leave history, application submission, approval workflow, and department-wise tracking.',
+        tech: ['PHP', 'jQuery', 'MySQL', 'Bootstrap'],
+        image: 'assets/projects/leave-applications-system.jpg',
+        color: '#0ea5e9',
+        icon: '📋',
+        liveUrl: null,
+        githubUrl: null,
+        gallery: [{ type: 'image', url: 'assets/projects/leave-applications-system.jpg', alt: 'Leave System' }]
     }
 ];
 
 function getProjects() {
-    const stored = localStorage.getItem('portfolio_projects');
-    if (stored) {
-        return JSON.parse(stored);
-    }
-    // Initialize with defaults
+    // Always use defaultProjects for consistent data
+    // Update localStorage with latest projects
     localStorage.setItem('portfolio_projects', JSON.stringify(defaultProjects));
     return defaultProjects;
 }
@@ -348,28 +836,24 @@ function renderProjects() {
         <article class="project-card ${project.featured ? 'featured' : ''}" data-category="${project.category}" data-project="${project.id}">
             <div class="project-media">
                 <div class="project-thumbnail">
-                    ${project.image ? `<img src="${project.image}" alt="${project.title}">` : generateProjectImage(project)}
+                    ${project.image ? `<img src="${project.image}" alt="${project.title}" loading="lazy">` : generateProjectImage(project)}
                 </div>
                 <div class="project-badges">
                     ${project.featured ? '<span class="badge">Featured</span>' : ''}
                     <span class="badge">${project.year}</span>
                 </div>
-                ${project.gallery && project.gallery.length > 0 ? `
-                    <button class="project-play" aria-label="View gallery">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <circle cx="8.5" cy="8.5" r="1.5"/>
-                            <polyline points="21 15 16 10 5 21"/>
-                        </svg>
-                    </button>
-                ` : ''}
+                <button class="project-play" aria-label="View details" onclick="openProjectModal('${project.id}')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
             </div>
             <div class="project-content">
                 <span class="project-company">${project.company}</span>
                 <h3 class="project-title">${project.title}</h3>
-                <p class="project-desc">${project.description}</p>
+                <p class="project-desc">${project.description.length > 120 ? project.description.substring(0, 120) + '...' : project.description}</p>
                 <div class="project-tech">
-                    ${project.tech.map(t => `<span>${t}</span>`).join('')}
+                    ${project.tech.slice(0, 4).map(t => `<span>${t}</span>`).join('')}
                 </div>
                 <div class="project-actions">
                     <button class="btn-view" onclick="openProjectModal('${project.id}')">
@@ -382,16 +866,6 @@ function renderProjects() {
             </div>
         </article>
     `).join('');
-
-    // Add "More coming" card
-    grid.innerHTML += `
-        <article class="project-card add-project">
-            <div class="add-content">
-                <div class="add-icon">+</div>
-                <span>More projects coming soon...</span>
-            </div>
-        </article>
-    `;
 }
 
 function initProjects() {
@@ -455,17 +929,19 @@ function openProjectModal(projectId) {
     // Gallery
     const gallery = document.getElementById('modalGallery');
     if (project.gallery && project.gallery.length > 0) {
-        gallery.innerHTML = project.gallery.map(item => {
+        gallery.innerHTML = `<div class="gallery-grid">${project.gallery.map(item => {
             if (item.type === 'video') {
                 return `<div class="gallery-item"><video controls src="${item.url}"></video></div>`;
             }
-            return `<div class="gallery-item"><img src="${item.url}" alt="${item.alt || project.title}"></div>`;
-        }).join('');
+            return `<div class="gallery-item"><img src="${item.url}" alt="${item.alt || project.title}" loading="lazy"></div>`;
+        }).join('')}</div>`;
+    } else if (project.image) {
+        gallery.innerHTML = `<div class="gallery-item"><img src="${project.image}" alt="${project.title}"></div>`;
     } else {
         gallery.innerHTML = `
             <div class="gallery-placeholder">
                 ${generateProjectImage(project)}
-                <p style="margin-top: 20px;">Screenshots and videos coming soon</p>
+                <p style="margin-top: 20px;">Screenshots coming soon</p>
             </div>
         `;
     }
@@ -500,19 +976,88 @@ window.openProjectModal = openProjectModal;
 window.closeProjectModal = closeProjectModal;
 
 // ========================================
-// SCROLL ANIMATIONS
+// SCROLL ANIMATIONS (Enhanced)
 // ========================================
 function initScrollAnimations() {
-    if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
-        gsap.registerPlugin(ScrollTrigger);
+    if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
 
-        gsap.utils.toArray('.section-header, .bento-card, .timeline-item, .contact-link').forEach((el, i) => {
-            gsap.from(el, {
-                scrollTrigger: { trigger: el, start: 'top 85%', toggleActions: 'play none none reverse' },
-                y: 60, opacity: 0, duration: 0.7, delay: i * 0.05, ease: 'power3.out'
-            });
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Contact links
+    gsap.utils.toArray('.contact-link').forEach((el, i) => {
+        gsap.from(el, {
+            scrollTrigger: {
+                trigger: el,
+                start: 'top 85%',
+                toggleActions: 'play none none reverse'
+            },
+            x: -40,
+            opacity: 0,
+            duration: 0.6,
+            delay: i * 0.1,
+            ease: 'power3.out'
+        });
+    });
+
+    // Contact form
+    const contactForm = document.querySelector('.contact-form');
+    if (contactForm) {
+        gsap.from(contactForm, {
+            scrollTrigger: {
+                trigger: contactForm,
+                start: 'top 80%',
+                toggleActions: 'play none none reverse'
+            },
+            y: 60,
+            opacity: 0,
+            duration: 0.8,
+            ease: 'power3.out'
         });
     }
+
+    // Stats counter animation
+    const stats = document.querySelectorAll('.stat-num');
+    stats.forEach(stat => {
+        const finalValue = parseInt(stat.textContent);
+        if (!isNaN(finalValue)) {
+            gsap.from(stat, {
+                textContent: 0,
+                duration: 2,
+                snap: { textContent: 1 },
+                scrollTrigger: {
+                    trigger: stat,
+                    start: 'top 80%',
+                    toggleActions: 'play none none none'
+                },
+                onUpdate: function() {
+                    stat.textContent = Math.ceil(this.targets()[0].textContent) + '+';
+                }
+            });
+        }
+    });
+
+    // Hero elements stagger
+    const heroElements = document.querySelectorAll('.hero-tag, .hero-subtitle, .hero-actions, .hero-stats');
+    gsap.from(heroElements, {
+        opacity: 0,
+        y: 40,
+        stagger: 0.15,
+        duration: 0.8,
+        delay: 1, // After preloader and title animation
+        ease: 'power3.out'
+    });
+
+    // Floating cards in hero
+    const floatCards = document.querySelectorAll('.float-card');
+    floatCards.forEach((card, i) => {
+        gsap.from(card, {
+            opacity: 0,
+            scale: 0.5,
+            duration: 0.6,
+            delay: 1.5 + (i * 0.1),
+            ease: 'back.out(1.7)'
+        });
+    });
 }
 
 // ========================================
@@ -582,9 +1127,12 @@ function initContactForm() {
 }
 
 // ========================================
-// SMOOTH SCROLL
+// SMOOTH SCROLL (Fallback for non-Lenis)
 // ========================================
 function initSmoothScroll() {
+    // Only init if Lenis is not active
+    if (lenis) return;
+
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function(e) {
             e.preventDefault();
