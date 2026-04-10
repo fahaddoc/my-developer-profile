@@ -20,6 +20,9 @@ build/
 # debug logs
 npm-debug.log*
 
+# TypeScript build info
+*.tsbuildinfo
+
 # editor
 .DS_Store
 *.pem
