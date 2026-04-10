@@ -4,9 +4,7 @@
 @tailwind utilities;
 
 :root {
-  --font-display: 'Plus Jakarta Sans';
-  --font-body: 'Inter';
-  --font-mono: 'JetBrains Mono';
+  /* --font-display, --font-body, --font-mono are injected by next/font via app/layout.tsx */
 
   --border-subtle: rgba(139, 92, 246, 0.12);
   --border-hover: rgba(139, 92, 246, 0.35);
@@ -28,8 +26,7 @@ body {
   background-color: #080810;
   color: #F1F5F9;
   font-family: var(--font-body), system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* font-smoothing handled by Tailwind's antialiased class on <body> in layout.tsx */
 }
 
 /* Scrollbar styling */
