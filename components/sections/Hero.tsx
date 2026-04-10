@@ -36,20 +36,14 @@ export function Hero() {
             </motion.div>
 
             {/* Display name */}
-            <div className="flex flex-col">
-              <motion.h1
-                {...fadeUp(0.2)}
-                className="font-display font-extrabold text-7xl md:text-8xl leading-none text-text-primary"
-              >
+            <h1 className="flex flex-col font-display font-extrabold text-7xl md:text-8xl leading-none text-text-primary">
+              <motion.span {...fadeUp(0.2)} style={{ display: 'block' }}>
                 Shah
-              </motion.h1>
-              <motion.h1
-                {...fadeUp(0.3)}
-                className="font-display font-extrabold text-7xl md:text-8xl leading-none text-text-primary"
-              >
+              </motion.span>
+              <motion.span {...fadeUp(0.3)} style={{ display: 'block' }}>
                 Fahad<span className="text-accent-violet">.</span>
-              </motion.h1>
-            </div>
+              </motion.span>
+            </h1>
 
             {/* Role */}
             <motion.p
@@ -82,7 +76,7 @@ export function Hero() {
                 }}
               >
                 View Projects
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
               </a>
@@ -92,7 +86,7 @@ export function Hero() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-[rgba(241,245,249,0.15)] text-text-primary font-medium text-sm hover:border-[rgba(139,92,246,0.4)] hover:text-accent-violet transition-all duration-200"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
