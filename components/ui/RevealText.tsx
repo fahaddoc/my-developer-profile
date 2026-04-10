@@ -1,5 +1,6 @@
 // components/ui/RevealText.tsx
 // Wraps any content in a fade-up animation that plays once when scrolled into view.
+// Note: always renders a wrapping <div> — do not use inside <p> or other inline contexts.
 
 'use client'
 

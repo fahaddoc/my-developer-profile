@@ -12,6 +12,8 @@ const navLinks = [
   { label: 'Contact', href: '#contact' },
 ]
 
+export { navLinks }
+
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -23,13 +25,22 @@ export function Navbar() {
   }, [])
 
   useEffect(() => {
-    const close = () => setMenuOpen(false)
-    window.addEventListener('resize', close)
-    return () => window.removeEventListener('resize', close)
+    const closeOnResize = () => setMenuOpen(false)
+    const closeOnEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('resize', closeOnResize)
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      window.removeEventListener('resize', closeOnResize)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
   }, [])
 
   const handleNavClick = (href: string) => {
     setMenuOpen(false)
+    // Imperative scroll used here (not <a href>) because we need to close the
+    // mobile menu as a side effect before navigating.
     const el = document.querySelector(href)
     if (el) el.scrollIntoView({ behavior: 'smooth' })
   }
@@ -39,7 +50,7 @@ export function Navbar() {
       <header
         className={`
           fixed top-0 left-0 right-0 z-50 transition-all duration-300
-          ${scrolled ? 'bg-bg-surface/90 backdrop-blur-md border-b border-[rgba(139,92,246,0.1)]' : 'bg-transparent'}
+          ${scrolled ? 'bg-bg-surface/90 backdrop-blur-md border-b border-accent-violet/10' : 'bg-transparent'}
         `}
       >
         <nav className="max-w-content mx-auto px-6 h-16 flex items-center justify-between">
@@ -82,6 +93,8 @@ export function Navbar() {
             className="md:hidden flex flex-col gap-1.5 p-2"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle menu"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
           >
             <span className={`block w-5 h-px bg-text-primary transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
             <span className={`block w-5 h-px bg-text-primary transition-all duration-300 ${menuOpen ? 'opacity-0' : ''}`} />
@@ -94,6 +107,10 @@ export function Navbar() {
       <AnimatePresence>
         {menuOpen && (
           <motion.div
+            id="mobile-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
