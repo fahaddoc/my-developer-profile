@@ -1,3 +1,28 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js build output
+.next/
+out/
+
+# production build
+build/
+
+# environment variables — never commit these
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# debug logs
+npm-debug.log*
+
+# editor
+.DS_Store
+*.pem
 
 # Separate project repos
 projects/expense-tracker/
