@@ -1,0 +1,71 @@
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: 'Plus Jakarta Sans';
+  --font-body: 'Inter';
+  --font-mono: 'JetBrains Mono';
+
+  --border-subtle: rgba(139, 92, 246, 0.12);
+  --border-hover: rgba(139, 92, 246, 0.35);
+  --glow-violet: rgba(139, 92, 246, 0.25);
+  --glow-violet-sm: rgba(139, 92, 246, 0.10);
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #080810;
+  color: #F1F5F9;
+  font-family: var(--font-body), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #080810;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}
+
+/* Selection color */
+::selection {
+  background: rgba(139, 92, 246, 0.3);
+  color: #F1F5F9;
+}
+
+@layer utilities {
+  .border-subtle {
+    border-color: var(--border-subtle);
+  }
+
+  .glow-violet {
+    box-shadow: 0 0 40px var(--glow-violet);
+  }
+
+  .glow-violet-sm {
+    box-shadow: 0 0 20px var(--glow-violet-sm);
+  }
+}
