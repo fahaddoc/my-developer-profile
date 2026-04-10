@@ -1,6 +1,6 @@
 // components/layout/Footer.tsx
 
-import { navLinks } from '@/components/layout/Navbar'
+import { navLinks } from '@/data/nav-links'
 
 export function Footer() {
   const year = new Date().getFullYear()
