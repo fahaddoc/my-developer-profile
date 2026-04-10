@@ -129,7 +129,7 @@ export function Hero() {
             {/* Photo container */}
             <div className="relative rounded-2xl overflow-hidden border border-[rgba(139,92,246,0.3)] aspect-[4/5]">
               <Image
-                src="/images/shah-fahad.jpg"
+                src="/images/shah-fahad.jpeg"
                 alt="Shah Fahad — Software Engineer"
                 fill
                 className="object-cover object-top"
