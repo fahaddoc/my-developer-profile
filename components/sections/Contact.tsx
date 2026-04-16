@@ -1,13 +1,213 @@
 // components/sections/Contact.tsx
-
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useRef, useEffect } from 'react'
 import emailjs from '@emailjs/browser'
 import { RevealText } from '@/components/ui/RevealText'
 
 type FormStatus = 'idle' | 'sending' | 'sent' | 'error'
 
+// ── sparse dot grid constants (match CSS background) ────────────────────────
+const STEP     = 56     // dot grid spacing
+const PRIMARY   = '34,211,238'    // cyan-400
+const SECONDARY = '196,116,232'   // soft lavender-pink
+
+function ContactBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const glowRef   = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (window.matchMedia('(hover: none)').matches) return
+
+    const canvas = canvasRef.current!
+    const glow   = glowRef.current!
+    const ctx    = canvas.getContext('2d')!
+    const LERP   = 0.08    // slightly more dreamy / slower
+    const ACT_R  = 90      // wider activation radius → softer feel
+
+    let rawX = -1, rawY = -1
+    let smoothX = -1, smoothY = -1
+    let prevX = 0, prevY = 0
+    let active = false
+
+    const dots   = new Map<string, number>()
+    const sparks = new Map<string, number>()
+
+    let W = 0, H = 0, rafId = 0
+
+    const resize = () => {
+      W = canvas.offsetWidth; H = canvas.offsetHeight
+      canvas.width = W; canvas.height = H
+    }
+    const onMove  = (e: MouseEvent) => { rawX = e.clientX; rawY = e.clientY }
+    const onLeave = () => {
+      rawX = -1; rawY = -1; active = false; smoothX = -1; smoothY = -1
+      glow.style.opacity = '0'
+    }
+
+    // dot centre: (col * STEP + STEP/2, row * STEP + STEP/2) — centred in cell
+    const center = (col: number, row: number): [number, number] => [
+      col * STEP + STEP / 2,
+      row * STEP + STEP / 2,
+    ]
+
+    const draw = () => {
+      rafId = requestAnimationFrame(draw)
+      const rect = canvas.getBoundingClientRect()
+      if (rect.bottom < -50 || rect.top > window.innerHeight + 50) return
+
+      const inBounds = rawX > 0 &&
+        rawX >= rect.left && rawX <= rect.right &&
+        rawY >= rect.top  && rawY <= rect.bottom
+
+      if (inBounds) {
+        const tx = rawX - rect.left, ty = rawY - rect.top
+        if (!active) {
+          smoothX = tx; smoothY = ty; prevX = tx; prevY = ty; active = true
+        } else {
+          prevX = smoothX; prevY = smoothY
+          smoothX += (tx - smoothX) * LERP
+          smoothY += (ty - smoothY) * LERP
+        }
+        glow.style.transform = `translate(${smoothX}px,${smoothY}px) translate(-50%,-50%)`
+        glow.style.opacity   = '1'
+
+        // activate nearby dot cells
+        const cc = Math.floor(smoothX / STEP)
+        const cr = Math.floor(smoothY / STEP)
+        for (let dr = -3; dr <= 3; dr++) {
+          for (let dc = -3; dc <= 3; dc++) {
+            const col = cc + dc, row = cr + dr
+            const [cx, cy] = center(col, row)
+            const dist = Math.sqrt((smoothX - cx) ** 2 + (smoothY - cy) ** 2)
+            if (dist > ACT_R) continue
+            const key  = `${col},${row}`
+            // cosine-bell falloff for extra softness
+            const val  = Math.cos((dist / ACT_R) * Math.PI * 0.5)
+            const prev = dots.get(key) ?? 0
+            dots.set(key, Math.max(prev, val))
+            if (!sparks.has(key) && prev < 0.05) sparks.set(key, 1.0)
+          }
+        }
+      } else if (active) {
+        active = false; smoothX = -1; smoothY = -1
+        glow.style.opacity = '0'
+      }
+
+      if (!active && dots.size === 0 && sparks.size === 0) { ctx.clearRect(0, 0, W, H); return }
+      ctx.clearRect(0, 0, W, H)
+
+      // ── 1. soft glowing dots ─────────────────────────────────────────
+      dots.forEach((b, key) => {
+        if (b < 0.012) { dots.delete(key); return }
+        const [col, row] = key.split(',').map(Number)
+        const [x, y] = center(col, row)
+        const r = 1.5 + b * 5
+
+        // outer soft halo (very dim)
+        ctx.save()
+        ctx.fillStyle = `rgba(${PRIMARY},${b * 0.06})`
+        ctx.beginPath(); ctx.arc(x, y, r + 14 * b, 0, Math.PI * 2); ctx.fill()
+        ctx.restore()
+
+        // inner dot
+        ctx.save()
+        ctx.shadowColor = `rgba(${PRIMARY},${b * 0.75})`
+        ctx.shadowBlur  = 20 * b
+        ctx.fillStyle   = `rgba(${PRIMARY},${b * 0.8})`
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill()
+        ctx.restore()
+
+        // secondary-colour ring
+        ctx.save()
+        ctx.strokeStyle = `rgba(${SECONDARY},${b * 0.3})`
+        ctx.lineWidth   = 0.8
+        ctx.beginPath(); ctx.arc(x, y, r + 6 * b, 0, Math.PI * 2); ctx.stroke()
+        ctx.restore()
+
+        dots.set(key, b * 0.940)
+      })
+
+      // ── 2. spark rings ───────────────────────────────────────────────
+      sparks.forEach((life, key) => {
+        if (life < 0.02) { sparks.delete(key); return }
+        const [col, row] = key.split(',').map(Number)
+        const [x, y] = center(col, row)
+        const ringR = (1 - life) * 20 + 2
+
+        ctx.save()
+        ctx.strokeStyle = `rgba(${SECONDARY},${life * 0.75})`
+        ctx.lineWidth   = life * 1.5
+        ctx.shadowColor = `rgba(${SECONDARY},0.8)`
+        ctx.shadowBlur  = 10
+        ctx.beginPath(); ctx.arc(x, y, ringR, 0, Math.PI * 2); ctx.stroke()
+        ctx.restore()
+
+        sparks.set(key, life * 0.88)
+      })
+
+      // ── 3. soft beam trail (shorter, dreamier) ───────────────────────
+      if (active && smoothX > 0) {
+        const vx = smoothX - prevX, vy = smoothY - prevY
+        const spd = Math.sqrt(vx * vx + vy * vy)
+        if (spd > 0.2) {
+          const len = Math.min(spd * 9, 140)
+          const nx = vx / spd, ny = vy / spd
+          const grad = ctx.createLinearGradient(
+            smoothX - nx * len, smoothY - ny * len, smoothX, smoothY,
+          )
+          grad.addColorStop(0,   `rgba(${PRIMARY},0)`)
+          grad.addColorStop(0.5, `rgba(${SECONDARY},0.22)`)
+          grad.addColorStop(1,   `rgba(${PRIMARY},0.75)`)
+          ctx.save()
+          ctx.strokeStyle = grad
+          ctx.lineWidth   = 1.5
+          ctx.lineCap     = 'round'
+          ctx.shadowColor = `rgba(${PRIMARY},0.9)`
+          ctx.shadowBlur  = 12
+          ctx.beginPath()
+          ctx.moveTo(smoothX - nx * len, smoothY - ny * len)
+          ctx.lineTo(smoothX, smoothY)
+          ctx.stroke()
+          ctx.restore()
+        }
+      }
+    }
+
+    resize()
+    window.addEventListener('mousemove',    onMove,   { passive: true })
+    window.addEventListener('resize',       resize)
+    document.addEventListener('mouseleave', onLeave)
+    rafId = requestAnimationFrame(draw)
+
+    return () => {
+      window.removeEventListener('mousemove',    onMove)
+      window.removeEventListener('resize',       resize)
+      document.removeEventListener('mouseleave', onLeave)
+      cancelAnimationFrame(rafId)
+    }
+  }, [])
+
+  return (
+    <>
+      <div
+        ref={glowRef}
+        className="absolute pointer-events-none rounded-full opacity-0 transition-opacity duration-300"
+        style={{
+          width: 1200, height: 1200, top: 0, left: 0,
+          background: `radial-gradient(circle,
+            rgba(${PRIMARY},0.09)   0%,
+            rgba(${SECONDARY},0.05) 35%,
+            transparent             65%)`,
+          willChange: 'transform, opacity',
+        }}
+      />
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 export function Contact() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
   const [status, setStatus] = useState<FormStatus>('idle')
@@ -27,10 +227,10 @@ export function Contact() {
         process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
         process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
         {
-          from_name: form.name,
+          from_name:  form.name,
           from_email: form.email,
-          subject: form.subject,
-          message: form.message,
+          subject:    form.subject,
+          message:    form.message,
         },
         process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!
       )
@@ -48,9 +248,24 @@ export function Contact() {
   `
 
   return (
-    <section id="contact" className="py-24 md:py-32">
-      <div className="max-w-content mx-auto px-6">
+    <section id="contact" className="relative py-24 md:py-32 overflow-hidden">
 
+      {/* ── sparse dot CSS background ── */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle, rgba(${PRIMARY},0.12) 1.5px, transparent 1.5px)`,
+          backgroundSize:  `${STEP}px ${STEP}px`,
+          backgroundPosition: `${STEP / 2}px ${STEP / 2}px`,
+        }} />
+        {/* ambient soft orb blobs */}
+        <div className="absolute top-1/4 right-1/4 w-[500px] h-[500px] rounded-full"
+          style={{ background: `radial-gradient(circle, rgba(${SECONDARY},0.06) 0%, transparent 70%)`, filter: 'blur(40px)' }} />
+        <div className="absolute bottom-1/4 left-1/4 w-[400px] h-[400px] rounded-full"
+          style={{ background: `radial-gradient(circle, rgba(${PRIMARY},0.05) 0%, transparent 70%)`, filter: 'blur(50px)' }} />
+        <ContactBackground />
+      </div>
+
+      <div className="max-w-content mx-auto px-6 relative z-10">
         <div className="flex flex-col lg:flex-row gap-16 lg:gap-24">
 
           {/* Left — info */}

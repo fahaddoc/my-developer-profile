@@ -13,7 +13,7 @@ export default function Page() {
   return (
     <>
       <Navbar />
-      <main>
+      <main className="overflow-x-hidden w-full" style={{ perspective: '1400px', perspectiveOrigin: 'center center' }}>
         <Hero />
         <About />
         <Projects />

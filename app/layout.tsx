@@ -2,6 +2,7 @@
 
 import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from 'next/font/google'
+import { SmoothScroll } from '@/components/providers/SmoothScroll'
 import './globals.css'
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -42,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${plusJakartaSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="bg-bg-base text-text-primary font-body antialiased">
-        {children}
+        <SmoothScroll>{children}</SmoothScroll>
       </body>
     </html>
   )

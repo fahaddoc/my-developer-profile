@@ -4,12 +4,21 @@
 @tailwind utilities;
 
 :root {
-  /* --font-display, --font-body, --font-mono are injected by next/font via app/layout.tsx */
+  /* injected by next/font via layout.tsx */
+  /* --font-display, --font-body, --font-mono */
 
-  --border-subtle: rgba(139, 92, 246, 0.12);
-  --border-hover: rgba(139, 92, 246, 0.35);
-  --glow-violet: rgba(139, 92, 246, 0.25);
-  --glow-violet-sm: rgba(139, 92, 246, 0.10);
+  --clr-violet: #a855f7;
+  --clr-cyan: #22d3ee;
+  --clr-emerald: #10b981;
+
+  --glow-violet: rgba(168, 85, 247, 0.35);
+  --glow-violet-sm: rgba(168, 85, 247, 0.15);
+  --glow-cyan: rgba(34, 211, 238, 0.3);
+  --glow-cyan-sm: rgba(34, 211, 238, 0.12);
+  --glow-emerald: rgba(16, 185, 129, 0.3);
+
+  --border-subtle: rgba(168, 85, 247, 0.12);
+  --border-hover: rgba(168, 85, 247, 0.4);
 }
 
 * {
@@ -20,49 +29,110 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  /* hide scrollbar — all browsers */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
 }
 
 body {
-  background-color: #080810;
-  color: #F1F5F9;
+  background-color: #0a0a0a;
+  color: #f1f5f9;
   font-family: var(--font-body), system-ui, sans-serif;
-  /* font-smoothing handled by Tailwind's antialiased class on <body> in layout.tsx */
+  overflow-x: hidden;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
+/* dot grid — subtle tech feel, barely visible on dark bg */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(rgba(168, 85, 247, 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
 }
 
-::-webkit-scrollbar-track {
-  background: #080810;
+/* scanline overlay — gives that slight CRT depth, very subtle */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.3);
-  border-radius: 3px;
+/* make sure actual content sits above the overlays */
+#__next,
+main,
+header,
+footer {
+  position: relative;
+  z-index: 1;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.5);
-}
 
-/* Selection color */
 ::selection {
-  background: rgba(139, 92, 246, 0.3);
-  color: #F1F5F9;
+  background: rgba(168, 85, 247, 0.3);
+  color: #f1f5f9;
 }
 
 @layer utilities {
-  .border-subtle {
-    border-color: var(--border-subtle);
-  }
-
+  /* violet glow helpers */
   .glow-violet {
-    box-shadow: 0 0 40px var(--glow-violet);
+    box-shadow: 0 0 40px var(--glow-violet), 0 0 80px rgba(168, 85, 247, 0.1);
   }
 
   .glow-violet-sm {
     box-shadow: 0 0 20px var(--glow-violet-sm);
+  }
+
+  /* cyan glow — used on real-time / tech elements */
+  .glow-cyan {
+    box-shadow: 0 0 40px var(--glow-cyan), 0 0 80px rgba(34, 211, 238, 0.08);
+  }
+
+  .glow-cyan-sm {
+    box-shadow: 0 0 16px var(--glow-cyan-sm);
+  }
+
+  /* emerald — skills section */
+  .glow-emerald-sm {
+    box-shadow: 0 0 16px var(--glow-emerald);
+  }
+
+  /* neon text glow */
+  .text-glow-violet {
+    text-shadow: 0 0 20px rgba(168, 85, 247, 0.7), 0 0 40px rgba(168, 85, 247, 0.3);
+  }
+
+  .text-glow-cyan {
+    text-shadow: 0 0 20px rgba(34, 211, 238, 0.7), 0 0 40px rgba(34, 211, 238, 0.3);
+  }
+
+  .border-subtle {
+    border-color: var(--border-subtle);
+  }
+
+  /* neon border on hover cards */
+  .neon-card {
+    border: 1px solid rgba(168, 85, 247, 0.12);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .neon-card:hover {
+    border-color: rgba(168, 85, 247, 0.45);
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.12), inset 0 0 30px rgba(168, 85, 247, 0.03);
   }
 }
