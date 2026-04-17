@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SkillBadge } from '@/components/ui/SkillBadge'
+import { lenisInstance } from '@/components/providers/SmoothScroll'
 import type { Project } from '@/data/projects'
 
 interface ProjectModalProps {
@@ -53,10 +54,21 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
     return () => document.removeEventListener('keydown', onKey)
   }, [project, onClose])
 
-  // Body scroll lock
+  // Freeze all scrolling while modal is open.
+  // Must stop Lenis (JS-level smooth scroll) — body overflow:hidden alone
+  // has no effect on Lenis because it intercepts wheel events in JS, not CSS.
   useEffect(() => {
-    document.body.style.overflow = project ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
+    if (project) {
+      lenisInstance?.stop()
+      document.body.style.overflow = 'hidden'
+    } else {
+      lenisInstance?.start()
+      document.body.style.overflow = ''
+    }
+    return () => {
+      lenisInstance?.start()
+      document.body.style.overflow = ''
+    }
   }, [project])
 
   if (!mounted) return null

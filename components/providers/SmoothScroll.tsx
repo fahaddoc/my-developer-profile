@@ -9,6 +9,10 @@ import Lenis from 'lenis'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
+// Module-level ref so any component (e.g. modals) can pause/resume Lenis
+// without prop-drilling or context overhead.
+export let lenisInstance: Lenis | null = null
+
 export function SmoothScroll({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
@@ -19,6 +23,8 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       smoothWheel: true,
     })
 
+    lenisInstance = lenis
+
     // keep ScrollTrigger in sync with Lenis scroll position
     lenis.on('scroll', ScrollTrigger.update)
 
@@ -28,6 +34,7 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
     gsap.ticker.lagSmoothing(0)
 
     return () => {
+      lenisInstance = null
       lenis.destroy()
       gsap.ticker.remove(raf)
     }
