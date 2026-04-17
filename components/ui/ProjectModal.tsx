@@ -208,7 +208,10 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
 
             {/* ── SCROLLABLE BODY — takes remaining height ──────────────── */}
             {/* minHeight:0 is mandatory for flex children to scroll in all browsers */}
-            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            {/* data-lenis-prevent: tells Lenis to skip preventDefault() on wheel events
+                that pass through this element — without it Lenis calls preventDefault()
+                even when stopped, which kills native overflow scroll entirely */}
+            <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
 
               {/* custom thin neon scrollbar */}
               <style>{`
