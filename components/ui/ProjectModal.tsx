@@ -66,11 +66,12 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
             animate={{ opacity: 1, scale: 1,    y: 0  }}
             exit={{ opacity: 0,  scale: 0.94, y: 28 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-bg-surface border border-[rgba(139,92,246,0.2)] shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
+            // flex col so the scrollable body gets its own height budget
+            className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl bg-bg-surface border border-[rgba(139,92,246,0.2)] shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
             style={{ zIndex: 10000 }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Close button */}
+            {/* Close button — sticky to panel, not scrolled away */}
             <button
               onClick={onClose}
               className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-bg-elevated text-text-secondary hover:text-text-primary hover:border hover:border-[rgba(139,92,246,0.3)] transition-all duration-200"
@@ -81,8 +82,8 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
               </svg>
             </button>
 
-            {/* Header */}
-            <div className="px-6 pt-6 pb-4">
+            {/* Header — fixed height, never scrolls */}
+            <div className="flex-shrink-0 px-6 pt-6 pb-4">
               <div className="flex items-center gap-3 mb-2">
                 <span className="font-mono text-xs text-accent-cyan uppercase tracking-widest">{project.company}</span>
                 <span className="font-mono text-xs text-text-muted">· {project.year}</span>
@@ -92,19 +93,20 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
               </h2>
             </div>
 
-            {/* Screenshot */}
-            <div className="relative w-full aspect-video bg-bg-elevated">
+            {/* Screenshot — capped height so content stays visible */}
+            <div className="flex-shrink-0 relative w-full h-44 md:h-52 bg-bg-elevated">
               <Image
                 src={project.image}
                 alt={project.title}
                 fill
-                className="object-cover"
+                className="object-cover object-top"
                 sizes="(max-width: 768px) 100vw, 768px"
                 priority
               />
             </div>
 
-            {/* Body */}
+            {/* Scrollable body — fills remaining height, own scroll context */}
+            <div className="flex-1 overflow-y-auto min-h-0">
             <div className="px-6 py-6 flex flex-col gap-6">
 
               {/* Problem */}
@@ -166,6 +168,7 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
                 </div>
               )}
             </div>
+            </div>{/* end scrollable body */}
           </motion.div>
         </motion.div>
       )}
