@@ -353,6 +353,20 @@ export function Projects() {
             </div>
           )}
 
+          {/* SEO: crawlable list of all project case studies (visually hidden, screen-reader friendly) */}
+          <nav aria-label="All project case studies" className="sr-only">
+            <h3>Project Case Studies</h3>
+            <ul>
+              {projects.map((p) => (
+                <li key={p.id}>
+                  <a href={`/projects/${p.id}`}>
+                    {p.title} — {p.tagline}. Built with {p.tech.join(', ')}.
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
           {/* github cta */}
           <motion.div
             initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}

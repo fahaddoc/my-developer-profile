@@ -483,6 +483,25 @@ export function Skills() {
             </h2>
           </RevealText>
 
+          {/* SEO: keyword-rich skill description with aliases for crawlers (visually hidden) */}
+          <div className="sr-only">
+            <p>
+              Shah Fahad is a Senior Software Engineer with expertise in modern frontend, mobile,
+              and real-time technologies. Frontend skills include React (React.js, ReactJS),
+              Next.js (NextJS), TypeScript, JavaScript, Tailwind CSS, and Redux. Mobile development
+              with Flutter and Dart for cross-platform iOS and Android apps. Real-time
+              communication using WebRTC (peer-to-peer video and audio), SignalR (real-time messaging),
+              and WebSocket. Backend in Node.js, PHP, with databases including MySQL, PostgreSQL, and
+              MongoDB. Tools and platforms: Git, GitHub, Vercel, Figma, AWS S3.
+            </p>
+            <p>
+              Available for hire as: React developer, Next.js developer, Flutter developer,
+              mobile app developer, frontend engineer, full-stack engineer, real-time video
+              conferencing developer, WebRTC engineer, SignalR engineer, web developer, and
+              software engineer. Based in Karachi, Pakistan — open to remote opportunities.
+            </p>
+          </div>
+
           {/* ── circuit game ─────────────────────────────────────────────── */}
           <div className="mb-10">
 

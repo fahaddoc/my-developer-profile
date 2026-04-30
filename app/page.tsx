@@ -8,10 +8,14 @@ import { Projects } from '@/components/sections/Projects'
 import { Experience } from '@/components/sections/Experience'
 import { Skills } from '@/components/sections/Skills'
 import { Contact } from '@/components/sections/Contact'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { profilePageSchema, projectsItemListSchema } from '@/lib/seo/jsonld'
 
 export default function Page() {
   return (
     <>
+      <JsonLd data={profilePageSchema()} />
+      <JsonLd data={projectsItemListSchema()} />
       <Navbar />
       <main className="overflow-x-hidden w-full" style={{ perspective: '1400px', perspectiveOrigin: 'center center' }}>
         <Hero />

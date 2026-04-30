@@ -1,6 +1,13 @@
 // components/layout/Footer.tsx
 
 import { navLinks } from '@/data/nav-links'
+import { SOCIALS, AUTHOR } from '@/lib/seo/site'
+
+const socialLinks = [
+  { url: SOCIALS.github, label: 'GitHub', rel: 'me' },
+  { url: SOCIALS.linkedin, label: 'LinkedIn', rel: 'me' },
+  { url: SOCIALS.twitter, label: 'X / Twitter', rel: 'me' },
+].filter((s) => Boolean(s.url))
 
 export function Footer() {
   const year = new Date().getFullYear()
@@ -12,7 +19,9 @@ export function Footer() {
           {/* Brand */}
           <div>
             <span className="font-display font-bold text-lg text-accent-violet">SF</span>
-            <p className="text-text-muted text-sm mt-1">Building experiences that scale.</p>
+            <p className="text-text-muted text-sm mt-1">
+              {AUTHOR.name} — {AUTHOR.jobTitle}, {AUTHOR.city}, {AUTHOR.countryName}.
+            </p>
           </div>
 
           {/* Nav links */}
@@ -28,9 +37,25 @@ export function Footer() {
             ))}
           </nav>
 
+          {socialLinks.length > 0 && (
+            <nav aria-label="Social profiles" className="flex flex-wrap gap-4">
+              {socialLinks.map((s) => (
+                <a
+                  key={s.label}
+                  href={s.url}
+                  target="_blank"
+                  rel={`${s.rel} noopener noreferrer`}
+                  className="text-sm text-text-muted hover:text-accent-violet transition-colors duration-200"
+                >
+                  {s.label}
+                </a>
+              ))}
+            </nav>
+          )}
+
           {/* Copyright */}
           <p className="text-sm text-text-muted">
-            © {year} Shah Fahad. All rights reserved.
+            © {year} {AUTHOR.name}. All rights reserved.
           </p>
         </div>
       </div>

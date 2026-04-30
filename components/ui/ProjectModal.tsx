@@ -133,7 +133,7 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
             <div style={{ position: 'relative', flexShrink: 0, height: 200 }}>
               <Image
                 src={project.image}
-                alt={project.title}
+                alt={`${project.title} — ${project.tagline}`}
                 fill
                 style={{ objectFit: 'cover', objectPosition: 'top' }}
                 sizes="(max-width: 768px) 100vw, 672px"

@@ -104,7 +104,7 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
             >
               <Image
                 src={project.image}
-                alt={project.title}
+                alt={`${project.title} — ${project.tagline}`}
                 fill
                 className={`object-cover transition-transform duration-500 ${hovered ? 'scale-105' : 'scale-100'}`}
                 sizes="(max-width: 768px) 100vw, 50vw"

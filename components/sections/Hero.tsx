@@ -74,7 +74,7 @@ function PhotoCard() {
       >
         <Image
           src="/images/shah-fahad.jpeg"
-          alt="Shah Fahad — Software Engineer"
+          alt="Shah Fahad — Senior Software Engineer specializing in React, Next.js, Flutter, and WebRTC, based in Karachi, Pakistan"
           fill
           className="object-cover object-top"
           priority
@@ -183,18 +183,22 @@ export function Hero() {
             </motion.div>
 
             <h1 className="flex flex-col font-display font-extrabold text-7xl md:text-8xl leading-none text-text-primary">
-              <motion.span {...fadeUp(0.2)} style={{ display: 'block' }}>Shah</motion.span>
-              <motion.span {...fadeUp(0.3)} style={{ display: 'block' }}>
+              <span className="sr-only">
+                Shah Fahad — Senior Software Engineer specializing in React, Next.js, TypeScript, Flutter, WebRTC, and SignalR. Real-time web and mobile application developer based in Karachi, Pakistan.
+              </span>
+              <motion.span {...fadeUp(0.2)} aria-hidden="true" style={{ display: 'block' }}>Shah</motion.span>
+              <motion.span {...fadeUp(0.3)} aria-hidden="true" style={{ display: 'block' }}>
                 Fahad<span className="text-accent-violet text-glow-violet animate-neon-flicker">.</span>
               </motion.span>
             </h1>
 
             <motion.p {...fadeUp(0.4)} className="font-mono text-lg md:text-xl text-accent-cyan text-glow-cyan tracking-widest uppercase">
-              Software Engineer
+              Senior Software Engineer
             </motion.p>
 
             <motion.p {...fadeUp(0.5)} className="text-base md:text-lg text-text-secondary max-w-lg leading-relaxed">
-              I craft high-performance, real-time web and mobile experiences that scale.
+              React, Next.js, Flutter and WebRTC engineer crafting high-performance,
+              real-time web and mobile experiences that scale.
               Currently at <span className="text-text-primary font-medium">DigitalHire</span>, based in{' '}
               <span className="text-text-primary font-medium">Karachi, Pakistan</span>.
             </motion.p>

@@ -479,7 +479,8 @@ export function Contact() {
                 Drop a Message
               </h2>
               <p className="text-text-secondary leading-relaxed max-w-sm">
-                Have a project in mind? I'm currently open to new opportunities and exciting projects.
+                Have a project in mind? I'm currently open to new opportunities and exciting projects —
+                React, Next.js, Flutter, and real-time applications. Based in Karachi, Pakistan, available remotely worldwide.
               </p>
             </RevealText>
 
