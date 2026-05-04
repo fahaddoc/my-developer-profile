@@ -62,7 +62,7 @@ export const projects: Project[] = [
       'Agent identity HUD — name, sector, weapon, ammo, target counter',
     ],
     tech: ['Three.js', 'Rapier 3D', 'GSAP', 'Vite', 'WebGL'],
-    image: '/images/projects/agentshah-ss-3.jpeg',
+    image: '/images/projects/ashah.png',
     color: '#22d3ee',
     liveUrl: 'https://agentshah.shahfahad.dev',
     githubUrl: null,
