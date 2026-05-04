@@ -61,9 +61,11 @@ export const metadata: Metadata = {
     username: 'shahfahad',
     images: [
       {
-        url: '/opengraph-image',
+        url: '/og-image.png',
+        secureUrl: `${SITE_URL}/og-image.png`,
         width: 1200,
         height: 630,
+        type: 'image/png',
         alt: `${AUTHOR.name} — ${AUTHOR.jobTitle}`,
       },
     ],
@@ -73,7 +75,7 @@ export const metadata: Metadata = {
     title: TITLE_DEFAULT,
     description: DESCRIPTION,
     creator: SOCIALS.twitterHandle || undefined,
-    images: ['/twitter-image'],
+    images: ['/og-image.png'],
   },
   robots: {
     index: true,
