@@ -38,6 +38,36 @@ export interface SkillCategory {
 
 export const projects: Project[] = [
   {
+    id: 'agent-shah-3d',
+    title: 'Agent Shah — 3D Portfolio Game',
+    company: 'Personal · Vibe Jam 2026',
+    category: 'web',
+    year: '2026',
+    featured: true,
+    tagline: 'Three.js + Rapier 3D physics — a playable agent-themed portfolio',
+    description:
+      'A top-down 3D stealth shooter where the playable agent is me. Players move through neon-lit sectors, pick up briefings on each of my projects, and fight through enemies with pistols, machine guns, and even a pencil. Built from scratch on Three.js + Rapier physics — no React, no game engine.',
+    problem:
+      'A static scrollable portfolio is forgettable. I wanted recruiters and visitors to actually play through my work — turn passive reading into something they remember.',
+    solution:
+      'Built a fully physics-driven 3D shooter on the web. Each sector is a project briefing pad — interact with it to read about the project, then push north to the next sector. Multi-weapon gunplay, AI patrol with line-of-sight, stealth takedowns, and a sector-based HUD make it actually fun to navigate. Vite compiles it to a tiny bundle that runs at 60fps in any modern browser.',
+    features: [
+      '3D top-down shooter built from scratch in Three.js — no game engine',
+      'Rapier 3D physics for character movement, bullet collision, and ragdolls',
+      'Multi-weapon system — pistol, machine gun, pencil, hand-to-hand fight',
+      'Sector-based level flow with south entry / north exit per round',
+      'Briefing pads tie each in-game sector to a real project from my career',
+      'AI enemy patrol with line-of-sight detection and stealth assassinations',
+      'Neon-lit pathways, HDR ambient lighting, decrypting-dossier intro',
+      'Agent identity HUD — name, sector, weapon, ammo, target counter',
+    ],
+    tech: ['Three.js', 'Rapier 3D', 'GSAP', 'Vite', 'WebGL'],
+    image: '/images/projects/agentshah-ss-3.jpeg',
+    color: '#22d3ee',
+    liveUrl: 'https://agentshah.shahfahad.dev',
+    githubUrl: null,
+  },
+  {
     id: 'konnect',
     title: 'Konnect.im — Video Conferencing',
     company: 'MILETAP',
