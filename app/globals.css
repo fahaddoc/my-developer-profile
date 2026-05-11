@@ -136,3 +136,69 @@ footer {
     box-shadow: 0 0 30px rgba(168, 85, 247, 0.12), inset 0 0 30px rgba(168, 85, 247, 0.03);
   }
 }
+
+/* Hero PhotoCard — chamfered angular frame (clip cut corners) */
+.photo-clip {
+  clip-path: polygon(
+    18px 0,
+    calc(100% - 18px) 0,
+    100% 18px,
+    100% calc(100% - 18px),
+    calc(100% - 18px) 100%,
+    18px 100%,
+    0 calc(100% - 18px),
+    0 18px
+  );
+}
+
+/* Persistent chromatic aberration on the photo (RGB-split) */
+.rgb-split {
+  filter:
+    drop-shadow(1.2px 0 0 rgba(255, 0, 80, 0.55))
+    drop-shadow(-1.2px 0 0 rgba(0, 230, 255, 0.55));
+}
+
+/* Periodic glitch — fires every ~9s for ~250ms */
+@keyframes photo-glitch {
+  0%, 92%, 100% {
+    filter: none;
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  93% {
+    filter: hue-rotate(20deg);
+    transform: translate3d(3px, -1px, 0);
+    opacity: 0.55;
+    clip-path: inset(8% 0 60% 0);
+  }
+  94% {
+    transform: translate3d(-4px, 2px, 0);
+    opacity: 0.65;
+    clip-path: inset(45% 0 20% 0);
+  }
+  95% {
+    transform: translate3d(2px, 0, 0);
+    opacity: 0.5;
+    clip-path: inset(70% 0 5% 0);
+  }
+  96% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+}
+
+.glitch-layer {
+  animation: photo-glitch 9s linear infinite;
+}
+
+/* Scan-line that sweeps top→bottom over the photo */
+@keyframes scan-sweep {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  10%  { opacity: 0.9; }
+  90%  { opacity: 0.9; }
+  100% { transform: translateY(1100%); opacity: 0; }
+}
+
+.scan-sweep {
+  animation: scan-sweep 4.5s linear infinite;
+}

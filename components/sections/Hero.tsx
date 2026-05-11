@@ -308,6 +308,17 @@ function PhotoCard() {
   const tiltY   = useTransform(springX, [-0.5, 0.5], [-13, 13])
   const tiltX   = useTransform(springY, [-0.5, 0.5], [8,  -8])
 
+  const [arrived, setArrived] = useState(false)
+
+  const ENTRANCE_DELAY = 0.4   // seconds
+  const ENTRANCE_DUR   = 1.7   // seconds
+  const GLOW_FADE_MS   = 700   // glow fade-in duration
+
+  useEffect(() => {
+    const t = setTimeout(() => setArrived(true), (ENTRANCE_DELAY + ENTRANCE_DUR) * 1000)
+    return () => clearTimeout(t)
+  }, [])
+
   const onMove  = (e: React.MouseEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect()
     mouseX.set((e.clientX - r.left) / r.width  - 0.5)
@@ -317,38 +328,67 @@ function PhotoCard() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.9, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, x: '110%', y: 0 }}
+      animate={{
+        opacity: [0, 1, 1, 1, 1, 1, 1, 1, 1],
+        x: ['110%', '0%'],
+        y: [0, -7, 0, -7, 0, -7, 0, -3, 0],
+      }}
+      transition={{
+        x:       { duration: ENTRANCE_DUR, delay: ENTRANCE_DELAY, ease: [0.25, 0.1, 0.25, 1] },
+        y:       { duration: ENTRANCE_DUR, delay: ENTRANCE_DELAY, ease: 'linear', times: [0, 0.12, 0.25, 0.38, 0.5, 0.63, 0.78, 0.9, 1] },
+        opacity: { duration: 0.35, delay: ENTRANCE_DELAY },
+      }}
       className="relative flex-shrink-0 w-72 md:w-80 lg:w-96"
       style={{ perspective: 900 }}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
     >
+      {/* Ambient radial halo — fades in after arrival */}
       <div
         className="absolute inset-0 rounded-2xl"
         style={{
           background: 'radial-gradient(circle at center, rgba(168,85,247,0.38) 0%, rgba(34,211,238,0.12) 50%, transparent 70%)',
-          transform: 'scale(1.3)', filter: 'blur(55px)',
+          transform: 'scale(1.3)',
+          filter: 'blur(55px)',
+          opacity: arrived ? 1 : 0,
+          transition: `opacity ${GLOW_FADE_MS}ms ease-out`,
         }}
         aria-hidden="true"
       />
       <motion.div
         style={{ rotateY: tiltY, rotateX: tiltX, transformStyle: 'preserve-3d' }}
-        className="relative rounded-2xl overflow-hidden border border-accent-violet/30 aspect-[4/5] glow-violet"
+        className="relative aspect-[4/5]"
       >
+        {/* Floating subject — sticker rim + soft lift always on; neon accent fades in after arrival */}
         <Image
-          src="/images/shah-fahad.jpeg"
+          src="/images/shah-fahad-cutout.png"
           alt="Shah Fahad — Senior Software Engineer specializing in React, Next.js, Flutter, and WebRTC, based in Karachi, Pakistan"
           fill
-          className="object-cover object-top"
+          className="object-contain object-bottom"
           priority
           sizes="(max-width: 768px) 288px, (max-width: 1024px) 320px, 384px"
+          style={{
+            filter: [
+              // White sticker rim — 8-direction outline (2px each, chained for uniform thickness)
+              'drop-shadow(2px 0 0 #fff)',
+              'drop-shadow(-2px 0 0 #fff)',
+              'drop-shadow(0 2px 0 #fff)',
+              'drop-shadow(0 -2px 0 #fff)',
+              'drop-shadow(2px 2px 0 #fff)',
+              'drop-shadow(-2px -2px 0 #fff)',
+              'drop-shadow(2px -2px 0 #fff)',
+              'drop-shadow(-2px 2px 0 #fff)',
+              // Soft drop-shadow below for "lifted off paper" feel
+              'drop-shadow(0 10px 14px rgba(0,0,0,0.45))',
+              // Neon accent glow — appears only after arrival
+              arrived
+                ? 'drop-shadow(0 0 22px rgba(168,85,247,0.5)) drop-shadow(0 0 48px rgba(34,211,238,0.22))'
+                : 'drop-shadow(0 0 0 rgba(168,85,247,0)) drop-shadow(0 0 0 rgba(34,211,238,0))',
+            ].join(' '),
+            transition: `filter ${GLOW_FADE_MS}ms ease-out`,
+          }}
         />
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(168,85,247,0.03) 3px, rgba(168,85,247,0.03) 4px)',
-        }} aria-hidden="true" />
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-bg-base/60 to-transparent" />
       </motion.div>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
