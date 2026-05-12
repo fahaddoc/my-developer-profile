@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shah Fahad — Senior Frontend Engineer</title>
+<meta name="description" content="Shah Fahad — Senior Frontend Engineer with 6+ years building React, Next.js, and real-time WebRTC applications. Based in Karachi, Pakistan." />
+<meta name="author" content="Shah Fahad" />
+<meta name="robots" content="index,follow" />
+<link rel="canonical" href="https://shahfahad.dev/resume.html" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" />
+<style>
+  /* ────────────────────────────────────────────────────────────
+     v2 — recruiter eye-catch + ATS safe.
+     Semantic HTML, real text, single-column DOM order.
+     Visual polish via CSS only (decorative, ignored by parsers).
+     ──────────────────────────────────────────────────────────── */
+
+  :root {
+    --ink:        #0b1220;     /* near-black, prints sharp */
+    --ink-2:      #1f2937;
+    --ink-3:      #4b5563;
+    --muted:      #6b7280;
+    --accent:     #6d28d9;     /* deep violet — single signature accent */
+    --accent-2:   #ede9fe;     /* light violet tint */
+    --rule:       #e5e7eb;
+    --paper:      #ffffff;
+    --bg:         #eef0f4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+  }
+
+  .page {
+    max-width: 8.5in;
+    margin: 0.5in auto;
+    background: var(--paper);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 28px rgba(0,0,0,0.07);
+    overflow: hidden;
+  }
+
+  /* ── Header band ─────────────────────────────────────────── */
+  header.hero {
+    background: var(--ink);
+    color: #fff;
+    padding: 28px 38px 24px;
+    position: relative;
+  }
+  header.hero::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent) 0%, #a855f7 100%);
+  }
+
+  .hero-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  h1 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 32pt;
+    letter-spacing: -1px;
+    line-height: 1;
+    color: #fff;
+  }
+
+  .role-tag {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 3px 10px;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 999px;
+    font-size: 9pt;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    color: #e5e7eb;
+  }
+
+  .tagline {
+    margin-top: 10px;
+    font-size: 10pt;
+    color: #cbd5e1;
+    max-width: 520px;
+    line-height: 1.45;
+  }
+
+  .monogram {
+    flex-shrink: 0;
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent) 0%, #a855f7 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 16pt;
+    letter-spacing: -1px;
+    box-shadow: 0 4px 12px rgba(109,40,217,0.35);
+  }
+
+  .contact {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 16px;
+    font-size: 9pt;
+    color: #cbd5e1;
+  }
+  .contact span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .contact a { color: #cbd5e1; text-decoration: none; }
+  .contact a:hover { color: #fff; }
+  .contact .dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  /* ── Body ─────────────────────────────────────────────────── */
+  .body {
+    padding: 22px 38px 28px;
+  }
+
+  section { margin-top: 18px; }
+  section:first-child { margin-top: 0; }
+
+  h2 {
+    font-family: 'Inter', sans-serif;
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    margin-bottom: 9px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: '';
+    width: 18px; height: 2px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  .summary {
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+  .summary strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ── Skill pills ──────────────────────────────────────────── */
+  .skills-block {
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    row-gap: 6px;
+    column-gap: 14px;
+    align-items: start;
+  }
+  .skills-block .label {
+    font-size: 9pt;
+    font-weight: 600;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding-top: 3px;
+  }
+  .pill-row { display: flex; flex-wrap: wrap; gap: 4px 5px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #f3f4f6;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font-size: 8.8pt;
+    font-weight: 500;
+    color: var(--ink-2);
+    line-height: 1.4;
+  }
+  .pill.primary {
+    background: var(--accent-2);
+    border-color: #ddd6fe;
+    color: #5b21b6;
+  }
+
+  /* ── Experience / education entries ──────────────────────── */
+  .entry { margin-bottom: 11px; page-break-inside: avoid; }
+  .entry:last-child { margin-bottom: 0; }
+
+  .entry-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .entry-title {
+    font-weight: 700;
+    font-size: 11pt;
+    color: var(--ink);
+  }
+  .entry-meta {
+    font-size: 9pt;
+    color: var(--muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .entry-sub {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9.5pt;
+    color: var(--accent);
+    font-weight: 500;
+    margin-top: 0px;
+  }
+  .entry-sub .loc { color: var(--muted); font-weight: 400; }
+
+  .entry ul {
+    margin-top: 4px;
+    padding-left: 0;
+    list-style: none;
+  }
+  .entry li {
+    position: relative;
+    padding-left: 14px;
+    font-size: 9.8pt;
+    line-height: 1.5;
+    color: var(--ink-2);
+    margin-bottom: 1px;
+  }
+  .entry li::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px;
+    width: 5px; height: 5px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  .impact { font-weight: 600; color: var(--ink); }
+
+  /* ── Projects ─────────────────────────────────────────────── */
+  .project { margin-bottom: 8px; page-break-inside: avoid; }
+  .project:last-child { margin-bottom: 0; }
+
+  .project-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .project-name {
+    font-weight: 700;
+    font-size: 10.5pt;
+    color: var(--ink);
+  }
+  .project-name a { color: inherit; text-decoration: none; }
+  .project-name a:hover { color: var(--accent); }
+  .project-kind {
+    font-size: 9pt;
+    color: var(--muted);
+  }
+  .project-kind::before {
+    content: '· ';
+    color: var(--rule);
+  }
+  .project-desc {
+    font-size: 9.8pt;
+    color: var(--ink-2);
+    margin-top: 2px;
+    line-height: 1.45;
+  }
+  .stack-row { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 3px 4px; }
+  .stack-row .pill { font-size: 8.5pt; padding: 1px 6px; }
+
+  /* ── Two-column band for Education & Languages ───────────── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 26px;
+  }
+
+  .lang-row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
+  .lang-row > div { font-size: 9.8pt; color: var(--ink-2); }
+  .lang-row .lvl { color: var(--muted); font-size: 8.8pt; margin-left: 4px; }
+
+  /* ── Print ────────────────────────────────────────────────── */
+  @page { size: letter; margin: 0; }
+
+  @media print {
+    html, body { background: #fff; }
+    .page {
+      max-width: none;
+      margin: 0;
+      box-shadow: none;
+    }
+    header.hero {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    h2::before,
+    .entry li::before,
+    .pill.primary,
+    .monogram,
+    header.hero::after {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<main class="page" role="main">
+
+  <header class="hero">
+    <div class="hero-row">
+      <div>
+        <h1>Shah Fahad</h1>
+        <span class="role-tag">Senior Frontend Engineer</span>
+        <p class="tagline">
+          Real-time web &amp; cross-platform mobile engineer crafting high-performance
+          React, Next.js, and Flutter experiences that ship and scale.
+        </p>
+      </div>
+      <div class="monogram" aria-hidden="true">SF</div>
+    </div>
+
+    <div class="contact">
+      <span><span class="dot"></span>Karachi, Pakistan</span>
+      <span><span class="dot"></span><a href="tel:+923042186009">+92 304 218 6009</a></span>
+      <span><span class="dot"></span><a href="mailto:hello@shahfahad.dev">hello@shahfahad.dev</a></span>
+      <span><span class="dot"></span><a href="https://shahfahad.dev">shahfahad.dev</a></span>
+      <span><span class="dot"></span><a href="https://github.com/fahaddoc">github.com/fahaddoc</a></span>
+      <span><span class="dot"></span><a href="https://www.linkedin.com/in/fahaddoc600/">linkedin.com/in/fahaddoc600</a></span>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <section>
+      <h2>Summary</h2>
+      <p class="summary">
+        <strong>Senior Frontend Engineer</strong> with <strong>6+ years</strong>
+        building scalable, real-time web and cross-platform mobile products.
+        Shipped React, Next.js, and Flutter applications across <strong>fintech,
+        healthcare, and live-communication</strong> domains — owning UI architecture,
+        WebRTC/SignalR integration, performance budgets, and design-system work
+        from concept to production.
+      </p>
+    </section>
+
+    <section>
+      <h2>Core Stack</h2>
+      <div class="skills-block">
+        <div class="label">Frontend</div>
+        <div class="pill-row">
+          <span class="pill primary">React.js</span>
+          <span class="pill primary">Next.js</span>
+          <span class="pill primary">TypeScript</span>
+          <span class="pill">Redux</span>
+          <span class="pill">React Hooks</span>
+          <span class="pill">Tailwind CSS</span>
+          <span class="pill">Framer Motion</span>
+          <span class="pill">HTML5 / CSS3</span>
+          <span class="pill">JavaScript (ES6+)</span>
+          <span class="pill">Ant Design</span>
+        </div>
+
+        <div class="label">Mobile</div>
+        <div class="pill-row">
+          <span class="pill primary">Flutter</span>
+          <span class="pill">Dart</span>
+          <span class="pill">Floor ORM</span>
+          <span class="pill">SQLite</span>
+          <span class="pill">Android</span>
+          <span class="pill">iOS</span>
+        </div>
+
+        <div class="label">Real-Time</div>
+        <div class="pill-row">
+          <span class="pill primary">WebRTC</span>
+          <span class="pill primary">SignalR</span>
+          <span class="pill">WebSocket</span>
+          <span class="pill">Socket.io</span>
+        </div>
+
+        <div class="label">Backend</div>
+        <div class="pill-row">
+          <span class="pill">Node.js</span>
+          <span class="pill">PHP</span>
+          <span class="pill">REST APIs</span>
+          <span class="pill">MySQL</span>
+          <span class="pill">PostgreSQL</span>
+          <span class="pill">MongoDB</span>
+        </div>
+
+        <div class="label">Tooling</div>
+        <div class="pill-row">
+          <span class="pill">Git / GitHub</span>
+          <span class="pill">Vercel</span>
+          <span class="pill">VS Code</span>
+          <span class="pill">Figma</span>
+          <span class="pill">npm / yarn</span>
+          <span class="pill">Jira</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Experience</h2>
+
+      <div class="entry">
+        <div class="entry-head">
+          <span class="entry-title">DigitalHire</span>
+          <span class="entry-meta">Jan 2023 – Present</span>
+        </div>
+        <div class="entry-sub">
+          <span>Software Engineer</span>
+          <span class="loc">Karachi, Pakistan</span>
+        </div>
+        <ul>
+          <li><span class="impact">Owned web + mobile feature delivery</span> on a recruiting platform — shipped Next.js dashboards and Flutter Android/iOS apps from design hand-off through production release.</li>
+          <li><span class="impact">Improved Core Web Vitals</span> across critical recruiter flows; introduced reusable component patterns that cut UI duplication and shortened feature lead-time.</li>
+          <li>Integrated authentication, payment, and third-party APIs; partnered with design, product, and QA to keep weekly release cadence.</li>
+        </ul>
+      </div>
+
+      <div class="entry">
+        <div class="entry-head">
+          <span class="entry-title">Kistpay</span>
+          <span class="entry-meta">Feb 2022 – Dec 2022</span>
+        </div>
+        <div class="entry-sub">
+          <span>React.js / Front-End Developer</span>
+          <span class="loc">Karachi, Pakistan</span>
+        </div>
+        <ul>
+          <li><span class="impact">Built the complete admin portal</span> for a Shariah-compliant BNPL fintech platform using React.js, Redux, and Tailwind CSS — used daily by operations and risk teams.</li>
+          <li>Delivered installment management, role-based access control, and real-time analytics dashboards.</li>
+          <li>Improved data-fetching strategy and component memoization, reducing perceived load time on key dashboards.</li>
+        </ul>
+      </div>
+
+      <div class="entry">
+        <div class="entry-head">
+          <span class="entry-title">Miletap &amp; Entertech</span>
+          <span class="entry-meta">Nov 2018 – Nov 2021</span>
+        </div>
+        <div class="entry-sub">
+          <span>React.js Developer</span>
+          <span class="loc">Karachi (Remote / Part-Time)</span>
+        </div>
+        <ul>
+          <li><span class="impact">Shipped multiple production React apps</span> — Reap Agro (farmer-loan onboarding), Helpers (service booking), Khawateen Rozgar (women employment), and Konnect (real-time video calling).</li>
+          <li>Owned UI architecture with Redux and Tailwind CSS; introduced typed prop boundaries and shared design tokens across products.</li>
+          <li>Integrated <span class="impact">WebRTC + SignalR</span> for live video and messaging; partnered with backend on REST API contracts.</li>
+        </ul>
+      </div>
+
+      <div class="entry">
+        <div class="entry-head">
+          <span class="entry-title">Civil Hospital Karachi</span>
+          <span class="entry-meta">Jun 2016 – Jan 2017</span>
+        </div>
+        <div class="entry-sub">
+          <span>Junior PHP Developer</span>
+          <span class="loc">Karachi, Pakistan</span>
+        </div>
+        <ul>
+          <li>Built a full Leave Management System with role-based access using PHP, MySQL, Bootstrap, and jQuery.</li>
+          <li>Maintained the hospital website and supported departmental IT operations.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <h2>Selected Projects</h2>
+
+      <div class="project">
+        <div class="project-head">
+          <span class="project-name"><a href="https://agentshah.shahfahad.dev">Agent Shah 3D</a></span>
+          <span class="project-kind">interactive 3D portfolio game</span>
+        </div>
+        <div class="project-desc">First-person browser experience with physics-driven movement and reactive environment; built solo from engine choice through deployment.</div>
+        <div class="stack-row">
+          <span class="pill">Three.js</span><span class="pill">Rapier</span><span class="pill">Meshopt</span><span class="pill">Vercel</span>
+        </div>
+      </div>
+
+      <div class="project">
+        <div class="project-head">
+          <span class="project-name"><a href="https://shahfahad.dev/projects/konnect">Konnect (konnect.im)</a></span>
+          <span class="project-kind">real-time video calling platform</span>
+        </div>
+        <div class="project-desc">Group video, screen share, and messaging with low-latency signalling and adaptive media handling.</div>
+        <div class="stack-row">
+          <span class="pill">React</span><span class="pill">Redux</span><span class="pill">WebRTC</span><span class="pill">SignalR</span>
+        </div>
+      </div>
+
+      <div class="project">
+        <div class="project-head">
+          <span class="project-name"><a href="https://shahfahad.dev/projects/kistpay">Kistpay Admin Portal</a></span>
+          <span class="project-kind">Shariah-compliant BNPL dashboard</span>
+        </div>
+        <div class="project-desc">Operations console for installment management, dynamic reporting, and role-based access.</div>
+        <div class="stack-row">
+          <span class="pill">React.js</span><span class="pill">Redux</span><span class="pill">Tailwind CSS</span>
+        </div>
+      </div>
+
+      <div class="project">
+        <div class="project-head">
+          <span class="project-name"><a href="https://shahfahad.dev/projects/reapagro">Reap Agro</a></span>
+          <span class="project-kind">farmer-loan onboarding</span>
+        </div>
+        <div class="project-desc">Field-friendly application capturing borrower data and routing it through the lending workflow.</div>
+        <div class="stack-row">
+          <span class="pill">React.js</span><span class="pill">Redux</span><span class="pill">REST APIs</span>
+        </div>
+      </div>
+
+      <div class="project">
+        <div class="project-head">
+          <span class="project-name"><a href="https://shahfahad.dev/projects/opd">OPD Entry Software</a></span>
+          <span class="project-kind">offline-first hospital intake</span>
+        </div>
+        <div class="project-desc">Cross-platform clinic app with patient records, dynamic reporting, and background sync on reconnect.</div>
+        <div class="stack-row">
+          <span class="pill">Flutter</span><span class="pill">Floor ORM</span><span class="pill">SQLite</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="two-col">
+        <div>
+          <h2>Education</h2>
+          <div class="entry">
+            <div class="entry-head">
+              <span class="entry-title">ACCP Pro — Aptech</span>
+              <span class="entry-meta">2017</span>
+            </div>
+            <div class="entry-sub">
+              <span>Diploma in Software Engineering</span>
+            </div>
+          </div>
+          <div class="entry">
+            <div class="entry-head">
+              <span class="entry-title">HSC — BIEK Karachi</span>
+              <span class="entry-meta">2012</span>
+            </div>
+            <div class="entry-sub">
+              <span>Intermediate (Pre-Engineering)</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h2>Languages</h2>
+          <div class="lang-row">
+            <div>English<span class="lvl">Professional</span></div>
+            <div>Urdu<span class="lvl">Native</span></div>
+          </div>
+          <h2 style="margin-top:14px;">Availability</h2>
+          <p class="summary" style="font-size:9.5pt; line-height:1.5;">
+            Open to <strong>Senior Frontend Engineer</strong> roles — remote, hybrid,
+            or relocation. Available immediately.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+</body>
+</html>
