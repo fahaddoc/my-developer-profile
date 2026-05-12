@@ -296,39 +296,118 @@
   .stack-row { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 3px 4px; }
   .stack-row .pill { font-size: 8.5pt; padding: 1px 6px; }
 
-  /* ── Two-column band for Education & Languages ───────────── */
-  .two-col {
+  /* ── Bottom metadata band — single column, label-content rows ── */
+  .meta-band {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+  .meta-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 26px;
+    grid-template-columns: 108px 1fr;
+    column-gap: 14px;
+    padding: 3px 0;
+    align-items: baseline;
+  }
+  .meta-label {
+    font-size: 8.2pt;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1.3px;
+  }
+  .meta-content {
+    font-size: 9.6pt;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+  .meta-content strong { color: var(--ink); font-weight: 600; }
+  .meta-content .muted { color: var(--muted); font-weight: 400; }
+  .meta-content .dot-sep {
+    color: var(--rule);
+    margin: 0 6px;
   }
 
-  .lang-row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
-  .lang-row > div { font-size: 9.8pt; color: var(--ink-2); }
-  .lang-row .lvl { color: var(--muted); font-size: 8.8pt; margin-left: 4px; }
-
-  /* ── Print ────────────────────────────────────────────────── */
+  /* ── Print — aggressive 1-page fit ───────────────────────── */
   @page { size: letter; margin: 0; }
 
   @media print {
-    html, body { background: #fff; }
+    html, body {
+      background: #fff;
+      font-size: 8.2pt;
+      line-height: 1.3;
+    }
     .page {
       max-width: none;
       margin: 0;
       box-shadow: none;
     }
-    header.hero {
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
+
+    /* Force every coloured chip / band to print its background */
+    header.hero,
+    header.hero::after,
+    .monogram,
+    .pill,
+    .pill.primary,
     h2::before,
     .entry li::before,
-    .pill.primary,
-    .monogram,
-    header.hero::after {
+    .contact .dot {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
+
+    /* Header band — condense */
+    header.hero { padding: 11px 24px 9px; }
+    h1 { font-size: 19pt; letter-spacing: -0.7px; }
+    .role-tag { margin-top: 4px; padding: 1.5px 6px; font-size: 7pt; }
+    .tagline { margin-top: 5px; font-size: 8pt; line-height: 1.32; max-width: 440px; }
+    .monogram { width: 36px; height: 36px; font-size: 10.5pt; border-radius: 8px; }
+    .contact {
+      margin-top: 6px;
+      padding-top: 6px;
+      gap: 0 10px;
+      font-size: 7.2pt;
+    }
+    .contact .dot { width: 3px; height: 3px; }
+
+    /* Body — tight padding, tight sections */
+    .body { padding: 9px 24px 10px; }
+    section { margin-top: 6px; }
+    h2 { font-size: 7.6pt; letter-spacing: 1.1px; margin-bottom: 4px; }
+    h2::before { width: 12px; height: 1.5px; }
+
+    .summary { font-size: 8.2pt; line-height: 1.36; }
+
+    /* Skills — smaller pills, tighter rows */
+    .skills-block { row-gap: 3px; column-gap: 9px; grid-template-columns: 58px 1fr; }
+    .skills-block .label { font-size: 7.2pt; padding-top: 1.5px; }
+    .pill-row { gap: 2px 3px; }
+    .pill { font-size: 7pt; padding: 0.5px 5px; border-radius: 3px; }
+
+    /* Experience entries */
+    .entry { margin-bottom: 4px; }
+    .entry-title { font-size: 8.8pt; }
+    .entry-meta { font-size: 7.2pt; }
+    .entry-sub { font-size: 7.6pt; margin-top: -1px; }
+    .entry ul { margin-top: 1px; }
+    .entry li { font-size: 8pt; line-height: 1.32; padding-left: 10px; margin-bottom: 0; }
+    .entry li::before { top: 6px; width: 3.5px; height: 3.5px; }
+
+    /* Projects */
+    .project { margin-bottom: 3px; }
+    .project-name { font-size: 8.6pt; }
+    .project-kind { font-size: 7.4pt; }
+    .project-desc { font-size: 8pt; line-height: 1.3; margin-top: 0px; }
+    .stack-row { margin-top: 1px; gap: 1px 3px; }
+    .stack-row .pill { font-size: 6.8pt; padding: 0 4.5px; }
+
+    /* Bottom meta band */
+    .meta-band { margin-top: 9px; padding-top: 7px; }
+    .meta-row { grid-template-columns: 92px 1fr; column-gap: 12px; padding: 1.5px 0; }
+    .meta-label { font-size: 7.4pt; letter-spacing: 1.1px; }
+    .meta-content { font-size: 8.3pt; line-height: 1.4; }
+    .meta-content .dot-sep { margin: 0 5px; }
+
     a { color: inherit; text-decoration: none; }
   }
 </style>
@@ -556,40 +635,28 @@
       </div>
     </section>
 
-    <section>
-      <div class="two-col">
-        <div>
-          <h2>Education</h2>
-          <div class="entry">
-            <div class="entry-head">
-              <span class="entry-title">ACCP Pro — Aptech</span>
-              <span class="entry-meta">2017</span>
-            </div>
-            <div class="entry-sub">
-              <span>Diploma in Software Engineering</span>
-            </div>
-          </div>
-          <div class="entry">
-            <div class="entry-head">
-              <span class="entry-title">HSC — BIEK Karachi</span>
-              <span class="entry-meta">2012</span>
-            </div>
-            <div class="entry-sub">
-              <span>Intermediate (Pre-Engineering)</span>
-            </div>
-          </div>
+    <section class="meta-band" aria-label="Additional details">
+      <div class="meta-row">
+        <h2 class="meta-label">Education</h2>
+        <div class="meta-content">
+          <strong>ACCP Pro &mdash; Aptech</strong> <span class="muted">Diploma in Software Engineering, 2017</span>
+          <span class="dot-sep">·</span>
+          <strong>HSC &mdash; BIEK Karachi</strong> <span class="muted">Intermediate (Pre-Engineering), 2012</span>
         </div>
-        <div>
-          <h2>Languages</h2>
-          <div class="lang-row">
-            <div>English<span class="lvl">Professional</span></div>
-            <div>Urdu<span class="lvl">Native</span></div>
-          </div>
-          <h2 style="margin-top:14px;">Availability</h2>
-          <p class="summary" style="font-size:9.5pt; line-height:1.5;">
-            Open to <strong>Senior Frontend Engineer</strong> roles — remote, hybrid,
-            or relocation. Available immediately.
-          </p>
+      </div>
+      <div class="meta-row">
+        <h2 class="meta-label">Languages</h2>
+        <div class="meta-content">
+          <strong>English</strong> <span class="muted">Professional</span>
+          <span class="dot-sep">·</span>
+          <strong>Urdu</strong> <span class="muted">Native</span>
+        </div>
+      </div>
+      <div class="meta-row">
+        <h2 class="meta-label">Availability</h2>
+        <div class="meta-content">
+          Open to <strong>Senior Frontend Engineer</strong> roles &mdash;
+          <span class="muted">remote, hybrid, or relocation</span>
         </div>
       </div>
     </section>
