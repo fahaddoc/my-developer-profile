@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
 import { ProjectCard } from '@/components/ui/ProjectCard'
 import { ProjectModal } from '@/components/ui/ProjectModal'
 import { projects, type Project } from '@/data/projects'
+import { useReduceScrollFx } from '@/hooks/useReduceScrollFx'
 
 // ── Constellation network background ─────────────────────────────────────────
 // Sparse jittered dots. Near cursor: dots glow + connecting lines form between
@@ -244,9 +245,10 @@ export function Projects() {
   const sectionRef = useRef<HTMLElement>(null)
 
   const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start start', 'end start'] })
-  const scale   = useTransform(scrollYProgress, [0.75, 1], [1,   0.91])
-  const opacity = useTransform(scrollYProgress, [0.75, 1], [1,   0.35])
-  const rotateX = useTransform(scrollYProgress, [0.75, 1], [0,   10  ])
+  const reduceFx = useReduceScrollFx()
+  const scale   = useTransform(scrollYProgress, [0.75, 1], reduceFx ? [1, 1] : [1,   0.91])
+  const opacity = useTransform(scrollYProgress, [0.75, 1], reduceFx ? [1, 1] : [1,   0.35])
+  const rotateX = useTransform(scrollYProgress, [0.75, 1], reduceFx ? [0, 0] : [0,   10  ])
 
   const filtered = projects.filter(p => activeFilter === 'all' || p.category === activeFilter)
   const featured = filtered.filter(p => p.featured)

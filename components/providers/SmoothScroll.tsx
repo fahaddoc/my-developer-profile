@@ -17,6 +17,14 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
 
+    // Skip Lenis on touch devices / reduced-motion users.
+    // iOS and Android already do momentum scroll natively, and Lenis adds
+    // an RAF chain + scroll-event amplification that blocks the main thread
+    // when several useScroll() listeners subscribe to it.
+    const isTouch = window.matchMedia('(hover: none)').matches
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (isTouch || reducedMotion) return
+
     const lenis = new Lenis({
       duration: 1.4,                                         // how long one scroll "unit" takes
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // expo ease-out

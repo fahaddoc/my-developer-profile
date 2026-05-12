@@ -90,7 +90,21 @@ function ParticleCollector({
   // Keep callback ref fresh without restarting the effect
   useEffect(() => { onCollectRef.current = onCollect }, [onCollect])
 
+  // Particle collector is cursor-driven by design. On touch devices and for
+  // users who prefer reduced motion, render nothing — saves an RAF loop and
+  // a full-section canvas paint on every frame, which is the biggest mobile
+  // performance hit in the hero.
+  const [enabled, setEnabled] = useState(false)
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const noTouch     = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+    const motionOk    = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const wideEnough  = window.innerWidth >= 768
+    setEnabled(noTouch && motionOk && wideEnough)
+  }, [])
+
+  useEffect(() => {
+    if (!enabled) return
     const canvas = canvasRef.current!
     const ctx    = canvas.getContext('2d')!
 
@@ -286,7 +300,9 @@ function ParticleCollector({
       canvas.removeEventListener('touchmove',  onTouchMove)
       cancelAnimationFrame(rafId)
     }
-  }, [])
+  }, [enabled])
+
+  if (!enabled) return null
 
   return (
     <canvas
@@ -360,32 +376,20 @@ function PhotoCard() {
         style={{ rotateY: tiltY, rotateX: tiltX, transformStyle: 'preserve-3d' }}
         className="relative aspect-[4/5]"
       >
-        {/* Floating subject — sticker rim + soft lift always on; neon accent fades in after arrival */}
+        {/* Floating subject — sticker rim is pre-baked into the PNG so the
+           runtime filter chain stays light. On mobile this is the single
+           biggest paint cost, so we keep it minimal. */}
         <Image
-          src="/images/shah-fahad-cutout.png"
+          src="/images/shah-fahad-sticker.png"
           alt="Shah Fahad — Senior Software Engineer specializing in React, Next.js, Flutter, and WebRTC, based in Karachi, Pakistan"
           fill
           className="object-contain object-bottom"
           priority
           sizes="(max-width: 768px) 288px, (max-width: 1024px) 320px, 384px"
           style={{
-            filter: [
-              // White sticker rim — 8-direction outline (2px each, chained for uniform thickness)
-              'drop-shadow(2px 0 0 #fff)',
-              'drop-shadow(-2px 0 0 #fff)',
-              'drop-shadow(0 2px 0 #fff)',
-              'drop-shadow(0 -2px 0 #fff)',
-              'drop-shadow(2px 2px 0 #fff)',
-              'drop-shadow(-2px -2px 0 #fff)',
-              'drop-shadow(2px -2px 0 #fff)',
-              'drop-shadow(-2px 2px 0 #fff)',
-              // Soft drop-shadow below for "lifted off paper" feel
-              'drop-shadow(0 10px 14px rgba(0,0,0,0.45))',
-              // Neon accent glow — appears only after arrival
-              arrived
-                ? 'drop-shadow(0 0 22px rgba(168,85,247,0.5)) drop-shadow(0 0 48px rgba(34,211,238,0.22))'
-                : 'drop-shadow(0 0 0 rgba(168,85,247,0)) drop-shadow(0 0 0 rgba(34,211,238,0))',
-            ].join(' '),
+            filter: arrived
+              ? 'drop-shadow(0 10px 14px rgba(0,0,0,0.45)) drop-shadow(0 0 22px rgba(168,85,247,0.5)) drop-shadow(0 0 42px rgba(34,211,238,0.2))'
+              : 'drop-shadow(0 10px 14px rgba(0,0,0,0.45))',
             transition: `filter ${GLOW_FADE_MS}ms ease-out`,
           }}
         />
@@ -433,8 +437,16 @@ export function Hero() {
     return () => clearTimeout(t)
   }, [])
 
-  // GSAP scroll exit — unchanged
+  // GSAP scroll exit — desktop only. On mobile the 3D rotateX + scale
+  // forces a full re-rasterization of the hero (including the cutout
+  // sticker) on every scroll frame, which is the main scroll-hang
+  // cause on low-end devices.
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const isTouch = window.matchMedia('(hover: none)').matches
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (isTouch || reduced) return
+
     gsap.registerPlugin(ScrollTrigger)
 
     const ctx = gsap.context(() => {

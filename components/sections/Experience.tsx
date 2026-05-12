@@ -5,6 +5,7 @@ import { motion, useScroll, useTransform } from 'framer-motion'
 import { RevealText } from '@/components/ui/RevealText'
 import { TimelineItem } from '@/components/ui/TimelineItem'
 import { experience } from '@/data/projects'
+import { useReduceScrollFx } from '@/hooks/useReduceScrollFx'
 
 // ── Hexagonal honeycomb background ───────────────────────────────────────────
 // Pointy-top hexagons. Hexes near cursor glow with neon violet border.
@@ -238,9 +239,10 @@ export function Experience() {
     target: sectionRef,
     offset: ['start start', 'end start'],
   })
-  const scale   = useTransform(scrollYProgress, [0.65, 1], [1,  0.91])
-  const opacity = useTransform(scrollYProgress, [0.65, 1], [1,  0.35])
-  const rotateX = useTransform(scrollYProgress, [0.65, 1], [0,  10  ])
+  const reduceFx = useReduceScrollFx()
+  const scale   = useTransform(scrollYProgress, [0.65, 1], reduceFx ? [1, 1] : [1,  0.91])
+  const opacity = useTransform(scrollYProgress, [0.65, 1], reduceFx ? [1, 1] : [1,  0.35])
+  const rotateX = useTransform(scrollYProgress, [0.65, 1], reduceFx ? [0, 0] : [0,  10  ])
 
   return (
     <section ref={sectionRef} id="experience" className="relative py-24 md:py-32 overflow-hidden">

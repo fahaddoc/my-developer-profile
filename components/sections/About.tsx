@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from 'react'
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { SkillBadge } from '@/components/ui/SkillBadge'
 import { useInView } from '@/hooks/useInView'
+import { useReduceScrollFx } from '@/hooks/useReduceScrollFx'
 
 // ── CSS background (unchanged) ────────────────────────────────────────────────
 const diagonalLines = `
@@ -320,9 +321,10 @@ export function About() {
     target: sectionRef,
     offset: ['start start', 'end start'],
   })
-  const scale   = useTransform(scrollYProgress, [0.45, 1], [1,   0.91])
-  const opacity = useTransform(scrollYProgress, [0.45, 1], [1,   0.35])
-  const rotateX = useTransform(scrollYProgress, [0.45, 1], [0,   10  ])
+  const reduceFx = useReduceScrollFx()
+  const scale   = useTransform(scrollYProgress, [0.45, 1], reduceFx ? [1, 1] : [1,   0.91])
+  const opacity = useTransform(scrollYProgress, [0.45, 1], reduceFx ? [1, 1] : [1,   0.35])
+  const rotateX = useTransform(scrollYProgress, [0.45, 1], reduceFx ? [0, 0] : [0,   10  ])
 
   const handlePathClick = (
     e: React.MouseEvent<HTMLButtonElement>,

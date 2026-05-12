@@ -5,6 +5,7 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { RevealText } from '@/components/ui/RevealText'
 import { SkillBadge } from '@/components/ui/SkillBadge'
 import { useInView } from '@/hooks/useInView'
+import { useReduceScrollFx } from '@/hooks/useReduceScrollFx'
 import { skills } from '@/data/projects'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -446,9 +447,10 @@ export function Skills() {
     target: sectionRef,
     offset: ['start start', 'end start'],
   })
-  const scale   = useTransform(scrollYProgress, [0.45, 1], [1,  0.91])
-  const opacity = useTransform(scrollYProgress, [0.45, 1], [1,  0.35])
-  const rotateX = useTransform(scrollYProgress, [0.45, 1], [0,  10  ])
+  const reduceFx = useReduceScrollFx()
+  const scale   = useTransform(scrollYProgress, [0.45, 1], reduceFx ? [1, 1] : [1,  0.91])
+  const opacity = useTransform(scrollYProgress, [0.45, 1], reduceFx ? [1, 1] : [1,  0.35])
+  const rotateX = useTransform(scrollYProgress, [0.45, 1], reduceFx ? [0, 0] : [0,  10  ])
 
   const handleProgress = useCallback((n: number) => setPoweredCount(n), [])
   const handleComplete = useCallback(() => setCircuitDone(true), [])
