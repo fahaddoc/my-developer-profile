@@ -325,6 +325,9 @@ function PhotoCard() {
   const tiltX   = useTransform(springY, [-0.5, 0.5], [8,  -8])
 
   const [arrived, setArrived] = useState(false)
+  const [flipped, setFlipped] = useState(false)
+  const [muted, setMuted]     = useState(true)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   const ENTRANCE_DELAY = 0.4   // seconds
   const ENTRANCE_DUR   = 1.7   // seconds
@@ -334,6 +337,18 @@ function PhotoCard() {
     const t = setTimeout(() => setArrived(true), (ENTRANCE_DELAY + ENTRANCE_DUR) * 1000)
     return () => clearTimeout(t)
   }, [])
+
+  // Drive the video when flipped — play on flip, pause + reset on flip back
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    if (flipped) {
+      v.play().catch(() => { /* autoplay blocked, poster stays visible */ })
+    } else {
+      v.pause()
+      v.currentTime = 0
+    }
+  }, [flipped])
 
   const onMove  = (e: React.MouseEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect()
@@ -375,24 +390,118 @@ function PhotoCard() {
       <motion.div
         style={{ rotateY: tiltY, rotateX: tiltX, transformStyle: 'preserve-3d' }}
         className="relative aspect-[4/5]"
+        onMouseEnter={() => setFlipped(true)}
+        onMouseLeave={() => setFlipped(false)}
+        onClick={() => setFlipped(f => !f)}
+        role="button"
+        aria-pressed={flipped}
+        aria-label={flipped ? 'Showing intro video. Click to return to photo.' : 'Photo of Shah Fahad. Hover or tap to play intro video.'}
       >
-        {/* Floating subject — sticker rim is pre-baked into the PNG so the
-           runtime filter chain stays light. On mobile this is the single
-           biggest paint cost, so we keep it minimal. */}
-        <Image
-          src="/images/shah-fahad-sticker.png"
-          alt="Shah Fahad — Senior Software Engineer specializing in React, Next.js, Flutter, and WebRTC, based in Karachi, Pakistan"
-          fill
-          className="object-contain object-bottom"
-          priority
-          sizes="(max-width: 768px) 288px, (max-width: 1024px) 320px, 384px"
+        {/* Flip container — preserves 3d so front/back can rotate */}
+        <div
+          className="absolute inset-0 transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
           style={{
-            filter: arrived
-              ? 'drop-shadow(0 10px 14px rgba(0,0,0,0.45)) drop-shadow(0 0 22px rgba(168,85,247,0.5)) drop-shadow(0 0 42px rgba(34,211,238,0.2))'
-              : 'drop-shadow(0 10px 14px rgba(0,0,0,0.45))',
-            transition: `filter ${GLOW_FADE_MS}ms ease-out`,
+            transformStyle: 'preserve-3d',
+            transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
           }}
-        />
+        >
+          {/* ── Front: sticker photo ───────────────────────────── */}
+          <div
+            className="absolute inset-0"
+            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+          >
+            <Image
+              src="/images/shah-fahad-sticker.png"
+              alt="Shah Fahad — Senior Software Engineer specializing in React, Next.js, Flutter, and WebRTC, based in Karachi, Pakistan"
+              fill
+              className="object-contain object-bottom"
+              priority
+              sizes="(max-width: 768px) 288px, (max-width: 1024px) 320px, 384px"
+              style={{
+                filter: arrived
+                  ? 'drop-shadow(0 10px 14px rgba(0,0,0,0.45)) drop-shadow(0 0 22px rgba(168,85,247,0.5)) drop-shadow(0 0 42px rgba(34,211,238,0.2))'
+                  : 'drop-shadow(0 10px 14px rgba(0,0,0,0.45))',
+                transition: `filter ${GLOW_FADE_MS}ms ease-out`,
+              }}
+            />
+
+            {/* Hint chip — bottom-right, appears after arrival, fades on hover */}
+            <div
+              className="absolute bottom-3 right-3 z-10 px-2.5 py-1 rounded-full bg-bg-elevated/85 border border-accent-violet/35 backdrop-blur-md flex items-center gap-1.5 font-mono text-[10px] text-accent-violet pointer-events-none select-none"
+              style={{
+                opacity: arrived && !flipped ? 1 : 0,
+                transition: 'opacity 400ms ease-out',
+              }}
+              aria-hidden="true"
+            >
+              <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor"><path d="M2 1.5v7l6-3.5z" /></svg>
+              hover for intro
+            </div>
+          </div>
+
+          {/* ── Back: intro video — transparent subject, mirrors image ─ */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+            }}
+          >
+            <video
+              ref={videoRef}
+              poster="/videos/shah-intro-poster.png"
+              muted={muted}
+              playsInline
+              preload="metadata"
+              className="w-full h-full object-contain object-bottom"
+              style={{
+                filter: arrived
+                  ? 'drop-shadow(0 10px 14px rgba(0,0,0,0.45)) drop-shadow(0 0 22px rgba(168,85,247,0.5)) drop-shadow(0 0 42px rgba(34,211,238,0.2))'
+                  : 'drop-shadow(0 10px 14px rgba(0,0,0,0.45))',
+                transition: `filter ${GLOW_FADE_MS}ms ease-out`,
+              }}
+            >
+              {/* Sources in priority order: WebM-VP9-alpha (Chrome/FF/Edge),
+                  HEVC-alpha .mov (Safari/iOS 16+), MP4 fallback (no alpha). */}
+              <source src="/videos/shah-intro.webm" type="video/webm" />
+              <source src="/videos/shah-intro.mov"  type='video/mp4; codecs="hvc1"' />
+              <source src="/videos/shah-intro.mp4"  type="video/mp4" />
+            </video>
+
+            {/* Live indicator — bottom-left, sits next to the existing
+               "Open to work" badge so the corner reads as one unit */}
+            <div className="absolute -top-4 -right-4 px-3 py-2 rounded-xl bg-bg-elevated border border-red-500/30 backdrop-blur-sm flex items-center gap-2 z-10 pointer-events-none">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" style={{ boxShadow: '0 0 8px #ef4444' }} />
+              <span className="font-mono text-xs text-red-400">Playing intro</span>
+            </div>
+
+            {/* Mute toggle — bottom-right card corner, mirrors the
+               "hover for intro" chip position on the front face so it
+               reads as part of the card chrome, not floating */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setMuted(m => !m) }}
+              className="absolute -bottom-4 -right-4 px-3 py-2 rounded-xl bg-bg-elevated border border-accent-violet/35 backdrop-blur-sm flex items-center gap-2 z-10 text-accent-violet hover:border-accent-violet/70 hover:text-white transition-colors"
+              aria-label={muted ? 'Unmute intro video' : 'Mute intro video'}
+              aria-pressed={!muted}
+            >
+              {muted ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <line x1="23" y1="9" x2="17" y2="15" />
+                  <line x1="17" y1="9" x2="23" y2="15" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                </svg>
+              )}
+              <span className="font-mono text-xs">{muted ? 'Tap for sound' : 'Mute'}</span>
+            </button>
+          </div>
+        </div>
       </motion.div>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
