@@ -409,47 +409,22 @@ export function Contact() {
     setOverclocked(false)
   }
 
-  // Fall back to mailto when EmailJS isn't reachable (missing env or send error)
-  // so a visitor never hits a dead end on the contact form.
-  const openMailtoFallback = () => {
-    const subject = encodeURIComponent(form.subject || `Message from ${form.name || 'shahfahad.dev visitor'}`)
-    const body    = encodeURIComponent(
-      `${form.message}\n\n— ${form.name || ''}${form.email ? ` <${form.email}>` : ''}`.trim()
-    )
-    window.location.href = `mailto:hello@shahfahad.dev?subject=${subject}&body=${body}`
-  }
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (status === 'sending') return
-
-    const serviceId  = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID
-    const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID
-    const publicKey  = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
-
-    // EmailJS not configured (e.g. env vars missing in production) → hop straight
-    // to the user's mail client with the message pre-filled.
-    if (!serviceId || !templateId || !publicKey) {
-      openMailtoFallback()
-      return
-    }
-
     setStatus('sending')
     try {
       await emailjs.send(
-        serviceId,
-        templateId,
+        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
+        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
         { from_name: form.name, from_email: form.email, subject: form.subject, message: form.message },
-        publicKey
+        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!
       )
       setStatus('sent')
       setExploding(true)
       setForm({ name: '', email: '', subject: '', message: '' })
     } catch {
       setStatus('error')
-      // EmailJS reachable but rejected the send (rate-limit, template error, etc.)
-      // — hand off to mailto so the message still gets through.
-      openMailtoFallback()
     }
   }
 
