@@ -327,7 +327,26 @@ function PhotoCard() {
   const [arrived, setArrived] = useState(false)
   const [flipped, setFlipped] = useState(false)
   const [muted, setMuted]     = useState(true)
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const videoRef       = useRef<HTMLVideoElement>(null)
+  const closeTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Hover-out is debounced so the card doesn't oscillate when the cursor
+  // grazes the badges that visually overhang the card edge.
+  const setFlippedSoon = (next: boolean) => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+    if (next) {
+      setFlipped(true)
+    } else {
+      closeTimerRef.current = setTimeout(() => {
+        setFlipped(false)
+        closeTimerRef.current = null
+      }, 140)
+    }
+  }
+  useEffect(() => () => { if (closeTimerRef.current) clearTimeout(closeTimerRef.current) }, [])
 
   const ENTRANCE_DELAY = 0.4   // seconds
   const ENTRANCE_DUR   = 1.7   // seconds
@@ -373,7 +392,12 @@ function PhotoCard() {
       className="relative flex-shrink-0 w-72 md:w-80 lg:w-96"
       style={{ perspective: 900 }}
       onMouseMove={onMove}
-      onMouseLeave={onLeave}
+      onMouseEnter={() => setFlippedSoon(true)}
+      onMouseLeave={() => { onLeave(); setFlippedSoon(false) }}
+      onClick={() => setFlipped(f => !f)}
+      role="button"
+      aria-pressed={flipped}
+      aria-label={flipped ? 'Showing intro video. Click to return to photo.' : 'Photo of Shah Fahad. Hover or tap to play intro video.'}
     >
       {/* Ambient radial halo — fades in after arrival */}
       <div
@@ -390,12 +414,6 @@ function PhotoCard() {
       <motion.div
         style={{ rotateY: tiltY, rotateX: tiltX, transformStyle: 'preserve-3d' }}
         className="relative aspect-[4/5]"
-        onMouseEnter={() => setFlipped(true)}
-        onMouseLeave={() => setFlipped(false)}
-        onClick={() => setFlipped(f => !f)}
-        role="button"
-        aria-pressed={flipped}
-        aria-label={flipped ? 'Showing intro video. Click to return to photo.' : 'Photo of Shah Fahad. Hover or tap to play intro video.'}
       >
         {/* Flip container — preserves 3d so front/back can rotate */}
         <div
@@ -468,50 +486,66 @@ function PhotoCard() {
               <source src="/videos/shah-intro.mov"  type='video/mp4; codecs="hvc1"' />
               <source src="/videos/shah-intro.mp4"  type="video/mp4" />
             </video>
-
-            {/* Live indicator — bottom-left, sits next to the existing
-               "Open to work" badge so the corner reads as one unit */}
-            <div className="absolute -top-4 -right-4 px-3 py-2 rounded-xl bg-bg-elevated border border-red-500/30 backdrop-blur-sm flex items-center gap-2 z-10 pointer-events-none">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" style={{ boxShadow: '0 0 8px #ef4444' }} />
-              <span className="font-mono text-xs text-red-400">Playing intro</span>
-            </div>
-
-            {/* Mute toggle — bottom-right card corner, mirrors the
-               "hover for intro" chip position on the front face so it
-               reads as part of the card chrome, not floating */}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setMuted(m => !m) }}
-              className="absolute -bottom-4 -right-4 px-3 py-2 rounded-xl bg-bg-elevated border border-accent-violet/35 backdrop-blur-sm flex items-center gap-2 z-10 text-accent-violet hover:border-accent-violet/70 hover:text-white transition-colors"
-              aria-label={muted ? 'Unmute intro video' : 'Mute intro video'}
-              aria-pressed={!muted}
-            >
-              {muted ? (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <line x1="23" y1="9" x2="17" y2="15" />
-                  <line x1="17" y1="9" x2="23" y2="15" />
-                </svg>
-              ) : (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                </svg>
-              )}
-              <span className="font-mono text-xs">{muted ? 'Tap for sound' : 'Mute'}</span>
-            </button>
           </div>
         </div>
       </motion.div>
+
+      {/* ── Card chrome (badges + mute) — siblings of the flip card so
+         hovering them never fires mouseleave on the flip target, which
+         was the source of the flicker bug. Their visibility is driven
+         by `flipped` state via opacity. ───────────────────────────── */}
+
+      {/* "Open to work" — always visible (front and back); pointer-events
+         disabled so it doesn't interfere with the hover area. */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.0, duration: 0.5 }}
-        className="absolute -bottom-4 -left-4 px-3 py-2 rounded-xl bg-bg-elevated border border-accent-cyan/25 backdrop-blur-sm flex items-center gap-2"
+        className="absolute -bottom-4 -left-4 px-3 py-2 rounded-xl bg-bg-elevated border border-accent-cyan/25 backdrop-blur-sm flex items-center gap-2 pointer-events-none"
       >
         <span className="w-2 h-2 rounded-full bg-accent-cyan animate-breathe" />
         <span className="font-mono text-xs text-accent-cyan">Open to work</span>
       </motion.div>
+
+      {/* "Playing intro" — visible only while video is playing */}
+      <div
+        className="absolute -top-4 -right-4 px-3 py-2 rounded-xl bg-bg-elevated border border-red-500/30 backdrop-blur-sm flex items-center gap-2 pointer-events-none"
+        style={{ opacity: flipped ? 1 : 0, transition: 'opacity 300ms ease-out' }}
+      >
+        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" style={{ boxShadow: '0 0 8px #ef4444' }} />
+        <span className="font-mono text-xs text-red-400">Playing intro</span>
+      </div>
+
+      {/* Mute toggle — visible only while video is playing.
+         Disabled (pointer-events:none) when the card is on the front
+         face so a stray hover on its position can't trigger anything. */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setMuted(m => !m) }}
+        className="absolute -bottom-4 -right-4 px-3 py-2 rounded-xl bg-bg-elevated border border-accent-violet/35 backdrop-blur-sm flex items-center gap-2 text-accent-violet hover:border-accent-violet/70 hover:text-white transition-colors"
+        style={{
+          opacity: flipped ? 1 : 0,
+          pointerEvents: flipped ? 'auto' : 'none',
+          transition: 'opacity 300ms ease-out',
+        }}
+        aria-hidden={!flipped}
+        aria-label={muted ? 'Unmute intro video' : 'Mute intro video'}
+        aria-pressed={!muted}
+      >
+        {muted ? (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <line x1="23" y1="9" x2="17" y2="15" />
+            <line x1="17" y1="9" x2="23" y2="15" />
+          </svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+          </svg>
+        )}
+        <span className="font-mono text-xs">{muted ? 'Tap for sound' : 'Mute'}</span>
+      </button>
     </motion.div>
   )
 }
