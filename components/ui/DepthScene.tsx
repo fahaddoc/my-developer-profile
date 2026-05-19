@@ -28,14 +28,14 @@ export function DepthScene({ children, strength = 1 }: DepthSceneProps) {
     offset: ['start end', 'end start'],
   })
 
-  const Z       = useTransform(scrollYProgress, [0, 0.45, 0.55, 1],
-                    reduce ? [0, 0, 0, 0] : [-450 * strength, 0, 0, 280 * strength])
-  const rotateX = useTransform(scrollYProgress, [0, 0.45, 0.55, 1],
-                    reduce ? [0, 0, 0, 0] : [-6 * strength, 0, 0, 4 * strength])
-  const opacity = useTransform(scrollYProgress, [0, 0.18, 0.82, 1],
-                    reduce ? [1, 1, 1, 1] : [0.4, 1, 1, 0.5])
+  // Pure axial zoom — section enters small (camera far), zooms in to natural
+  // size at viewport centre, zooms back out as it leaves. No rotation, no tilt.
+  const Z       = useTransform(scrollYProgress, [0, 0.5, 1],
+                    reduce ? [0, 0, 0] : [-800 * strength, 0, -800 * strength])
+  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1],
+                    reduce ? [1, 1, 1, 1] : [0, 1, 1, 0])
 
-  const transform = useMotionTemplate`translateZ(${Z}px) rotateX(${rotateX}deg)`
+  const transform = useMotionTemplate`translateZ(${Z}px)`
 
   return (
     <motion.div
@@ -43,7 +43,6 @@ export function DepthScene({ children, strength = 1 }: DepthSceneProps) {
       style={{
         transform,
         opacity,
-        transformStyle: 'preserve-3d',
         transformOrigin: '50% 50%',
         willChange: 'transform, opacity',
       }}
