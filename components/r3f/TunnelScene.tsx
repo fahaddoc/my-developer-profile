@@ -708,12 +708,13 @@ function ProjectTiles({
 
   // Track which tile is hovered (-1 = none). Reused vectors so the hover
   // animation doesn't allocate per frame.
-  const hoveredRef = useRef<number>(-1)
-  const tmpDir     = useMemo(() => new THREE.Vector3(), [])
-  const tmpWorld   = useMemo(() => new THREE.Vector3(), [])
-  const tmpLocal   = useMemo(() => new THREE.Vector3(), [])
+  const hoveredRef   = useRef<number>(-1)
+  const lastScrollRef = useRef<number>(0)
+  const tmpDir       = useMemo(() => new THREE.Vector3(), [])
+  const tmpWorld     = useMemo(() => new THREE.Vector3(), [])
+  const tmpLocal     = useMemo(() => new THREE.Vector3(), [])
 
-  // Per-tile scale lerp state (rest=1, hovered=2.4)
+  // Per-tile scale lerp state (rest=1, hovered ~1.8)
   const scaleRef = useRef<number[]>(Array.from({ length: 9 }, () => 1))
 
   useFrame(({ camera }, dt) => {
@@ -735,12 +736,23 @@ function ProjectTiles({
       })
     }
 
+    // Release the hovered tile when the user starts scrolling — don't trap
+    // a sticky tile in their face if they want to keep moving.
+    if (Math.abs(scrollRef.current - lastScrollRef.current) > 0.0008) {
+      if (hoveredRef.current !== -1) {
+        hoveredRef.current = -1
+        if (typeof document !== 'undefined') document.body.style.cursor = ''
+      }
+    }
+    lastScrollRef.current = scrollRef.current
+
     // Hover: tile flies in front of camera (paper stuck to lens), un-hover:
     // tile glides back to its orbital rest spot. Lerp factor 0.16.
     if (groupRef.current) {
-      // Get camera forward direction once
       camera.getWorldDirection(tmpDir)
-      const STICK_DIST = 1.6   // metres in front of the lens
+      // Pulled back from 1.6 → 2.6 so the tile fills less of the viewport
+      // and the title block below stays readable.
+      const STICK_DIST = 2.6
 
       let tileIdx = 0
       groupRef.current.traverse((obj) => {
@@ -748,28 +760,23 @@ function ProjectTiles({
         const isHover = hoveredRef.current === tileIdx
 
         if (isHover && obj.parent) {
-          // Desired world position = camera + forward * STICK_DIST
           tmpWorld.copy(camera.position).addScaledVector(tmpDir, STICK_DIST)
-          // Convert to local space of the orbit ring (tile's parent)
           tmpLocal.copy(tmpWorld)
           obj.parent.worldToLocal(tmpLocal)
           obj.position.lerp(tmpLocal, 0.16)
         } else {
-          // Rest position is captured on the userData when first mounted
           const rest = obj.userData.restPos as THREE.Vector3 | undefined
           if (rest) obj.position.lerp(rest, 0.14)
         }
 
-        // Scale lerp
-        const target = isHover ? 2.4 : 1
+        // Hovered scale 1.8 — large enough to read but title stays on-screen
+        const target = isHover ? 1.8 : 1
         const cur    = scaleRef.current[tileIdx] ?? 1
         const next   = cur + (target - cur) * 0.16
         scaleRef.current[tileIdx] = next
         obj.scale.setScalar(next)
 
-        // Billboard so the tile always faces camera, even mid-flight
         obj.lookAt(camera.position)
-
         tileIdx++
       })
     }
@@ -896,12 +903,12 @@ function ProjectTiles({
                       toneMapped={false}
                     />
                   </mesh>
-                  {/* 4 corner L-brackets — viewfinder-style frame */}
+                  {/* 4 corner L-brackets — thin viewfinder marks */}
                   {([[-1, -1], [1, -1], [-1, 1], [1, 1]] as const).map(([sx, sy], k) => {
-                    const L  = 0.18   // bracket arm length
-                    const T  = 0.022  // bracket thickness
-                    const cx = sx * (TILE_BASE_W / 2 + 0.04)
-                    const cy = sy * (TILE_BASE_H / 2 + 0.04)
+                    const L  = 0.12    // bracket arm length
+                    const T  = 0.008   // hairline thickness
+                    const cx = sx * (TILE_BASE_W / 2 + 0.025)
+                    const cy = sy * (TILE_BASE_H / 2 + 0.025)
                     return (
                       <group key={k} position={[cx, cy, 0.01]}>
                         {/* horizontal arm pointing inward */}
@@ -933,11 +940,12 @@ function ProjectTiles({
                 </group>
 
                 {/* Title block — outside scaled group so positions/sizes are
-                    world-uniform across all three rings */}
+                    world-uniform across all three rings. Tight gap right
+                    under the tile so name/tile read as one unit. */}
                 {/* Project name — display, white-cream, bold */}
                 <Text
-                  position={[0, -(TILE_BASE_H * 0.85 * scl) - 0.10, 0]}
-                  fontSize={0.115}
+                  position={[0, -(TILE_BASE_H * 0.5 * scl) - 0.04, 0]}
+                  fontSize={0.10}
                   color="#F5F5F7"
                   anchorX="center"
                   anchorY="top"
@@ -951,8 +959,8 @@ function ProjectTiles({
                 {/* Sub-description — mono, brand color, small caps */}
                 {sub && (
                   <Text
-                    position={[0, -(TILE_BASE_H * 0.85 * scl) - 0.26, 0]}
-                    fontSize={0.052}
+                    position={[0, -(TILE_BASE_H * 0.5 * scl) - 0.17, 0]}
+                    fontSize={0.046}
                     color={p.color}
                     anchorX="center"
                     anchorY="top"
