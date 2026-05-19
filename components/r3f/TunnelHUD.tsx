@@ -196,10 +196,6 @@ function StationOverlay({ station, progress }: { station: StationDef; progress: 
   const dist    = Math.abs(progress - station.t)
   const opacity = Math.pow(Math.max(0, 1 - dist / 0.10), 1.1)
 
-  // PROJECTS uses the in-3D solar system as the showcase — no left content
-  // panel so the cluster can fill the viewport centre.
-  if (station.id === 'projects') return null
-
   return (
     <div
       key={station.id}

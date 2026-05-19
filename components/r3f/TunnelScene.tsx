@@ -536,7 +536,7 @@ function ProjectTiles({
     borderMatsRef.current.forEach((m) => { if (m) m.opacity = opacity * 0.85 })
     ringMatsRef.current.forEach((m) => { if (m) m.opacity = opacity * 0.18 })
     if (sunRef.current)     sunRef.current.opacity     = opacity
-    if (sunGlowRef.current) sunGlowRef.current.opacity = opacity * 0.4
+    if (sunGlowRef.current) sunGlowRef.current.opacity = opacity * 0.55
 
     // Rotate each orbital ring at its own speed
     if (bob) {
@@ -557,21 +557,28 @@ function ProjectTiles({
 
   return (
     <group ref={groupRef}>
-      {/* ─── Central sun ────────────────────────────────────────────────── */}
-      {/* Outer halo — large, very faint, blooms heavily */}
+      {/* Solar system pushed DOWN-PATH in the group's local frame so the
+          camera approaches it from a distance instead of flying through it.
+          Group's -Z = downstream direction (away from upstream-facing camera).
+          Offset z=-4 keeps the sun + tiles visible as camera nears stationT
+          and gracefully falls behind once camera passes through. */}
+      <group position={[0, 0, -4]}>
+      {/* ─── Central sun (the focus of the scene) ───────────────────────── */}
+      {/* Outer halo — very faint, large, blooms heavily for that solar corona */}
       <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[0.95, 32, 32]} />
+        <sphereGeometry args={[1.5, 32, 32]} />
         <meshBasicMaterial
           ref={sunGlowRef}
           color="#FFB547"
           transparent
           opacity={0}
           toneMapped={false}
+          depthWrite={false}
         />
       </mesh>
-      {/* Inner core — bright sphere */}
+      {/* Inner core — bright cream sphere */}
       <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[0.45, 32, 32]} />
+        <sphereGeometry args={[0.7, 48, 48]} />
         <meshBasicMaterial
           ref={sunRef}
           color="#FFE6B4"
@@ -658,6 +665,7 @@ function ProjectTiles({
           })}
         </group>
       ))}
+      </group>
     </group>
   )
 }
