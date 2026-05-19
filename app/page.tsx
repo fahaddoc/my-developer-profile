@@ -8,7 +8,7 @@ import { Projects } from '@/components/sections/Projects'
 import { Experience } from '@/components/sections/Experience'
 import { Skills } from '@/components/sections/Skills'
 import { Contact } from '@/components/sections/Contact'
-import { DepthScene } from '@/components/ui/DepthScene'
+import { ScrollStack } from '@/components/ui/ScrollStack'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { profilePageSchema, projectsItemListSchema } from '@/lib/seo/jsonld'
 
@@ -18,13 +18,15 @@ export default function Page() {
       <JsonLd data={profilePageSchema()} />
       <JsonLd data={projectsItemListSchema()} />
       <Navbar />
-      <main className="overflow-x-hidden w-full" style={{ perspective: '1600px', perspectiveOrigin: 'center 45%' }}>
+      <main className="overflow-x-hidden w-full">
         <Hero />
-        <DepthScene><About /></DepthScene>
-        <DepthScene><Projects /></DepthScene>
-        <DepthScene><Experience /></DepthScene>
-        <DepthScene><Skills /></DepthScene>
-        <DepthScene strength={0.7}><Contact /></DepthScene>
+        <ScrollStack>
+          <About />
+          <Projects />
+          <Experience />
+          <Skills />
+          <Contact />
+        </ScrollStack>
       </main>
       <Footer />
     </>
