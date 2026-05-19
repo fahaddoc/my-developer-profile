@@ -12,7 +12,7 @@
 // Step 2 still skips: HTML content overlays (Step 3), mobile fallback,
 // integration with main portfolio.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, Suspense } from 'react'
+import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Text, Html, useTexture } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
@@ -252,45 +252,68 @@ function Tunnel({
   curve:     THREE.CatmullRomCurve3
   ringCount: number
 }) {
-  // Inner skin sits just inside the rings (radius 2.18 vs ring radius 2.20)
-  // so no z-fighting. Provides occlusion + deep void inside the tunnel.
   const skinGeometry = useMemo(
     () => new THREE.TubeGeometry(curve, 240, 3.18, 36, false),
     [curve],
   )
 
-  // Shared torus geometry — single buffer, many transforms via InstancedMesh.
-  // Bigger ring (3.2) so the tunnel feels properly cavernous instead of cramped.
-  const ringGeometry = useMemo(
-    () => new THREE.TorusGeometry(3.2, 0.022, 8, 96),
-    [],
-  )
+  // Replace solid TorusGeometry rings with a "string-of-lights" look:
+  // each ring becomes DOTS_PER_RING points around the tube circumference,
+  // with thin amber lines connecting adjacent dots in the same ring.
+  // Constellation aesthetic — matches the user's reference image.
+  const DOTS_PER_RING = 18
+  const RING_RADIUS   = 3.2
 
-  const instRef = useRef<THREE.InstancedMesh>(null)
+  const { dotsGeometry, lineGeometry } = useMemo(() => {
+    const frames    = curve.computeFrenetFrames(ringCount, false)
+    const dots      = new Float32Array((ringCount + 1) * DOTS_PER_RING * 3)
+    const linePairs: number[] = []
+    const pos       = new THREE.Vector3()
 
-  // Set one transform matrix per ring on layout commit.
-  // Each ring sits at curve.getPointAt(t), with its disc normal aligned to
-  // the local tangent — so the ring is exactly the cross-section of the tube.
-  useLayoutEffect(() => {
-    if (!instRef.current) return
-    const dummy = new THREE.Object3D()
-    const pos   = new THREE.Vector3()
-    const tan   = new THREE.Vector3()
-    const tgt   = new THREE.Vector3()
-
-    for (let i = 0; i <= ringCount; i++) {
-      const t = i / ringCount
+    for (let r = 0; r <= ringCount; r++) {
+      const t        = r / ringCount
+      const normal   = frames.normals[r]   || frames.normals[0]
+      const binormal = frames.binormals[r] || frames.binormals[0]
       curve.getPointAt(t, pos)
-      curve.getTangentAt(t, tan)
-      tgt.copy(pos).add(tan)
 
-      dummy.position.copy(pos)
-      dummy.lookAt(tgt)
-      dummy.updateMatrix()
-      instRef.current.setMatrixAt(i, dummy.matrix)
+      const ringStart = r * DOTS_PER_RING
+
+      for (let d = 0; d < DOTS_PER_RING; d++) {
+        const angle = (d / DOTS_PER_RING) * Math.PI * 2
+        const cos   = Math.cos(angle) * RING_RADIUS
+        const sin   = Math.sin(angle) * RING_RADIUS
+
+        const px = pos.x + normal.x * cos + binormal.x * sin
+        const py = pos.y + normal.y * cos + binormal.y * sin
+        const pz = pos.z + normal.z * cos + binormal.z * sin
+
+        const idx = (ringStart + d) * 3
+        dots[idx]     = px
+        dots[idx + 1] = py
+        dots[idx + 2] = pz
+      }
+
+      // Connect adjacent dots in this ring with line segments (closed loop)
+      for (let d = 0; d < DOTS_PER_RING; d++) {
+        const a = (ringStart + d) * 3
+        const b = (ringStart + ((d + 1) % DOTS_PER_RING)) * 3
+        linePairs.push(
+          dots[a], dots[a + 1], dots[a + 2],
+          dots[b], dots[b + 1], dots[b + 2],
+        )
+      }
     }
-    instRef.current.instanceMatrix.needsUpdate = true
+
+    const dg = new THREE.BufferGeometry()
+    dg.setAttribute('position', new THREE.BufferAttribute(dots, 3))
+
+    const lg = new THREE.BufferGeometry()
+    lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(linePairs), 3))
+
+    return { dotsGeometry: dg, lineGeometry: lg }
   }, [curve, ringCount])
+
+  const dotTexture = useMemo(() => getSparkleTexture(), [])
 
   return (
     <>
@@ -304,18 +327,32 @@ function Tunnel({
         />
       </mesh>
 
-      {/* Cross-section rings — single instanced draw call */}
-      <instancedMesh
-        ref={instRef}
-        args={[ringGeometry, undefined, ringCount + 1]}
-      >
-        <meshBasicMaterial
+      {/* Ring dots — string-of-lights pattern around each ring perimeter */}
+      <points geometry={dotsGeometry}>
+        <pointsMaterial
+          size={0.16}
+          color="#FFB547"
+          sizeAttenuation
+          transparent
+          opacity={0.95}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+          map={dotTexture ?? undefined}
+          alphaTest={0.02}
+        />
+      </points>
+
+      {/* Thin lines stitching adjacent dots in each ring */}
+      <lineSegments geometry={lineGeometry}>
+        <lineBasicMaterial
           color="#FFB547"
           transparent
-          opacity={0.78}
+          opacity={0.35}
+          depthWrite={false}
           toneMapped={false}
         />
-      </instancedMesh>
+      </lineSegments>
     </>
   )
 }
