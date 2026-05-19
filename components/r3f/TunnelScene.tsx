@@ -879,9 +879,9 @@ function ProjectTiles({
                 {/* Per-ring scale on inner group so the outer group's local Z
                     (used for hover lerp) stays in world units. */}
                 <group scale={scl}>
-                  {/* Soft back halo — colored glow behind the thumbnail */}
-                  <mesh position={[0, 0, -0.02]}>
-                    <planeGeometry args={[TILE_BASE_W * 1.45, TILE_BASE_H * 1.55]} />
+                  {/* Soft back halo — coloured glow behind the entire card */}
+                  <mesh position={[0, 0, -0.03]}>
+                    <planeGeometry args={[TILE_BASE_W * 1.55, TILE_BASE_H * 1.70]} />
                     <meshBasicMaterial
                       ref={(m) => { borderMatsRef.current[i] = m }}
                       color={p.color}
@@ -892,7 +892,51 @@ function ProjectTiles({
                       blending={THREE.AdditiveBlending}
                     />
                   </mesh>
-                  {/* Project thumbnail */}
+
+                  {/* Frosted glass backplate — slightly larger than the
+                      thumbnail. Subtle white fill + thin white border give
+                      the glassmorphic card body. */}
+                  <mesh position={[0, 0, -0.015]}>
+                    <planeGeometry args={[TILE_BASE_W * 1.18, TILE_BASE_H * 1.45]} />
+                    <meshBasicMaterial
+                      color="#FFFFFF"
+                      transparent
+                      opacity={0.06}
+                      depthWrite={false}
+                      toneMapped={false}
+                    />
+                  </mesh>
+
+                  {/* Hairline white border around the glass plate */}
+                  {(() => {
+                    const W = TILE_BASE_W * 1.18
+                    const H = TILE_BASE_H * 1.45
+                    const T = 0.006
+                    const borderColor = '#FFFFFF'
+                    const borderOpacity = 0.32
+                    return (
+                      <>
+                        <mesh position={[0,  H / 2, -0.01]}>
+                          <planeGeometry args={[W, T]} />
+                          <meshBasicMaterial color={borderColor} transparent opacity={borderOpacity} toneMapped={false} />
+                        </mesh>
+                        <mesh position={[0, -H / 2, -0.01]}>
+                          <planeGeometry args={[W, T]} />
+                          <meshBasicMaterial color={borderColor} transparent opacity={borderOpacity} toneMapped={false} />
+                        </mesh>
+                        <mesh position={[-W / 2, 0, -0.01]}>
+                          <planeGeometry args={[T, H]} />
+                          <meshBasicMaterial color={borderColor} transparent opacity={borderOpacity} toneMapped={false} />
+                        </mesh>
+                        <mesh position={[ W / 2, 0, -0.01]}>
+                          <planeGeometry args={[T, H]} />
+                          <meshBasicMaterial color={borderColor} transparent opacity={borderOpacity} toneMapped={false} />
+                        </mesh>
+                      </>
+                    )
+                  })()}
+
+                  {/* Project thumbnail (in front of glass plate) */}
                   <mesh>
                     <planeGeometry args={[TILE_BASE_W, TILE_BASE_H]} />
                     <meshBasicMaterial
@@ -903,37 +947,31 @@ function ProjectTiles({
                       toneMapped={false}
                     />
                   </mesh>
-                  {/* 4 corner L-brackets — thin viewfinder marks */}
-                  {([[-1, -1], [1, -1], [-1, 1], [1, 1]] as const).map(([sx, sy], k) => {
-                    const L  = 0.12    // bracket arm length
-                    const T  = 0.008   // hairline thickness
-                    const cx = sx * (TILE_BASE_W / 2 + 0.025)
-                    const cy = sy * (TILE_BASE_H / 2 + 0.025)
-                    return (
-                      <group key={k} position={[cx, cy, 0.01]}>
-                        {/* horizontal arm pointing inward */}
-                        <mesh position={[-sx * L / 2, 0, 0]}>
-                          <planeGeometry args={[L, T]} />
-                          <meshBasicMaterial color={p.color} toneMapped={false} transparent opacity={0.95} />
-                        </mesh>
-                        {/* vertical arm pointing inward */}
-                        <mesh position={[0, -sy * L / 2, 0]}>
-                          <planeGeometry args={[T, L]} />
-                          <meshBasicMaterial color={p.color} toneMapped={false} transparent opacity={0.95} />
-                        </mesh>
-                      </group>
-                    )
-                  })}
-                  {/* Small index badge top-left — "01 / 09" style */}
+
+                  {/* Short code label — bottom-left inside the glass card */}
                   <Text
-                    position={[-TILE_BASE_W / 2 - 0.02, TILE_BASE_H / 2 + 0.10, 0.01]}
-                    fontSize={0.06}
-                    color={p.color}
+                    position={[-TILE_BASE_W * 0.55, -TILE_BASE_H * 0.65, 0.005]}
+                    fontSize={0.075}
+                    color="#FFFFFF"
                     anchorX="left"
+                    anchorY="middle"
+                    letterSpacing={0.06}
+                    outlineColor="#0A0A0A"
+                    outlineWidth={0.003}
+                  >
+                    {name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)}
+                  </Text>
+
+                  {/* Index badge top-right inside the glass card */}
+                  <Text
+                    position={[TILE_BASE_W * 0.55, TILE_BASE_H * 0.65, 0.005]}
+                    fontSize={0.045}
+                    color={p.color}
+                    anchorX="right"
                     anchorY="middle"
                     letterSpacing={0.24}
                     outlineColor="#0A0A0A"
-                    outlineWidth={0.003}
+                    outlineWidth={0.002}
                   >
                     {`${String(i + 1).padStart(2, '0')} / ${String(pool.length).padStart(2, '0')}`}
                   </Text>
