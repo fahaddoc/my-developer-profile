@@ -706,12 +706,15 @@ function ProjectTiles({
     groupRef.current.lookAt(pos.clone().sub(tangent))
   }, [curve, stationT])
 
-  // Track which tile is hovered (-1 = none). Per-tile current Z + scale
-  // animate toward target each frame so the tile pops forward on hover.
-  const hoveredRef    = useRef<number>(-1)
-  const tileStatesRef = useRef<{ z: number; scale: number }[]>(
-    Array.from({ length: 9 }, () => ({ z: 0, scale: 1 })),
-  )
+  // Track which tile is hovered (-1 = none). Reused vectors so the hover
+  // animation doesn't allocate per frame.
+  const hoveredRef = useRef<number>(-1)
+  const tmpDir     = useMemo(() => new THREE.Vector3(), [])
+  const tmpWorld   = useMemo(() => new THREE.Vector3(), [])
+  const tmpLocal   = useMemo(() => new THREE.Vector3(), [])
+
+  // Per-tile scale lerp state (rest=1, hovered=2.4)
+  const scaleRef = useRef<number[]>(Array.from({ length: 9 }, () => 1))
 
   useFrame(({ camera }, dt) => {
     const dist      = Math.abs(scrollRef.current - stationT)
@@ -724,8 +727,7 @@ function ProjectTiles({
     if (sunRef.current)     sunRef.current.opacity     = opacity
     if (sunGlowRef.current) sunGlowRef.current.opacity = opacity * 0.55
 
-    // Rotate each orbital ring at its own speed (paused while a tile is
-    // hovered — keeps the hovered tile from drifting under the cursor).
+    // Pause orbital rings while a tile is hovered so it doesn't drift away
     const anyHover = hoveredRef.current !== -1
     if (bob && !anyHover) {
       ringRefs.current.forEach((g, i) => {
@@ -733,25 +735,42 @@ function ProjectTiles({
       })
     }
 
-    // Hover lerp on each tile + camera billboard
+    // Hover: tile flies in front of camera (paper stuck to lens), un-hover:
+    // tile glides back to its orbital rest spot. Lerp factor 0.16.
     if (groupRef.current) {
+      // Get camera forward direction once
+      camera.getWorldDirection(tmpDir)
+      const STICK_DIST = 1.6   // metres in front of the lens
+
       let tileIdx = 0
       groupRef.current.traverse((obj) => {
-        if (obj.userData?.tile) {
-          const isHover  = hoveredRef.current === tileIdx
-          const targetZ  = isHover ? 1.6 : 0
-          const targetSc = isHover ? 1.35 : 1
-          const st = tileStatesRef.current[tileIdx]
-          if (st) {
-            st.z     += (targetZ  - st.z)     * 0.18
-            st.scale += (targetSc - st.scale) * 0.18
-            obj.position.z = (obj.userData.baseZ ?? 0) + st.z
-            obj.scale.setScalar(st.scale)
-          }
-          // Billboard AFTER position so rotation is computed at new spot
-          obj.lookAt(camera.position)
-          tileIdx++
+        if (!obj.userData?.tile) return
+        const isHover = hoveredRef.current === tileIdx
+
+        if (isHover && obj.parent) {
+          // Desired world position = camera + forward * STICK_DIST
+          tmpWorld.copy(camera.position).addScaledVector(tmpDir, STICK_DIST)
+          // Convert to local space of the orbit ring (tile's parent)
+          tmpLocal.copy(tmpWorld)
+          obj.parent.worldToLocal(tmpLocal)
+          obj.position.lerp(tmpLocal, 0.16)
+        } else {
+          // Rest position is captured on the userData when first mounted
+          const rest = obj.userData.restPos as THREE.Vector3 | undefined
+          if (rest) obj.position.lerp(rest, 0.14)
         }
+
+        // Scale lerp
+        const target = isHover ? 2.4 : 1
+        const cur    = scaleRef.current[tileIdx] ?? 1
+        const next   = cur + (target - cur) * 0.16
+        scaleRef.current[tileIdx] = next
+        obj.scale.setScalar(next)
+
+        // Billboard so the tile always faces camera, even mid-flight
+        obj.lookAt(camera.position)
+
+        tileIdx++
       })
     }
   })
@@ -827,7 +846,7 @@ function ProjectTiles({
               <group
                 key={p.id}
                 position={[x, y, 0]}
-                userData={{ tile: true, baseZ: 0 }}
+                userData={{ tile: true, restPos: new THREE.Vector3(x, y, 0) }}
                 onPointerOver={(e) => {
                   e.stopPropagation()
                   hoveredRef.current = i
