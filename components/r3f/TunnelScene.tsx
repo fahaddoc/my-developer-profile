@@ -486,9 +486,11 @@ function Particles({
   count?: number
   bob?:   boolean
 }) {
-  const { geometry, basePositions } = useMemo(() => {
+  // Stars no longer bob — constellation lines need stable endpoints.
+  void bob
+
+  const { geometry, lineGeometry } = useMemo(() => {
     const positions = new Float32Array(count * 3)
-    const bases     = new Float32Array(count * 3)
     const sizes     = new Float32Array(count)
     const phases    = new Float32Array(count)
 
@@ -501,91 +503,116 @@ function Particles({
       const offsetX = Math.cos(angle) * radius
       const offsetY = Math.sin(angle) * radius
 
-      const x = p.x + offsetX
-      const y = p.y + offsetY
-      const z = p.z
+      positions[i * 3 + 0] = p.x + offsetX
+      positions[i * 3 + 1] = p.y + offsetY
+      positions[i * 3 + 2] = p.z
 
-      positions[i * 3 + 0] = x; positions[i * 3 + 1] = y; positions[i * 3 + 2] = z
-      bases    [i * 3 + 0] = x; bases    [i * 3 + 1] = y; bases    [i * 3 + 2] = z
-
-      // Per-particle base size and twinkle phase
-      sizes[i]  = 0.14 + Math.random() * 0.22
+      // Smaller dots (was 0.14–0.36) so the constellation reads as points,
+      // not the previous stretched diamonds.
+      sizes[i]  = 0.08 + Math.random() * 0.10
       phases[i] = Math.random() * Math.PI * 2
+    }
+
+    // Find pairs of nearby stars and connect them — sparse constellation
+    // strands. Threshold tuned so most stars get 1–3 connections; pure noise.
+    const CONNECT  = 1.4
+    const MAX_PER  = 3   // cap connections per star to avoid hub explosions
+    const pairs: number[] = []
+    const degree   = new Int32Array(count)
+    for (let i = 0; i < count; i++) {
+      if (degree[i] >= MAX_PER) continue
+      const x1 = positions[i * 3]
+      const y1 = positions[i * 3 + 1]
+      const z1 = positions[i * 3 + 2]
+      for (let j = i + 1; j < count; j++) {
+        if (degree[j] >= MAX_PER) continue
+        const x2 = positions[j * 3]
+        const y2 = positions[j * 3 + 1]
+        const z2 = positions[j * 3 + 2]
+        const d  = Math.hypot(x1 - x2, y1 - y2, z1 - z2)
+        if (d > 0 && d < CONNECT) {
+          pairs.push(x1, y1, z1, x2, y2, z2)
+          degree[i]++; degree[j]++
+          if (degree[i] >= MAX_PER) break
+        }
+      }
     }
 
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     geo.setAttribute('aSize',    new THREE.BufferAttribute(sizes, 1))
     geo.setAttribute('aPhase',   new THREE.BufferAttribute(phases, 1))
-    return { geometry: geo, basePositions: bases }
+
+    const lineGeo = new THREE.BufferGeometry()
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pairs), 3))
+
+    return { geometry: geo, lineGeometry: lineGeo }
   }, [curve, count])
 
   const pointsRef = useRef<THREE.Points>(null)
   const matRef    = useRef<THREE.ShaderMaterial>(null)
   const texture   = useMemo(() => getSparkleTexture(), [])
 
-  // Twinkle uniform + soft vertical bob (positions)
+  // Drive twinkle uniform only — positions are static so the constellation
+  // line endpoints stay glued to the dots.
   useFrame(({ clock }) => {
-    const t = clock.elapsedTime
     if (matRef.current) {
-      matRef.current.uniforms.uTime.value = t
-    }
-    if (bob && pointsRef.current) {
-      const positions = pointsRef.current.geometry.attributes.position.array as Float32Array
-      for (let i = 0; i < count; i++) {
-        const phase = i * 0.37
-        positions[i * 3 + 1] = basePositions[i * 3 + 1] + Math.sin(t * 0.4 + phase) * 0.08
-      }
-      pointsRef.current.geometry.attributes.position.needsUpdate = true
+      matRef.current.uniforms.uTime.value = clock.elapsedTime
     }
   })
 
   return (
-    <points ref={pointsRef} geometry={geometry}>
-      <shaderMaterial
-        ref={matRef}
-        transparent
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-        toneMapped={false}
-        uniforms={{
-          uTime:    { value: 0 },
-          uMap:     { value: texture },
-          uPxScale: { value: 600 },  // size attenuation factor
-        }}
-        vertexShader={`
-          attribute float aSize;
-          attribute float aPhase;
-          uniform float uTime;
-          uniform float uPxScale;
-          varying float vAlpha;
-          void main() {
-            // Per-particle twinkle: alpha + size oscillate at unique phase
-            float tw = 0.5 + 0.5 * sin(uTime * 2.0 + aPhase);
-            // Mostly bright with small dips, never fully dark
-            float alpha = 0.55 + 0.45 * tw;
-            vAlpha = alpha;
+    <>
+      <points ref={pointsRef} geometry={geometry}>
+        <shaderMaterial
+          ref={matRef}
+          transparent
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+          uniforms={{
+            uTime:    { value: 0 },
+            uMap:     { value: texture },
+            uPxScale: { value: 600 },
+          }}
+          vertexShader={`
+            attribute float aSize;
+            attribute float aPhase;
+            uniform float uTime;
+            uniform float uPxScale;
+            varying float vAlpha;
+            void main() {
+              float tw = 0.5 + 0.5 * sin(uTime * 2.0 + aPhase);
+              vAlpha = 0.55 + 0.45 * tw;
+              vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+              gl_Position = projectionMatrix * mvPosition;
+              float size = aSize * (0.8 + 0.6 * tw);
+              gl_PointSize = size * uPxScale / -mvPosition.z;
+            }
+          `}
+          fragmentShader={`
+            uniform sampler2D uMap;
+            varying float vAlpha;
+            void main() {
+              vec4 tex = texture2D(uMap, gl_PointCoord);
+              if (tex.a < 0.02) discard;
+              gl_FragColor = vec4(tex.rgb, tex.a * vAlpha);
+            }
+          `}
+        />
+      </points>
 
-            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-            gl_Position = projectionMatrix * mvPosition;
-
-            // size attenuation by depth so far stars are tiny
-            float size = aSize * (0.8 + 0.6 * tw);
-            gl_PointSize = size * uPxScale / -mvPosition.z;
-          }
-        `}
-        fragmentShader={`
-          uniform sampler2D uMap;
-          varying float vAlpha;
-          void main() {
-            vec4 tex = texture2D(uMap, gl_PointCoord);
-            // discard the corners to keep the sprite obviously round
-            if (tex.a < 0.02) discard;
-            gl_FragColor = vec4(tex.rgb, tex.a * vAlpha);
-          }
-        `}
-      />
-    </points>
+      {/* Constellation strands — thin lines between nearby stars */}
+      <lineSegments geometry={lineGeometry}>
+        <lineBasicMaterial
+          color="#FFB547"
+          transparent
+          opacity={0.18}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </lineSegments>
+    </>
   )
 }
 
