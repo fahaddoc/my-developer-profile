@@ -489,18 +489,34 @@ function ProjectTiles({
   stationT: number
   bob?:     boolean
 }) {
-  const featured = useMemo(
-    () => projects.filter((p) => p.featured).slice(0, 3),
-    [],
-  )
+  // Up to 8 projects in the orbital cloud: featured ones first, rest after,
+  // capped at 8 so the tunnel doesn't get crowded.
+  const featured = useMemo(() => {
+    const sorted = [...projects].sort(
+      (a, b) => Number(b.featured ?? false) - Number(a.featured ?? false),
+    )
+    return sorted.slice(0, 8)
+  }, [])
 
-  // Pre-load all featured textures (Suspense will block until ready)
+  // Pre-load all textures (Suspense will block until ready)
   const textures = useTexture(featured.map((p) => p.image))
 
-  const groupRef = useRef<THREE.Group>(null)
-  const matsRef  = useRef<THREE.MeshBasicMaterial[]>([])
-  const borderMatsRef = useRef<THREE.MeshBasicMaterial[]>([])
+  const groupRef       = useRef<THREE.Group>(null)
+  const orbitRef       = useRef<THREE.Group>(null)
+  const matsRef        = useRef<THREE.MeshBasicMaterial[]>([])
+  const borderMatsRef  = useRef<THREE.MeshBasicMaterial[]>([])
   const linkRefs       = useRef<HTMLAnchorElement[]>([])
+
+  // Per-tile orbital config — alternating inner/outer radius and Z depth
+  // makes the cluster feel like a proper planetary system instead of a
+  // single flat ring.
+  const orbit = useMemo(() => featured.map((_, i) => ({
+    angle:  (i / featured.length) * Math.PI * 2 + (i % 2 ? Math.PI / featured.length : 0),
+    radius: i % 2 === 0 ? 2.1 : 2.85,
+    z:      i % 3 === 0 ? 0.2 : i % 3 === 1 ? 0.55 : 0.9,
+    scale:  i % 2 === 0 ? 0.85 : 1.0,
+    speed:  0.04 + (i % 4) * 0.012,   // each tile bobs at its own rate
+  })), [featured])
 
   // Place + orient group at the projects station — same convention as the
   // Station component (faces upstream so tiles face the approaching camera).
@@ -538,37 +554,46 @@ function ProjectTiles({
       }
     })
 
-    // Subtle Y-bob per tile for organic floating (skipped on low quality)
-    if (bob && groupRef.current) {
-      groupRef.current.children.forEach((tile, i) => {
-        const phase = i * 1.7
-        const t = performance.now() * 0.001
-        tile.position.y = tile.userData.baseY + Math.sin(t * 0.7 + phase) * 0.06
-      })
+    // Solar-system slow rotation — only active when proximity > ~0
+    if (orbitRef.current && proximity > 0.01) {
+      orbitRef.current.rotation.z += dt * 0.06
     }
 
-    // dt unused; keeping arg name for clarity
-    void dt
+    // Subtle per-tile bob (independent radial wobble) — skipped on low quality
+    if (bob && orbitRef.current) {
+      const t = performance.now() * 0.001
+      orbitRef.current.children.forEach((tile, i) => {
+        const cfg = orbit[i]
+        if (!cfg) return
+        const wobble = Math.sin(t * cfg.speed * 6 + i * 1.7) * 0.08
+        tile.position.x = Math.cos(cfg.angle) * (cfg.radius + wobble)
+        tile.position.y = Math.sin(cfg.angle) * (cfg.radius + wobble)
+      })
+    }
   })
 
   return (
     <group ref={groupRef}>
-      {featured.map((p, i) => {
-        // 3 tiles evenly spaced around the ring (top, lower-left, lower-right)
-        const angle  = (i / featured.length) * Math.PI * 2 + Math.PI / 2  // start top
-        const radius = 2.55
-        const x = Math.cos(angle) * radius
-        const y = Math.sin(angle) * radius
+      {/* orbit subgroup rotates around the curve tangent (camera-facing axis)
+          so all tiles sweep through the projects station as planets in a system */}
+      <group ref={orbitRef}>
+        {featured.map((p, i) => {
+          const cfg = orbit[i]
+          const x   = Math.cos(cfg.angle) * cfg.radius
+          const y   = Math.sin(cfg.angle) * cfg.radius
+          const tileW = 1.05 * cfg.scale
+          const tileH = 0.66 * cfg.scale
 
-        return (
-          <group
-            key={p.id}
-            position={[x, y, 0.4]}
-            userData={{ baseY: y }}
-          >
+          return (
+            <group
+              key={p.id}
+              position={[x, y, cfg.z]}
+              scale={cfg.scale}
+              userData={{ baseAngle: cfg.angle, baseRadius: cfg.radius }}
+            >
             {/* Coloured border plane — slightly larger, behind the image */}
             <mesh position={[0, 0, -0.01]}>
-              <planeGeometry args={[1.32, 0.86]} />
+              <planeGeometry args={[tileW * 1.06, tileH * 1.10]} />
               <meshBasicMaterial
                 ref={(m) => { if (m) borderMatsRef.current[i] = m }}
                 color={p.color}
@@ -580,7 +605,7 @@ function ProjectTiles({
 
             {/* The thumbnail image */}
             <mesh>
-              <planeGeometry args={[1.25, 0.78]} />
+              <planeGeometry args={[tileW, tileH]} />
               <meshBasicMaterial
                 ref={(m) => { if (m) matsRef.current[i] = m }}
                 map={textures[i]}
@@ -592,13 +617,13 @@ function ProjectTiles({
 
             {/* Tiny label below the tile */}
             <Text
-              position={[0, -0.55, 0]}
-              fontSize={0.085}
+              position={[0, -tileH * 0.78, 0]}
+              fontSize={0.075}
               color={p.color}
               anchorX="center"
               anchorY="middle"
               letterSpacing={0.1}
-              maxWidth={1.3}
+              maxWidth={tileW * 1.1}
               outlineColor="#0A0A0A"
               outlineWidth={0.004}
             >
@@ -651,6 +676,7 @@ function ProjectTiles({
           </group>
         )
       })}
+      </group>
     </group>
   )
 }
