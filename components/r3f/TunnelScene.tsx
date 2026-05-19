@@ -25,7 +25,22 @@ import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
 
 // Shared scroll progress — read each frame inside R3F, also subscribed via the
 // useScrollProgress hook below for HUD/UI updates outside the canvas.
+//
+// dynamic() imports give chunks their own module copy, so simple imports of
+// `scrollRef` across HUD/scene weren't seeing each other. We funnel everything
+// through window: __scrollRef is the live ref, and a custom 'tunnel-progress'
+// event fires whenever it changes so React components in any bundle re-render.
+const TUNNEL_EVENT = 'tunnel-progress'
 const scrollRef = { current: 0 }
+function publishProgress(p: number) {
+  scrollRef.current = p
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(TUNNEL_EVENT, { detail: p }))
+  }
+}
+if (typeof window !== 'undefined') {
+  (window as unknown as { __scrollRef?: typeof scrollRef }).__scrollRef = scrollRef
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sound master store — single source of truth shared between the HUD SOUND
@@ -187,19 +202,23 @@ export function useScrollProgress() {
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    let rafId = 0
     let last  = -1
-
+    let rafId = 0
     const tick = () => {
-      rafId = requestAnimationFrame(tick)
-      const cur = scrollRef.current
-      // 0.5% threshold — visible change without churning React
-      if (Math.abs(cur - last) > 0.005) {
+      const w = window as unknown as {
+        __scrollRef?: { current: number }
+        __lenis?:     { scroll: number; limit: number }
+      }
+      // Source of truth: Lenis if available, else __scrollRef
+      let cur = w.__scrollRef?.current ?? 0
+      const lenis = w.__lenis
+      if (lenis && lenis.limit > 0) cur = lenis.scroll / lenis.limit
+      if (Math.abs(cur - last) > 0.003) {
         last = cur
         setProgress(cur)
       }
+      rafId = requestAnimationFrame(tick)
     }
-
     rafId = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafId)
   }, [])
@@ -823,19 +842,31 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
       end:     'bottom bottom',
       scrub:   0,
       onUpdate: (self) => {
-        scrollRef.current = self.progress
+        publishProgress(self.progress)
       },
     })
 
     const onScroll = () => {
       const max = document.documentElement.scrollHeight - window.innerHeight
-      if (max > 0) scrollRef.current = window.scrollY / max
+      if (max > 0) publishProgress(window.scrollY / max)
     }
     window.addEventListener('scroll', onScroll, { passive: true })
+
+    // Also subscribe directly to Lenis so programmatic scrolls
+    // (lenis.scrollTo with immediate:true) update progress immediately even
+    // when the native 'scroll' event lags or doesn't fire.
+    const w = window as unknown as {
+      __lenis?: { on?: (ev: string, cb: (e: { scroll: number; limit: number }) => void) => void; off?: (ev: string, cb: unknown) => void }
+    }
+    const onLenis = (e: { scroll: number; limit: number }) => {
+      if (e.limit > 0) publishProgress(e.scroll / e.limit)
+    }
+    w.__lenis?.on?.('scroll', onLenis)
 
     return () => {
       st.kill()
       window.removeEventListener('scroll', onScroll)
+      w.__lenis?.off?.('scroll', onLenis)
     }
   }, [])
 

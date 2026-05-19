@@ -149,20 +149,28 @@ function TunnelMode({
 
   const preset = PRESETS[level]
 
-  // Anchors land the camera slightly BEFORE each station so the station ring
-  // is visible ahead. Landing AT stationT puts the camera at ring centre =
-  // ring around peripheral vision = invisible. Offset -0.06 in progress
-  // puts camera ~12 world units upstream → ring fills the centre of view.
-  const VIEWPORT_SCROLL_VH = 400  // 500vh main - 100vh viewport
-  const beforeT = (t: number) => Math.max(0, t - 0.06) * VIEWPORT_SCROLL_VH
+  // Anchors land the camera slightly BEFORE each station so its ring is
+  // visible AHEAD in the centre of view. The offset is small enough that
+  // nearestStation() still resolves to the clicked station (gap to adjacent
+  // stations is ≥0.18, so an offset of 0.03 is well inside the slot).
+  //
+  //  Anchor progress = stationT − 0.03
+  //  → camera is ~5.7 world units upstream of the station
+  //  → station ring fills ~50% of vertical view (proximity ≈ 0.7)
+  //  → drei Text label "0X · NAME" is also at full visibility
+  //
+  // The total scrollable distance is `main height − viewport height`
+  // = 500vh − 100vh = 400vh.
+  const SCROLLABLE_VH = 400
+  const beforeT = (t: number) => Math.max(0, t - 0.03) * SCROLLABLE_VH
 
   const anchors = [
-    { id: 'hero',       topVh: beforeT(0.04) },   // ≈ 0 — already at start
-    { id: 'about',      topVh: beforeT(0.22) },   // ≈ 64vh
-    { id: 'projects',   topVh: beforeT(0.42) },   // ≈ 144vh
-    { id: 'experience', topVh: beforeT(0.62) },   // ≈ 224vh
-    { id: 'skills',     topVh: beforeT(0.74) },   // mid between exp/contact
-    { id: 'contact',    topVh: beforeT(0.86) },   // ≈ 320vh
+    { id: 'hero',       topVh: beforeT(0.04) },   //  4vh  (already at start)
+    { id: 'about',      topVh: beforeT(0.22) },   //  76vh
+    { id: 'projects',   topVh: beforeT(0.42) },   // 156vh
+    { id: 'experience', topVh: beforeT(0.62) },   // 236vh
+    { id: 'skills',     topVh: beforeT(0.74) },   // between exp & contact
+    { id: 'contact',    topVh: beforeT(0.86) },   // 332vh
   ]
 
   return (
