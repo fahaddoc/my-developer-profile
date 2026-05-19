@@ -24,33 +24,23 @@ export function QualityToggle({ level, onChange }: QualityToggleProps) {
       aria-label={`Quality preset. Currently ${labels[level]}. Click to change.`}
       style={{
         position:    'fixed',
-        bottom:      24,
-        right:       24,
-        zIndex:      60,
-        background:  'rgba(10,10,18,0.65)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        color:       '#FFB547',
-        border:      '1px solid rgba(255,181,71,0.35)',
-        borderRadius: 4,
-        padding:     '8px 14px',
+        top:         72,
+        right:       32,
+        zIndex:      55,
+        background:  'transparent',
+        color:       'rgba(245,245,247,0.45)',
+        border:      'none',
+        padding:     0,
         fontFamily:  'var(--font-mono), ui-monospace, monospace',
-        fontSize:    11,
-        letterSpacing: '0.2em',
+        fontSize:    9,
+        letterSpacing: '0.25em',
         textTransform: 'uppercase',
         cursor:      'pointer',
-        textShadow:  '0 0 8px rgba(255,181,71,0.55)',
-        transition:  'border-color 200ms, background 200ms',
+        transition:  'color 200ms',
         pointerEvents: 'auto',
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(255,181,71,0.7)'
-        e.currentTarget.style.background  = 'rgba(20,15,5,0.8)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(255,181,71,0.35)'
-        e.currentTarget.style.background  = 'rgba(10,10,18,0.65)'
-      }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = '#FFB547' }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(245,245,247,0.45)' }}
     >
       ⚡ Quality: {labels[level]}
     </button>

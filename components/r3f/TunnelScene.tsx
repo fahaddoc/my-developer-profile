@@ -58,59 +58,96 @@ const CURVE_POINTS: [number, number, number][] = [
 // Spread away from t=0/t=1 so camera has room to approach/leave each.
 // ─────────────────────────────────────────────────────────────────────────────
 export interface StationDef {
-  id:        string
-  label:     string
-  t:         number
-  heading:   string
-  tagline:   string
-  color:     string                                   // primary accent (hex)
-  imageSrc?: string                                   // optional portrait above heading
-  cta?:      { text: string; href: string }
+  id:          string
+  label:       string                                // e.g. "00 · INTRO" (Html overlay)
+  num:         string                                // e.g. "00" (top nav badge)
+  short:       string                                // e.g. "INTRO" (top nav label)
+  t:           number
+  heading:     string
+  tagline:     string
+  color:       string                                // primary accent (hex)
+  imageSrc?:   string
+  cta?:        { text: string; href: string }
+  // HUD chrome — station-aware overlay text
+  subtitle:    string                                // bottom-left, under station number
+  closer:      [string, string]                      // bottom-right, 2 lines
+  traitsLeft:  [string, string, string]              // mid-left side callout
+  traitsRight: [string, string, string]              // mid-right side callout
 }
 
 export const STATIONS: StationDef[] = [
   {
     id:        'hero',
     label:     '00 · INTRO',
+    num:       '00',
+    short:     'INTRO',
     t:         0.04,
     heading:   'Shah Fahad',
     tagline:   'Senior Software Engineer — React, Next.js, Flutter, WebRTC. Real-time experiences from Karachi, Pakistan.',
     color:     '#FFB547',
     imageSrc:  '/images/shah-fahad-sticker.png',
+    subtitle:    'WELCOME TO MY TUNNEL',
+    closer:      ['LET\'S BUILD', 'SOMETHING AMAZING'],
+    traitsLeft:  ['PASSIONATE', 'ABOUT BUILDING', 'DIGITAL EXPERIENCES'],
+    traitsRight: ['CLEAN CODE', 'PERFORMANCE', 'INNOVATION'],
   },
   {
-    id:      'about',
-    label:   '01 · ABOUT',
-    t:       0.22,
-    heading: 'Turning ideas into shipped products',
-    tagline: '6+ years · 4 companies · 9+ projects · 25+ clients. From MILETAP\'s real-time video platform to DigitalHire\'s hiring system.',
-    color:   '#FFCB75',   // lighter gold
+    id:        'about',
+    label:     '01 · ABOUT',
+    num:       '01',
+    short:     'ABOUT',
+    t:         0.22,
+    heading:   'Turning ideas into shipped products',
+    tagline:   '6+ years · 4 companies · 9+ projects · 25+ clients. From MILETAP\'s real-time video platform to DigitalHire\'s hiring system.',
+    color:     '#FFCB75',
+    subtitle:    'FROM IDEAS TO PRODUCTS',
+    closer:      ['6 YEARS', 'SHIPPING REAL-TIME'],
+    traitsLeft:  ['DETAIL', 'CRAFT', 'CONSISTENCY'],
+    traitsRight: ['SCALE', 'PERFORMANCE', 'ARCHITECTURE'],
   },
   {
-    id:      'projects',
-    label:   '02 · PROJECTS',
-    t:       0.42,
-    heading: 'Featured work',
-    tagline: 'Konnect.im video conferencing · DigitalHire SaaS · WhatsApp ChatBot Simulator · Agent Shah 3D portfolio game.',
-    color:   '#FF9D45',   // punchier orange-amber
-    cta:     { text: 'view case studies →', href: '#projects' },
+    id:        'projects',
+    label:     '02 · PROJECTS',
+    num:       '02',
+    short:     'PROJECTS',
+    t:         0.42,
+    heading:   'Featured work',
+    tagline:   'Konnect.im video conferencing · DigitalHire SaaS · WhatsApp ChatBot Simulator · Agent Shah 3D portfolio game.',
+    color:     '#FF9D45',
+    cta:       { text: 'view case studies →', href: '#projects' },
+    subtitle:    'FEATURED CASE STUDIES',
+    closer:      ['10+ PROJECTS', 'LIVE IN PRODUCTION'],
+    traitsLeft:  ['REAL-TIME', 'WEBRTC', 'SIGNALR'],
+    traitsRight: ['REACT', 'NEXT.JS', 'FLUTTER'],
   },
   {
-    id:      'experience',
-    label:   '03 · EXPERIENCE',
-    t:       0.62,
-    heading: 'Professional journey',
-    tagline: 'DigitalHire (current) · MILETAP · E-Ocean · freelance & contract — frontend, real-time, mobile.',
-    color:   '#E8A04A',   // deeper amber
+    id:        'experience',
+    label:     '03 · EXPERIENCE',
+    num:       '03',
+    short:     'EXPERIENCE',
+    t:         0.62,
+    heading:   'Professional journey',
+    tagline:   'DigitalHire (current) · MILETAP · E-Ocean · freelance & contract — frontend, real-time, mobile.',
+    color:     '#E8A04A',
+    subtitle:    'PROFESSIONAL JOURNEY',
+    closer:      ['4 COMPANIES', '25+ CLIENTS'],
+    traitsLeft:  ['STARTUPS', 'ENTERPRISE', 'AGENCIES'],
+    traitsRight: ['SENIOR', 'CONTRACT', 'PRINCIPAL'],
   },
   {
-    id:      'contact',
-    label:   '04 · CONTACT',
-    t:       0.86,
-    heading: "Let's build something",
-    tagline: 'hello@shahfahad.dev · open to senior frontend & real-time roles, full-time and contract.',
-    color:   '#FFD580',   // warm welcoming
-    cta:     { text: 'book a 15-min call →', href: 'https://cal.com/shahfahad' },
+    id:        'contact',
+    label:     '04 · CONTACT',
+    num:       '04',
+    short:     'CONTACT',
+    t:         0.86,
+    heading:   "Let's build something",
+    tagline:   'hello@shahfahad.dev · open to senior frontend & real-time roles, full-time and contract.',
+    color:     '#FFD580',
+    cta:       { text: 'book a 15-min call →', href: 'https://cal.com/shahfahad' },
+    subtitle:    'LET\'S TALK',
+    closer:      ['OPEN FOR', 'NEW ROLES'],
+    traitsLeft:  ['RESPONSIVE', 'CLEAR', 'DIRECT'],
+    traitsRight: ['REMOTE', 'HYBRID', 'ONSITE'],
   },
 ]
 
