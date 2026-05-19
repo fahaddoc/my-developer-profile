@@ -842,6 +842,13 @@ function ProjectTiles({
             const TILE_BASE_W = 1.05
             const TILE_BASE_H = 0.66
 
+            // Split the project title at the em-dash so we can render the
+            // primary name big + the sub-description small under it.
+            //   "Konnect.im — Video Conferencing" → name="Konnect.im", sub="VIDEO CONFERENCING"
+            const dashIdx = p.title.indexOf(' — ')
+            const name    = (dashIdx > 0 ? p.title.slice(0, dashIdx)   : p.title).trim()
+            const sub     = (dashIdx > 0 ? p.title.slice(dashIdx + 3)  : p.tagline ?? '').trim()
+
             return (
               <group
                 key={p.id}
@@ -862,18 +869,20 @@ function ProjectTiles({
                   router.push(`/projects/${p.id}`)
                 }}
               >
-                {/* Apply the per-ring scale on an inner group so the OUTER
-                    group's local Z (used for hover lerp) is in world units. */}
+                {/* Per-ring scale on inner group so the outer group's local Z
+                    (used for hover lerp) stays in world units. */}
                 <group scale={scl}>
-                  {/* Coloured border behind image */}
-                  <mesh position={[0, 0, -0.01]}>
-                    <planeGeometry args={[TILE_BASE_W * 1.06, TILE_BASE_H * 1.10]} />
+                  {/* Soft back halo — colored glow behind the thumbnail */}
+                  <mesh position={[0, 0, -0.02]}>
+                    <planeGeometry args={[TILE_BASE_W * 1.45, TILE_BASE_H * 1.55]} />
                     <meshBasicMaterial
                       ref={(m) => { borderMatsRef.current[i] = m }}
                       color={p.color}
                       transparent
                       opacity={0}
+                      depthWrite={false}
                       toneMapped={false}
+                      blending={THREE.AdditiveBlending}
                     />
                   </mesh>
                   {/* Project thumbnail */}
@@ -887,22 +896,74 @@ function ProjectTiles({
                       toneMapped={false}
                     />
                   </mesh>
+                  {/* 4 corner L-brackets — viewfinder-style frame */}
+                  {([[-1, -1], [1, -1], [-1, 1], [1, 1]] as const).map(([sx, sy], k) => {
+                    const L  = 0.18   // bracket arm length
+                    const T  = 0.022  // bracket thickness
+                    const cx = sx * (TILE_BASE_W / 2 + 0.04)
+                    const cy = sy * (TILE_BASE_H / 2 + 0.04)
+                    return (
+                      <group key={k} position={[cx, cy, 0.01]}>
+                        {/* horizontal arm pointing inward */}
+                        <mesh position={[-sx * L / 2, 0, 0]}>
+                          <planeGeometry args={[L, T]} />
+                          <meshBasicMaterial color={p.color} toneMapped={false} transparent opacity={0.95} />
+                        </mesh>
+                        {/* vertical arm pointing inward */}
+                        <mesh position={[0, -sy * L / 2, 0]}>
+                          <planeGeometry args={[T, L]} />
+                          <meshBasicMaterial color={p.color} toneMapped={false} transparent opacity={0.95} />
+                        </mesh>
+                      </group>
+                    )
+                  })}
+                  {/* Small index badge top-left — "01 / 09" style */}
+                  <Text
+                    position={[-TILE_BASE_W / 2 - 0.02, TILE_BASE_H / 2 + 0.10, 0.01]}
+                    fontSize={0.06}
+                    color={p.color}
+                    anchorX="left"
+                    anchorY="middle"
+                    letterSpacing={0.24}
+                    outlineColor="#0A0A0A"
+                    outlineWidth={0.003}
+                  >
+                    {`${String(i + 1).padStart(2, '0')} / ${String(pool.length).padStart(2, '0')}`}
+                  </Text>
                 </group>
-                {/* Title caption — OUTSIDE the scaled inner group, fixed
-                    world-space offset + size for consistent alignment */}
+
+                {/* Title block — outside scaled group so positions/sizes are
+                    world-uniform across all three rings */}
+                {/* Project name — display, white-cream, bold */}
                 <Text
-                  position={[0, -(TILE_BASE_H * 0.85 * scl) - 0.08, 0]}
-                  fontSize={0.07}
-                  color={p.color}
+                  position={[0, -(TILE_BASE_H * 0.85 * scl) - 0.10, 0]}
+                  fontSize={0.115}
+                  color="#F5F5F7"
                   anchorX="center"
                   anchorY="top"
-                  letterSpacing={0.08}
-                  maxWidth={1.4}
+                  letterSpacing={-0.005}
+                  maxWidth={1.7}
                   outlineColor="#0A0A0A"
-                  outlineWidth={0.003}
+                  outlineWidth={0.004}
                 >
-                  {p.title.toUpperCase()}
+                  {name}
                 </Text>
+                {/* Sub-description — mono, brand color, small caps */}
+                {sub && (
+                  <Text
+                    position={[0, -(TILE_BASE_H * 0.85 * scl) - 0.26, 0]}
+                    fontSize={0.052}
+                    color={p.color}
+                    anchorX="center"
+                    anchorY="top"
+                    letterSpacing={0.22}
+                    maxWidth={1.8}
+                    outlineColor="#0A0A0A"
+                    outlineWidth={0.003}
+                  >
+                    {sub.toUpperCase()}
+                  </Text>
+                )}
               </group>
             )
           })}
