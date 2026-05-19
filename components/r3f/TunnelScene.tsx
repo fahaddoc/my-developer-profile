@@ -802,6 +802,11 @@ function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
 // Public component — Canvas + scroll wiring + tunnel + stations
 // ─────────────────────────────────────────────────────────────────────────────
 export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset } = {}) {
+  // Remount the Canvas (fresh WebGL context) when the GPU drops the context.
+  // We cap retries so a hard GPU failure doesn't loop forever.
+  const [canvasKey, setCanvasKey] = useState(0)
+  const retriesRef = useRef(0)
+
   const curve = useMemo(() => new THREE.CatmullRomCurve3(
     CURVE_POINTS.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
     false,
@@ -845,8 +850,22 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
       }}
     >
       <Canvas
+        key={canvasKey}
         camera={{ fov: 70, near: 0.05, far: 400, position: [0, 0, 0] }}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+        onCreated={({ gl }) => {
+          // When the GPU drops the context, remount the canvas instead of
+          // reloading the page (page reloads can loop on persistent issues).
+          // Cap at 3 retries.
+          const handler = (e: Event) => {
+            e.preventDefault()
+            if (retriesRef.current < 3) {
+              retriesRef.current += 1
+              setTimeout(() => setCanvasKey((k) => k + 1), 200)
+            }
+          }
+          gl.domElement.addEventListener('webglcontextlost', handler)
+        }}
       >
         <fog attach="fog" args={['#05050A', 8, 60]} />
 
