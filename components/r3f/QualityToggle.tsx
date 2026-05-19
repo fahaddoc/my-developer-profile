@@ -39,7 +39,7 @@ export function QualityToggle({ level, onChange }: QualityToggleProps) {
         transition:  'color 200ms',
         pointerEvents: 'auto',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = '#FFB547' }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = '#5EEAD4' }}
       onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(245,245,247,0.45)' }}
     >
       ⚡ Quality: {labels[level]}

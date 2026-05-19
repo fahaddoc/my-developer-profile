@@ -127,7 +127,7 @@ export const STATIONS: StationDef[] = [
     t:         0.04,
     heading:   'Shah Fahad',
     tagline:   'Senior Software Engineer — React, Next.js, Flutter, WebRTC. Real-time experiences from Karachi, Pakistan.',
-    color:     '#FFB547',
+    color:     '#5EEAD4',
     imageSrc:  '/images/shah-fahad-sticker.png',
     subtitle:    'WELCOME TO MY TUNNEL',
     closer:      ['LET\'S BUILD', 'SOMETHING AMAZING'],
@@ -142,7 +142,7 @@ export const STATIONS: StationDef[] = [
     t:         0.22,
     heading:   'Turning ideas into shipped products',
     tagline:   '6+ years · 4 companies · 9+ projects · 25+ clients. From MILETAP\'s real-time video platform to DigitalHire\'s hiring system.',
-    color:     '#FFCB75',
+    color:     '#67E8F9',
     subtitle:    'FROM IDEAS TO PRODUCTS',
     closer:      ['6 YEARS', 'SHIPPING REAL-TIME'],
     traitsLeft:  ['DETAIL', 'CRAFT', 'CONSISTENCY'],
@@ -156,7 +156,7 @@ export const STATIONS: StationDef[] = [
     t:         0.42,
     heading:   'Featured work',
     tagline:   'Konnect.im video conferencing · DigitalHire SaaS · WhatsApp ChatBot Simulator · Agent Shah 3D portfolio game.',
-    color:     '#FF9D45',
+    color:     '#38BDF8',
     cta:       { text: 'view case studies →', href: '#projects' },
     subtitle:    'FEATURED CASE STUDIES',
     closer:      ['10+ PROJECTS', 'LIVE IN PRODUCTION'],
@@ -171,7 +171,7 @@ export const STATIONS: StationDef[] = [
     t:         0.62,
     heading:   'Professional journey',
     tagline:   'DigitalHire (current) · MILETAP · E-Ocean · freelance & contract — frontend, real-time, mobile.',
-    color:     '#E8A04A',
+    color:     '#2DD4BF',
     subtitle:    'PROFESSIONAL JOURNEY',
     closer:      ['4 COMPANIES', '25+ CLIENTS'],
     traitsLeft:  ['STARTUPS', 'ENTERPRISE', 'AGENCIES'],
@@ -185,7 +185,7 @@ export const STATIONS: StationDef[] = [
     t:         0.86,
     heading:   "Let's build something",
     tagline:   'hello@shahfahad.dev · open to senior frontend & real-time roles, full-time and contract.',
-    color:     '#FFD580',
+    color:     '#7DD3FC',
     cta:       { text: 'book a 15-min call →', href: 'https://cal.com/shahfahad' },
     subtitle:    'LET\'S TALK',
     closer:      ['OPEN FOR', 'NEW ROLES'],
@@ -332,7 +332,7 @@ function Tunnel({
       <points geometry={dotsGeometry}>
         <pointsMaterial
           size={0.16}
-          color="#FFB547"
+          color="#5EEAD4"
           sizeAttenuation
           transparent
           opacity={0.95}
@@ -347,7 +347,7 @@ function Tunnel({
       {/* Thin lines stitching adjacent dots in each ring */}
       <lineSegments geometry={lineGeometry}>
         <lineBasicMaterial
-          color="#FFB547"
+          color="#5EEAD4"
           transparent
           opacity={0.35}
           depthWrite={false}
@@ -428,7 +428,7 @@ function Station({
       <mesh>
         <torusGeometry args={[2.95, 0.035, 8, 96]} />
         <meshBasicMaterial
-          color="#FFE6B4"
+          color="#C6F8EE"
           transparent
           opacity={0.25}
           toneMapped={false}
@@ -444,7 +444,7 @@ function Station({
           <sphereGeometry args={[0.12, 12, 12]} />
           <meshBasicMaterial
             ref={i === 0 ? dotMatRef : undefined}
-            color="#FFFAE6"
+            color="#E5FFF8"
             transparent
             opacity={0.7}
             toneMapped={false}
@@ -499,10 +499,10 @@ function getSparkleTexture(): THREE.Texture | null {
   const ctx = c.getContext('2d')
   if (!ctx) return null
   const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
-  grad.addColorStop(0,    'rgba(255, 255, 245, 1)')
-  grad.addColorStop(0.15, 'rgba(255, 230, 180, 0.9)')
-  grad.addColorStop(0.5,  'rgba(255, 181, 71, 0.35)')
-  grad.addColorStop(1,    'rgba(255, 181, 71, 0)')
+  grad.addColorStop(0,    'rgba(240, 255, 250, 1)')
+  grad.addColorStop(0.15, 'rgba(180, 245, 235, 0.9)')
+  grad.addColorStop(0.5,  'rgba(94, 234, 212, 0.35)')
+  grad.addColorStop(1,    'rgba(94, 234, 212, 0)')
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, 128, 128)
   const tex = new THREE.CanvasTexture(c)
@@ -643,7 +643,7 @@ function Particles({
       {/* Constellation strands — thin lines between nearby stars */}
       <lineSegments geometry={lineGeometry}>
         <lineBasicMaterial
-          color="#FFB547"
+          color="#5EEAD4"
           transparent
           opacity={0.18}
           depthWrite={false}
@@ -796,7 +796,7 @@ function ProjectTiles({
         <sphereGeometry args={[1.5, 32, 32]} />
         <meshBasicMaterial
           ref={sunGlowRef}
-          color="#FFB547"
+          color="#5EEAD4"
           transparent
           opacity={0}
           toneMapped={false}
@@ -808,7 +808,7 @@ function ProjectTiles({
         <sphereGeometry args={[0.7, 48, 48]} />
         <meshBasicMaterial
           ref={sunRef}
-          color="#FFE6B4"
+          color="#C6F8EE"
           transparent
           opacity={0}
           toneMapped={false}
@@ -821,7 +821,7 @@ function ProjectTiles({
           <torusGeometry args={[r, 0.005, 4, 96]} />
           <meshBasicMaterial
             ref={(m) => { ringMatsRef.current[i] = m }}
-            color="#FFB547"
+            color="#5EEAD4"
             transparent
             opacity={0}
             toneMapped={false}
@@ -1170,7 +1170,7 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         <fog attach="fog" args={['#05050A', 8, 60]} />
 
         <ambientLight intensity={0.4} />
-        <pointLight position={[0, 0, -5]} intensity={1.5} color="#FFB547" />
+        <pointLight position={[0, 0, -5]} intensity={1.5} color="#5EEAD4" />
 
         <Tunnel curve={curve} ringCount={preset.tubeSegments} />
         <Particles curve={curve} count={preset.particleCount} bob={preset.tileBob} />
