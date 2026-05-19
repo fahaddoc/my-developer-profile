@@ -879,9 +879,9 @@ function ProjectTiles({
                 {/* Per-ring scale on inner group so the outer group's local Z
                     (used for hover lerp) stays in world units. */}
                 <group scale={scl}>
-                  {/* Soft back halo — coloured glow behind the entire card */}
-                  <mesh position={[0, 0, -0.03]}>
-                    <planeGeometry args={[TILE_BASE_W * 1.55, TILE_BASE_H * 1.70]} />
+                  {/* Soft back halo — coloured glow behind the thumbnail */}
+                  <mesh position={[0, 0, -0.02]}>
+                    <planeGeometry args={[TILE_BASE_W * 1.45, TILE_BASE_H * 1.55]} />
                     <meshBasicMaterial
                       ref={(m) => { borderMatsRef.current[i] = m }}
                       color={p.color}
@@ -892,51 +892,7 @@ function ProjectTiles({
                       blending={THREE.AdditiveBlending}
                     />
                   </mesh>
-
-                  {/* Frosted glass backplate — slightly larger than the
-                      thumbnail. Subtle white fill + thin white border give
-                      the glassmorphic card body. */}
-                  <mesh position={[0, 0, -0.015]}>
-                    <planeGeometry args={[TILE_BASE_W * 1.18, TILE_BASE_H * 1.45]} />
-                    <meshBasicMaterial
-                      color="#FFFFFF"
-                      transparent
-                      opacity={0.06}
-                      depthWrite={false}
-                      toneMapped={false}
-                    />
-                  </mesh>
-
-                  {/* Hairline white border around the glass plate */}
-                  {(() => {
-                    const W = TILE_BASE_W * 1.18
-                    const H = TILE_BASE_H * 1.45
-                    const T = 0.006
-                    const borderColor = '#FFFFFF'
-                    const borderOpacity = 0.32
-                    return (
-                      <>
-                        <mesh position={[0,  H / 2, -0.01]}>
-                          <planeGeometry args={[W, T]} />
-                          <meshBasicMaterial color={borderColor} transparent opacity={borderOpacity} toneMapped={false} />
-                        </mesh>
-                        <mesh position={[0, -H / 2, -0.01]}>
-                          <planeGeometry args={[W, T]} />
-                          <meshBasicMaterial color={borderColor} transparent opacity={borderOpacity} toneMapped={false} />
-                        </mesh>
-                        <mesh position={[-W / 2, 0, -0.01]}>
-                          <planeGeometry args={[T, H]} />
-                          <meshBasicMaterial color={borderColor} transparent opacity={borderOpacity} toneMapped={false} />
-                        </mesh>
-                        <mesh position={[ W / 2, 0, -0.01]}>
-                          <planeGeometry args={[T, H]} />
-                          <meshBasicMaterial color={borderColor} transparent opacity={borderOpacity} toneMapped={false} />
-                        </mesh>
-                      </>
-                    )
-                  })()}
-
-                  {/* Project thumbnail (in front of glass plate) */}
+                  {/* Project thumbnail */}
                   <mesh>
                     <planeGeometry args={[TILE_BASE_W, TILE_BASE_H]} />
                     <meshBasicMaterial
@@ -947,34 +903,6 @@ function ProjectTiles({
                       toneMapped={false}
                     />
                   </mesh>
-
-                  {/* Short code label — bottom-left inside the glass card */}
-                  <Text
-                    position={[-TILE_BASE_W * 0.55, -TILE_BASE_H * 0.65, 0.005]}
-                    fontSize={0.075}
-                    color="#FFFFFF"
-                    anchorX="left"
-                    anchorY="middle"
-                    letterSpacing={0.06}
-                    outlineColor="#0A0A0A"
-                    outlineWidth={0.003}
-                  >
-                    {name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)}
-                  </Text>
-
-                  {/* Index badge top-right inside the glass card */}
-                  <Text
-                    position={[TILE_BASE_W * 0.55, TILE_BASE_H * 0.65, 0.005]}
-                    fontSize={0.045}
-                    color={p.color}
-                    anchorX="right"
-                    anchorY="middle"
-                    letterSpacing={0.24}
-                    outlineColor="#0A0A0A"
-                    outlineWidth={0.002}
-                  >
-                    {`${String(i + 1).padStart(2, '0')} / ${String(pool.length).padStart(2, '0')}`}
-                  </Text>
                 </group>
 
                 {/* Title block — outside scaled group so positions/sizes are
