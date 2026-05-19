@@ -23,9 +23,9 @@ export interface QualityPreset {
 }
 
 export const PRESETS: Record<QualityLevel, QualityPreset> = {
-  low:  { canvas: false, bloom: false, bloomIntensity: 0,    particleCount: 200, tubeSegments: 30,  tileBob: false },
-  mid:  { canvas: true,  bloom: true,  bloomIntensity: 0.4,  particleCount: 270, tubeSegments: 60,  tileBob: true  },
-  high: { canvas: true,  bloom: true,  bloomIntensity: 0.75, particleCount: 340, tubeSegments: 120, tileBob: true  },
+  low:  { canvas: false, bloom: false, bloomIntensity: 0,    particleCount: 200, tubeSegments: 50,  tileBob: false },
+  mid:  { canvas: true,  bloom: true,  bloomIntensity: 0.5,  particleCount: 380, tubeSegments: 110, tileBob: true  },
+  high: { canvas: true,  bloom: true,  bloomIntensity: 0.95, particleCount: 540, tubeSegments: 200, tileBob: true  },
 }
 
 /** Map raw detect-gpu tier (0..3) to a QualityLevel. */
