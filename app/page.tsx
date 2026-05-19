@@ -149,13 +149,20 @@ function TunnelMode({
 
   const preset = PRESETS[level]
 
+  // Anchors land the camera slightly BEFORE each station so the station ring
+  // is visible ahead. Landing AT stationT puts the camera at ring centre =
+  // ring around peripheral vision = invisible. Offset -0.06 in progress
+  // puts camera ~12 world units upstream → ring fills the centre of view.
+  const VIEWPORT_SCROLL_VH = 400  // 500vh main - 100vh viewport
+  const beforeT = (t: number) => Math.max(0, t - 0.06) * VIEWPORT_SCROLL_VH
+
   const anchors = [
-    { id: 'hero',       topVh: 16  },
-    { id: 'about',      topVh: 88  },
-    { id: 'projects',   topVh: 168 },
-    { id: 'experience', topVh: 248 },
-    { id: 'skills',     topVh: 304 },
-    { id: 'contact',    topVh: 344 },
+    { id: 'hero',       topVh: beforeT(0.04) },   // ≈ 0 — already at start
+    { id: 'about',      topVh: beforeT(0.22) },   // ≈ 64vh
+    { id: 'projects',   topVh: beforeT(0.42) },   // ≈ 144vh
+    { id: 'experience', topVh: beforeT(0.62) },   // ≈ 224vh
+    { id: 'skills',     topVh: beforeT(0.74) },   // mid between exp/contact
+    { id: 'contact',    topVh: beforeT(0.86) },   // ≈ 320vh
   ]
 
   return (
