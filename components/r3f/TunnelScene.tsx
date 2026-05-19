@@ -12,7 +12,7 @@
 // Step 2 still skips: HTML content overlays (Step 3), mobile fallback,
 // integration with main portfolio.
 
-import { useEffect, useMemo, useRef, useState, Suspense, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, Suspense, type ReactNode } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Text, Html, useTexture } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
@@ -194,39 +194,81 @@ export function nearestStation(progress: number): StationDef {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tunnel: TubeGeometry along the curve
+// Tunnel: dark inner skin + concentric cross-section rings along the curve.
+// Replaces the old TubeGeometry wireframe lattice (square cells) with proper
+// circular rings perpendicular to the path — reads as a real tunnel with
+// frames spaced into the distance. Rings rendered as a single InstancedMesh
+// for one draw call regardless of count.
 // ─────────────────────────────────────────────────────────────────────────────
 function Tunnel({
-  curve, tubeSegments,
+  curve, ringCount,
 }: {
-  curve:        THREE.CatmullRomCurve3
-  tubeSegments: number
+  curve:     THREE.CatmullRomCurve3
+  ringCount: number
 }) {
-  const tubeGeometry = useMemo(
-    () => new THREE.TubeGeometry(curve, tubeSegments, 2.2, 32, false),
-    [curve, tubeSegments],
+  // Inner skin sits just inside the rings (radius 2.18 vs ring radius 2.20)
+  // so no z-fighting. Provides occlusion + deep void inside the tunnel.
+  const skinGeometry = useMemo(
+    () => new THREE.TubeGeometry(curve, 240, 2.18, 36, false),
+    [curve],
   )
+
+  // Shared torus geometry — single buffer, many transforms via InstancedMesh
+  const ringGeometry = useMemo(
+    () => new THREE.TorusGeometry(2.2, 0.012, 8, 80),
+    [],
+  )
+
+  const instRef = useRef<THREE.InstancedMesh>(null)
+
+  // Set one transform matrix per ring on layout commit.
+  // Each ring sits at curve.getPointAt(t), with its disc normal aligned to
+  // the local tangent — so the ring is exactly the cross-section of the tube.
+  useLayoutEffect(() => {
+    if (!instRef.current) return
+    const dummy = new THREE.Object3D()
+    const pos   = new THREE.Vector3()
+    const tan   = new THREE.Vector3()
+    const tgt   = new THREE.Vector3()
+
+    for (let i = 0; i <= ringCount; i++) {
+      const t = i / ringCount
+      curve.getPointAt(t, pos)
+      curve.getTangentAt(t, tan)
+      tgt.copy(pos).add(tan)
+
+      dummy.position.copy(pos)
+      dummy.lookAt(tgt)
+      dummy.updateMatrix()
+      instRef.current.setMatrixAt(i, dummy.matrix)
+    }
+    instRef.current.instanceMatrix.needsUpdate = true
+  }, [curve, ringCount])
 
   return (
     <>
-      <mesh geometry={tubeGeometry}>
+      {/* Inner skin — occlusion + deep void */}
+      <mesh geometry={skinGeometry}>
         <meshBasicMaterial
           color="#0A0A12"
           side={THREE.BackSide}
           transparent
-          opacity={0.9}
+          opacity={0.92}
         />
       </mesh>
 
-      <mesh geometry={tubeGeometry}>
+      {/* Cross-section rings — single instanced draw call */}
+      <instancedMesh
+        ref={instRef}
+        args={[ringGeometry, undefined, ringCount + 1]}
+      >
         <meshBasicMaterial
           color="#FFB547"
-          wireframe
-          side={THREE.BackSide}
           transparent
           opacity={0.55}
+          toneMapped={false}
         />
-      </mesh>
+      </instancedMesh>
     </>
   )
 }
@@ -743,7 +785,7 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         <ambientLight intensity={0.4} />
         <pointLight position={[0, 0, -5]} intensity={1.5} color="#FFB547" />
 
-        <Tunnel curve={curve} tubeSegments={preset.tubeSegments} />
+        <Tunnel curve={curve} ringCount={preset.tubeSegments} />
         <Particles curve={curve} count={preset.particleCount} bob={preset.tileBob} />
 
         {STATIONS.map((s) => (

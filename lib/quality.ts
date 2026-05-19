@@ -15,16 +15,17 @@ export interface QualityPreset {
   bloomIntensity: number
   /** dust mote count inside the tunnel */
   particleCount:  number
-  /** TubeGeometry tubular segments (length-wise tessellation) */
+  /** Number of cross-section rings drawn along the tunnel curve.
+      (Field name retained for backward compat with existing presets.) */
   tubeSegments:   number
   /** floating Y-bob on project tiles + particle bob */
   tileBob:        boolean
 }
 
 export const PRESETS: Record<QualityLevel, QualityPreset> = {
-  low:  { canvas: false, bloom: false, bloomIntensity: 0,    particleCount: 200, tubeSegments: 80,  tileBob: false },
-  mid:  { canvas: true,  bloom: true,  bloomIntensity: 0.4,  particleCount: 270, tubeSegments: 150, tileBob: true  },
-  high: { canvas: true,  bloom: true,  bloomIntensity: 0.75, particleCount: 340, tubeSegments: 600, tileBob: true  },
+  low:  { canvas: false, bloom: false, bloomIntensity: 0,    particleCount: 200, tubeSegments: 30,  tileBob: false },
+  mid:  { canvas: true,  bloom: true,  bloomIntensity: 0.4,  particleCount: 270, tubeSegments: 60,  tileBob: true  },
+  high: { canvas: true,  bloom: true,  bloomIntensity: 0.75, particleCount: 340, tubeSegments: 120, tileBob: true  },
 }
 
 /** Map raw detect-gpu tier (0..3) to a QualityLevel. */
