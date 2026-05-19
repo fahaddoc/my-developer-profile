@@ -19,7 +19,7 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { projects } from '@/data/projects'
+import { projects, experience } from '@/data/projects'
 import { type QualityPreset, PRESETS } from '@/lib/quality'
 
 // Shared scroll progress — read each frame inside R3F, also subscribed via the
@@ -832,77 +832,73 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
 // the CSS3D context.
 // ─────────────────────────────────────────────────────────────────────────────
 function StationContent({ station }: { station: StationDef }) {
-  // Hero station gets the bespoke "calling-card" layout matching the design
-  // mockup: circular portrait, big two-tone name, role, tech stack, tagline.
-  if (station.id === 'hero') return <HeroIntroCard station={station} />
+  // Each station gets its own bespoke layout to mirror its section's purpose.
+  switch (station.id) {
+    case 'hero':       return <HeroIntroCard  station={station} />
+    case 'about':      return <AboutCard      station={station} />
+    case 'projects':   return <ProjectsCard   station={station} />
+    case 'experience': return <ExperienceCard station={station} />
+    case 'contact':    return <ContactCard    station={station} />
+  }
+  return <DefaultCard station={station} />
+}
 
+// Fallback layout — kept for safety if a new station ever lands without a card
+function DefaultCard({ station }: { station: StationDef }) {
   return (
     <>
-      <div
-        style={{
-          fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          fontSize:    13,
-          letterSpacing: '0.32em',
-          textTransform: 'uppercase',
-          color:       station.color,
-          marginBottom: 18,
-          textShadow:  `0 0 12px ${hexAlpha(station.color, 0.5)}`,
-        }}
-      >
-        {station.label}
-      </div>
-
-      <h2
-        style={{
-          fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
-          fontSize:    44,
-          fontWeight:  800,
-          lineHeight:  1.08,
-          color:       '#F5F5F7',
-          margin:      '0 0 18px',
-          letterSpacing: '-0.01em',
-        }}
-      >
-        {station.heading}
-      </h2>
-
-      <p
-        style={{
-          fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
-          fontSize:    16,
-          lineHeight:  1.55,
-          color:       '#C5C5CC',
-          margin:      0,
-          maxWidth:    420,
-          marginLeft:  'auto',
-          marginRight: 'auto',
-        }}
-      >
-        {station.tagline}
-      </p>
-
-      {station.cta && (
-        <div
-          style={{
-            marginTop:   22,
-            fontFamily:  'var(--font-mono), ui-monospace, monospace',
-            fontSize:    12,
-            letterSpacing: '0.22em',
-            textTransform: 'uppercase',
-            color:       station.color,
-            display:     'inline-block',
-            padding:     '10px 18px',
-            border:      `1px solid ${hexAlpha(station.color, 0.4)}`,
-            borderRadius: 4,
-            textShadow:  `0 0 8px ${hexAlpha(station.color, 0.55)}`,
-          }}
-        >
-          {station.cta.text}
-        </div>
-      )}
+      <div style={LabelStyle(station.color)}>{station.label}</div>
+      <h2 style={HeadingStyle}>{station.heading}</h2>
+      <p style={TaglineStyle}>{station.tagline}</p>
     </>
   )
 }
+
+// ── Shared style tokens (kept as objects so per-card style stays terse) ─────
+const LabelStyle = (color: string) => ({
+  fontFamily:    'var(--font-mono), ui-monospace, monospace',
+  fontSize:      12,
+  letterSpacing: '0.32em',
+  textTransform: 'uppercase' as const,
+  color,
+  marginBottom:  16,
+  textShadow:    `0 0 12px ${hexAlpha(color, 0.5)}`,
+})
+
+const HeadingStyle = {
+  fontFamily:    'var(--font-display), ui-sans-serif, system-ui, sans-serif',
+  fontSize:      40,
+  fontWeight:    800 as const,
+  lineHeight:    1.1,
+  color:         '#F5F5F7',
+  margin:        '0 0 16px',
+  letterSpacing: '-0.01em',
+}
+
+const TaglineStyle = {
+  fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
+  fontSize:   15,
+  lineHeight: 1.55,
+  color:      '#C5C5CC',
+  margin:     0,
+  maxWidth:   460,
+  marginLeft:  'auto',
+  marginRight: 'auto',
+}
+
+const CtaStyle = (color: string) => ({
+  marginTop:     20,
+  fontFamily:    'var(--font-mono), ui-monospace, monospace',
+  fontSize:      11,
+  letterSpacing: '0.22em',
+  textTransform: 'uppercase' as const,
+  color,
+  display:       'inline-block',
+  padding:       '10px 18px',
+  border:        `1px solid ${hexAlpha(color, 0.4)}`,
+  borderRadius:  4,
+  textShadow:    `0 0 8px ${hexAlpha(color, 0.55)}`,
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HeroIntroCard — the calling-card layout for the INTRO station.
@@ -992,6 +988,186 @@ function HeroIntroCard({ station }: { station: StationDef }) {
           Karachi, Pakistan.
         </span>
       </p>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AboutCard — 4-stat grid + bio + tech badges
+// ─────────────────────────────────────────────────────────────────────────────
+function AboutCard({ station }: { station: StationDef }) {
+  const stats = [
+    { value: '6+',  label: 'YEARS'     },
+    { value: '4',   label: 'COMPANIES' },
+    { value: '9+',  label: 'PROJECTS'  },
+    { value: '25+', label: 'CLIENTS'   },
+  ]
+  const badges = ['React', 'Next.js', 'TypeScript', 'Flutter', 'WebRTC', 'SignalR']
+  return (
+    <>
+      <div style={LabelStyle(station.color)}>{station.label}</div>
+      <h2 style={HeadingStyle}>{station.heading}</h2>
+
+      {/* 4-stat grid */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: 8, margin: '20px auto 22px', maxWidth: 440,
+      }}>
+        {stats.map((s) => (
+          <div key={s.label} style={{
+            padding: '12px 4px',
+            borderTop: `1px solid ${hexAlpha(station.color, 0.35)}`,
+          }}>
+            <div style={{
+              fontFamily: 'var(--font-display), system-ui, sans-serif',
+              fontSize:   30, fontWeight: 800, color: '#F5F5F7',
+              lineHeight: 1, letterSpacing: '-0.02em',
+            }}>{s.value}</div>
+            <div style={{
+              marginTop: 4,
+              fontFamily: 'var(--font-mono), monospace',
+              fontSize: 9, letterSpacing: '0.28em',
+              color: 'rgba(245,245,247,0.55)',
+            }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <p style={{ ...TaglineStyle, fontSize: 14, marginBottom: 18 }}>
+        From MILETAP&apos;s real-time video platform to DigitalHire&apos;s hiring system.
+        Every line of code taught me something I couldn&apos;t find in a tutorial.
+      </p>
+
+      {/* Tech badges */}
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 6,
+        maxWidth: 460, margin: '0 auto',
+      }}>
+        {badges.map((b) => (
+          <span key={b} style={{
+            fontFamily: 'var(--font-mono), monospace',
+            fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase',
+            color: 'rgba(245,245,247,0.7)',
+            padding: '4px 10px',
+            border: `1px solid ${hexAlpha(station.color, 0.28)}`,
+            borderRadius: 3,
+          }}>{b}</span>
+        ))}
+      </div>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ProjectsCard — minimal heading + tagline; the 3D ProjectTiles around the
+// station ring carry the actual project visuals.
+// ─────────────────────────────────────────────────────────────────────────────
+function ProjectsCard({ station }: { station: StationDef }) {
+  return (
+    <>
+      <div style={LabelStyle(station.color)}>{station.label}</div>
+      <h2 style={HeadingStyle}>{station.heading}</h2>
+      <p style={{ ...TaglineStyle, marginBottom: 14, maxWidth: 420 }}>
+        Real-time, video, mobile, AI — production code across SaaS, agencies and freelance.
+      </p>
+      <p style={{
+        fontFamily: 'var(--font-mono), monospace',
+        fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase',
+        color: hexAlpha(station.color, 0.65),
+        margin: 0,
+      }}>
+        ↑ tap any thumbnail
+      </p>
+      {station.cta && (
+        <div style={{ ...CtaStyle(station.color), marginTop: 18 }}>
+          {station.cta.text}
+        </div>
+      )}
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExperienceCard — compact timeline list with company / role / period
+// ─────────────────────────────────────────────────────────────────────────────
+function ExperienceCard({ station }: { station: StationDef }) {
+  // Reduce to top 3 entries so card stays compact
+  const entries = experience.slice(0, 3)
+  return (
+    <>
+      <div style={LabelStyle(station.color)}>{station.label}</div>
+      <h2 style={{ ...HeadingStyle, fontSize: 36, marginBottom: 22 }}>{station.heading}</h2>
+
+      <ul style={{
+        listStyle: 'none', padding: 0, margin: '0 auto',
+        maxWidth: 480, textAlign: 'left',
+      }}>
+        {entries.map((e) => (
+          <li key={e.id} style={{
+            padding: '12px 0',
+            borderTop: `1px solid ${hexAlpha(station.color, 0.22)}`,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16,
+          }}>
+            <div>
+              <div style={{
+                fontFamily: 'var(--font-mono), monospace',
+                fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase',
+                color: station.color,
+                marginBottom: 4,
+              }}>{e.company}</div>
+              <div style={{
+                fontFamily: 'var(--font-display), system-ui, sans-serif',
+                fontSize: 16, fontWeight: 700, color: '#F5F5F7',
+              }}>{e.role}</div>
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-mono), monospace',
+              fontSize: 10, letterSpacing: '0.16em',
+              color: 'rgba(245,245,247,0.55)',
+              whiteSpace: 'nowrap',
+            }}>
+              {e.period}{e.current && ' · NOW'}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ContactCard — channels + dual CTA
+// ─────────────────────────────────────────────────────────────────────────────
+function ContactCard({ station }: { station: StationDef }) {
+  return (
+    <>
+      <div style={LabelStyle(station.color)}>{station.label}</div>
+      <h2 style={HeadingStyle}>{station.heading}</h2>
+
+      <div style={{
+        margin: '16px auto 22px', maxWidth: 380,
+        display: 'flex', flexDirection: 'column', gap: 6,
+        fontFamily: 'var(--font-mono), monospace',
+        fontSize: 13, letterSpacing: '0.08em',
+      }}>
+        <span style={{ color: '#F5F5F7' }}>hello@shahfahad.dev</span>
+        <span style={{ color: 'rgba(245,245,247,0.6)' }}>+92 304 2186009</span>
+        <span style={{ color: 'rgba(245,245,247,0.6)' }}>Karachi, Pakistan</span>
+      </div>
+
+      <div style={{
+        display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap',
+      }}>
+        <span style={CtaStyle(station.color)}>book a 15-min call →</span>
+        <span style={{
+          ...CtaStyle(station.color),
+          color: '#F5F5F7',
+          border: '1px solid rgba(245,245,247,0.25)',
+          textShadow: 'none',
+        }}>
+          hello@shahfahad.dev →
+        </span>
+      </div>
     </>
   )
 }
