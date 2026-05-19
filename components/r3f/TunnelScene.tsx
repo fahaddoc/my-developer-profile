@@ -846,7 +846,19 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
     >
       <Canvas
         camera={{ fov: 70, near: 0.05, far: 400, position: [0, 0, 0] }}
-        gl={{ antialias: true, alpha: false }}
+        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+        // WebGL context can be lost on HMR / GPU pressure / sleeping the tab.
+        // R3F doesn't auto-recover the scene, so reload the page when this
+        // happens — fresh context, scene re-mounts, tunnel comes back.
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault()
+            // eslint-disable-next-line no-console
+            console.warn('[TunnelScene] WebGL context lost — reloading')
+            // Defer so the warning lands in console before navigation
+            setTimeout(() => { window.location.reload() }, 50)
+          })
+        }}
       >
         <fog attach="fog" args={['#05050A', 8, 60]} />
 
