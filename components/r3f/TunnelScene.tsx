@@ -189,7 +189,11 @@ function Station({
   // HTML content div — opacity scrubbed each frame
   const htmlDivRef   = useRef<HTMLDivElement>(null)
 
-  // Place + orient the group once on mount
+  // Place + orient the group once on mount.
+  // We want the station to FACE the approaching camera. Camera travels along
+  // +tangent, so it approaches from -tangent side. Pointing the group's
+  // forward at `pos - tangent` makes its readable face (where Text/Html sit)
+  // turn toward the camera.
   useEffect(() => {
     if (!groupRef.current) return
     const pos     = new THREE.Vector3()
@@ -198,7 +202,7 @@ function Station({
     curve.getTangentAt(t, tangent)
 
     groupRef.current.position.copy(pos)
-    groupRef.current.lookAt(pos.clone().add(tangent))
+    groupRef.current.lookAt(pos.clone().sub(tangent))
   }, [curve, t])
 
   // Proximity scrubbing
