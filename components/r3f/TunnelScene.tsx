@@ -414,7 +414,9 @@ function Station({
         </mesh>
       ))}
 
-      {/* Floating label above the ring (in local frame: +Y, slight +Z behind) */}
+      {/* Floating label above the ring — sequence number stripped (just the
+          short name, e.g. INTRO / ABOUT). Troika colorRanges paints the
+          second character white while the rest stays in the station accent. */}
       <Text
         position={[0, 2.35, 0.3]}
         fontSize={0.32}
@@ -424,6 +426,8 @@ function Station({
         letterSpacing={0.18}
         outlineColor="#1A0E00"
         outlineWidth={0.012}
+        // @ts-expect-error — drei passes unknown props through to troika-three-text
+        colorRanges={{ 0: station.color, 1: '#FFFFFF', 2: station.color }}
         onUpdate={(self) => {
           if (!textMatRef.current && self.material) {
             textMatRef.current = self.material as THREE.Material
@@ -431,7 +435,7 @@ function Station({
           }
         }}
       >
-        {label}
+        {station.short}
       </Text>
 
       {/* Station content (calling card, stats, timeline, etc) is now rendered
