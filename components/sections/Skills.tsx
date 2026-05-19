@@ -101,6 +101,7 @@ function CircuitCanvas({
 
     let W = 0, H = 0, R = 40   // R = hex circumradius, recomputed on resize
     let rafId = 0, lastTime = 0
+    let visible = true
 
     // ── game state (all in closure — zero React re-renders) ──────────────
     const connections: Connection[] = []
@@ -319,6 +320,7 @@ function CircuitCanvas({
 
     // ── RAF loop ──────────────────────────────────────────────────────────
     const draw = (ts: number) => {
+      if (!visible) { rafId = 0; return }
       rafId = requestAnimationFrame(draw)
       const dt = Math.min((ts - lastTime) / 1000, 0.05)
       lastTime = ts
@@ -409,10 +411,21 @@ function CircuitCanvas({
     canvas.addEventListener('touchmove',  onTouchMove,  { passive: false })
     canvas.addEventListener('touchend',   onTouchEnd)
 
+    const io = new IntersectionObserver(([entry]) => {
+      const was = visible
+      visible = entry.isIntersecting
+      if (!was && visible && rafId === 0) {
+        lastTime = performance.now()
+        rafId = requestAnimationFrame(draw)
+      }
+    }, { rootMargin: '200px 0px' })
+    io.observe(canvas)
+
     lastTime = performance.now()
     rafId    = requestAnimationFrame(draw)
 
     return () => {
+      io.disconnect()
       window.removeEventListener('resize',    resize)
       canvas.removeEventListener('mousedown', onMouseDown)
       window.removeEventListener('mousemove', onMouseMove)

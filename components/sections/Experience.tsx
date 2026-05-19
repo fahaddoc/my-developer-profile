@@ -55,6 +55,7 @@ function ExperienceBackground() {
     const sparks = new Map<string, number>()   // "col,row" → life
 
     let W = 0, H = 0, rafId = 0
+    let visible = true
 
     const resize = () => {
       W = canvas.offsetWidth; H = canvas.offsetHeight
@@ -67,6 +68,7 @@ function ExperienceBackground() {
     }
 
     const draw = () => {
+      if (!visible) { rafId = 0; return }
       rafId = requestAnimationFrame(draw)
       const rect = canvas.getBoundingClientRect()
       if (rect.bottom < -50 || rect.top > window.innerHeight + 50) return
@@ -202,9 +204,20 @@ function ExperienceBackground() {
     window.addEventListener('mousemove',    onMove,   { passive: true })
     window.addEventListener('resize',       resize)
     document.addEventListener('mouseleave', onLeave)
+
+    const io = new IntersectionObserver(([entry]) => {
+      const was = visible
+      visible = entry.isIntersecting
+      if (!was && visible && rafId === 0) {
+        rafId = requestAnimationFrame(draw)
+      }
+    }, { rootMargin: '200px 0px' })
+    io.observe(canvas)
+
     rafId = requestAnimationFrame(draw)
 
     return () => {
+      io.disconnect()
       window.removeEventListener('mousemove',    onMove)
       window.removeEventListener('resize',       resize)
       document.removeEventListener('mouseleave', onLeave)

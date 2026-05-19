@@ -62,6 +62,7 @@ export function SectionBackground({
     const sparks = new Map<string, number>()
 
     let W = 0, H = 0, rafId = 0
+    let visible = true
 
     // ── resize ────────────────────────────────────────────────────────────
     const resize = () => {
@@ -86,6 +87,7 @@ export function SectionBackground({
 
     // ── main RAF loop ──────────────────────────────────────────────────────
     const draw = () => {
+      if (!visible) { rafId = 0; return }
       rafId = requestAnimationFrame(draw)
 
       // get fresh canvas rect every frame — correct after scroll + transforms
@@ -233,9 +235,20 @@ export function SectionBackground({
     window.addEventListener('mousemove',    onMove,   { passive: true })
     window.addEventListener('resize',       resize)
     document.addEventListener('mouseleave', onLeave)
+
+    const io = new IntersectionObserver(([entry]) => {
+      const was = visible
+      visible = entry.isIntersecting
+      if (!was && visible && rafId === 0) {
+        rafId = requestAnimationFrame(draw)
+      }
+    }, { rootMargin: '200px 0px' })
+    io.observe(canvas)
+
     rafId = requestAnimationFrame(draw)
 
     return () => {
+      io.disconnect()
       window.removeEventListener('mousemove',    onMove)
       window.removeEventListener('resize',       resize)
       document.removeEventListener('mouseleave', onLeave)

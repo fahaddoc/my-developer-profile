@@ -39,6 +39,7 @@ function ContactBackground() {
     const dots   = new Map<string, number>()
     const sparks = new Map<string, number>()
     let W = 0, H = 0, rafId = 0
+    let visible = true
 
     const resize = () => {
       W = canvas.offsetWidth; H = canvas.offsetHeight
@@ -56,6 +57,7 @@ function ContactBackground() {
     ]
 
     const draw = () => {
+      if (!visible) { rafId = 0; return }
       rafId = requestAnimationFrame(draw)
       const rect = canvas.getBoundingClientRect()
       if (rect.bottom < -50 || rect.top > window.innerHeight + 50) return
@@ -157,8 +159,19 @@ function ContactBackground() {
     window.addEventListener('mousemove', onMove, { passive: true })
     window.addEventListener('resize', resize)
     document.addEventListener('mouseleave', onLeave)
+
+    const io = new IntersectionObserver(([entry]) => {
+      const was = visible
+      visible = entry.isIntersecting
+      if (!was && visible && rafId === 0) {
+        rafId = requestAnimationFrame(draw)
+      }
+    }, { rootMargin: '200px 0px' })
+    io.observe(canvas)
+
     rafId = requestAnimationFrame(draw)
     return () => {
+      io.disconnect()
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('resize', resize)
       document.removeEventListener('mouseleave', onLeave)
@@ -195,6 +208,7 @@ function SparkCanvas({ formRef }: { formRef: React.RefObject<HTMLDivElement | nu
     const ctx    = canvas.getContext('2d')!
     const sparks: Spark[] = []
     let W = 0, H = 0, rafId = 0
+    let visible = true
 
     const resize = () => {
       W = canvas.offsetWidth; H = canvas.offsetHeight
@@ -222,6 +236,7 @@ function SparkCanvas({ formRef }: { formRef: React.RefObject<HTMLDivElement | nu
     }
 
     const draw = () => {
+      if (!visible) { rafId = 0; return }
       rafId = requestAnimationFrame(draw)
       if (sparks.length === 0) { ctx.clearRect(0, 0, W, H); return }
       ctx.clearRect(0, 0, W, H)
@@ -253,9 +268,20 @@ function SparkCanvas({ formRef }: { formRef: React.RefObject<HTMLDivElement | nu
     // Attach to form container — fires on any keydown inside any child input
     const form = formRef.current
     form?.addEventListener('keydown', fireSparks)
+
+    const io = new IntersectionObserver(([entry]) => {
+      const was = visible
+      visible = entry.isIntersecting
+      if (!was && visible && rafId === 0) {
+        rafId = requestAnimationFrame(draw)
+      }
+    }, { rootMargin: '200px 0px' })
+    io.observe(canvas)
+
     rafId = requestAnimationFrame(draw)
 
     return () => {
+      io.disconnect()
       cancelAnimationFrame(rafId)
       window.removeEventListener('resize', resize)
       form?.removeEventListener('keydown', fireSparks)

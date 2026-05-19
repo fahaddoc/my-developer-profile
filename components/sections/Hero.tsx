@@ -111,6 +111,7 @@ function ParticleCollector({
     let W = 0, H = 0
     let rafId = 0
     let lastTime = 0
+    let visible = true
 
     // Raw viewport cursor coords — section-relative computed in RAF
     let rawX = -9999, rawY = -9999
@@ -172,6 +173,7 @@ function ParticleCollector({
     // ── main RAF loop ─────────────────────────────────────────────────────
 
     const draw = (ts: number) => {
+      if (!visible) { rafId = 0; return }
       rafId = requestAnimationFrame(draw)
 
       const dt = Math.min((ts - lastTime) / 1000, 0.05)
@@ -290,10 +292,21 @@ function ParticleCollector({
     window.addEventListener('mouseleave',   onMouseLeave)
     canvas.addEventListener('touchmove',    onTouchMove,  { passive: true })
 
+    const io = new IntersectionObserver(([entry]) => {
+      const was = visible
+      visible = entry.isIntersecting
+      if (!was && visible && rafId === 0) {
+        lastTime = performance.now()
+        rafId = requestAnimationFrame(draw)
+      }
+    }, { rootMargin: '200px 0px' })
+    io.observe(canvas)
+
     lastTime = performance.now()
     rafId = requestAnimationFrame(draw)
 
     return () => {
+      io.disconnect()
       window.removeEventListener('mousemove',  onMouseMove)
       window.removeEventListener('resize',     resize)
       window.removeEventListener('mouseleave', onMouseLeave)

@@ -44,6 +44,7 @@ function ProjectsBackground() {
     let smoothX = -1, smoothY = -1, prevX = 0, prevY = 0
     let active = false
     let W = 0, H = 0, rafId = 0
+    let visible = true
 
     // "col,row" → brightness (0–1)
     const dots   = new Map<string, number>()
@@ -60,6 +61,7 @@ function ProjectsBackground() {
     }
 
     const draw = () => {
+      if (!visible) { rafId = 0; return }
       rafId = requestAnimationFrame(draw)
       const rect = canvas.getBoundingClientRect()
       if (rect.bottom < -50 || rect.top > window.innerHeight + 50) return
@@ -207,8 +209,19 @@ function ProjectsBackground() {
     window.addEventListener('mousemove',    onMove,  { passive: true })
     window.addEventListener('resize',       resize)
     document.addEventListener('mouseleave', onLeave)
+
+    const io = new IntersectionObserver(([entry]) => {
+      const was = visible
+      visible = entry.isIntersecting
+      if (!was && visible && rafId === 0) {
+        rafId = requestAnimationFrame(draw)
+      }
+    }, { rootMargin: '200px 0px' })
+    io.observe(canvas)
+
     rafId = requestAnimationFrame(draw)
     return () => {
+      io.disconnect()
       window.removeEventListener('mousemove',    onMove)
       window.removeEventListener('resize',       resize)
       document.removeEventListener('mouseleave', onLeave)
