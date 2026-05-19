@@ -14,13 +14,14 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Text, useTexture } from '@react-three/drei'
+import { Text, Html, useTexture } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { projects } from '@/data/projects'
 import { type QualityPreset, PRESETS } from '@/lib/quality'
+import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
 
 // Shared scroll progress — read each frame inside R3F, also subscribed via the
 // useScrollProgress hook below for HUD/UI updates outside the canvas.
@@ -671,6 +672,59 @@ function ProjectTiles({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HeroPortrait3D — flip photo/video card placed at the INTRO station centre.
+// Mirrors the solar-system pattern at PROJECTS: drei <Html transform> sits
+// in 3D space, offset down-path so camera approaches it instead of passing
+// through. Proximity-scrubbed opacity wakes it up only near the station.
+// ─────────────────────────────────────────────────────────────────────────────
+function HeroPortrait3D({
+  curve, stationT, accent,
+}: {
+  curve:    THREE.CatmullRomCurve3
+  stationT: number
+  accent:   string
+}) {
+  const groupRef = useRef<THREE.Group>(null)
+  const wrapRef  = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!groupRef.current) return
+    const pos     = new THREE.Vector3()
+    const tangent = new THREE.Vector3()
+    curve.getPointAt(stationT, pos)
+    curve.getTangentAt(stationT, tangent)
+    groupRef.current.position.copy(pos)
+    groupRef.current.lookAt(pos.clone().sub(tangent))
+  }, [curve, stationT])
+
+  useFrame(() => {
+    const dist      = Math.abs(scrollRef.current - stationT)
+    const proximity = Math.max(0, 1 - dist / 0.13)
+    if (wrapRef.current) wrapRef.current.style.opacity = Math.pow(proximity, 1.3).toFixed(3)
+  })
+
+  return (
+    <group ref={groupRef}>
+      {/* Offset downstream so camera approaches the card head-on instead of
+          passing through it (same z=-4 trick as the solar system). */}
+      <group position={[0, 0, -4]}>
+        <Html
+          transform
+          position={[0, 0, 0]}
+          distanceFactor={4.2}
+          pointerEvents="auto"
+          center
+        >
+          <div ref={wrapRef} style={{ opacity: 0, transition: 'opacity 140ms linear' }}>
+            <FlipPhotoCard accent={accent} width={260} />
+          </div>
+        </Html>
+      </group>
+    </group>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CameraRig: places camera along curve and adds a SUBTLE bank into turns.
 // Default up = world +Y so the world stays right-side-up. A small roll around
 // the forward axis is added based on how much the tangent is turning in the
@@ -787,6 +841,13 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
             bob={preset.tileBob}
           />
         </Suspense>
+
+        {/* Flip photo/video card at the INTRO station centre */}
+        <HeroPortrait3D
+          curve={curve}
+          stationT={STATIONS.find((s) => s.id === 'hero')!.t}
+          accent={STATIONS.find((s) => s.id === 'hero')!.color}
+        />
 
         <CameraRig curve={curve} />
 
