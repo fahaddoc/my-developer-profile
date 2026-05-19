@@ -20,34 +20,43 @@ import { experience } from '@/data/projects'
 // Lenis hijacks native scroll, so el.scrollIntoView({behavior:'smooth'})
 // gets cancelled mid-animation. Use lenis.scrollTo when available so the
 // nav clicks actually glide to the target station.
+// Track the active scroll animation so a second click cancels the first
+let scrollRafId = 0
+
 function scrollToStation(id: string) {
   const el = document.getElementById(id)
   if (!el) return
   const target = el.offsetTop
 
+  // Always cancel any in-flight animation first
+  if (scrollRafId) { cancelAnimationFrame(scrollRafId); scrollRafId = 0 }
+
   if (lenisInstance) {
-    // Lenis was measured before TunnelMode rendered its 500vh spacer,
-    // so its `limit` was stale (0). Force a re-measure right before scroll.
+    // Lenis was measured before TunnelMode rendered its 500vh spacer, so
+    // its limit may be stale on first nav click. Refresh dimensions.
     lenisInstance.resize()
 
-    // Smooth animation: rAF a manual lerp from current to target. Lenis
-    // takes the final scroll via setScroll so its internal state stays
-    // synced with the page. (Lenis's own scrollTo+duration wasn't ticking
-    // on our setup; this gives reliable smooth nav.)
     const startY = lenisInstance.scroll
     const dist   = target - startY
     if (Math.abs(dist) < 1) return
-    const duration = 1200   // ms
+
+    const duration = 900
     const startT   = performance.now()
     const easeOut  = (t: number) => 1 - Math.pow(1 - t, 3)
 
     const step = (now: number) => {
+      // Bail out if a newer scroll started or Lenis disappeared
+      if (!lenisInstance) { scrollRafId = 0; return }
       const p = Math.min(1, (now - startT) / duration)
       const y = startY + dist * easeOut(p)
-      lenisInstance!.scrollTo(y, { immediate: true })
-      if (p < 1) requestAnimationFrame(step)
+      lenisInstance.scrollTo(y, { immediate: true, lock: false, force: true })
+      if (p < 1) {
+        scrollRafId = requestAnimationFrame(step)
+      } else {
+        scrollRafId = 0
+      }
     }
-    requestAnimationFrame(step)
+    scrollRafId = requestAnimationFrame(step)
   } else {
     window.scrollTo({ top: target, behavior: 'smooth' })
   }
