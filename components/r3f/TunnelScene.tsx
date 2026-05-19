@@ -410,23 +410,21 @@ function Particles({ curve, count = 320 }: { curve: THREE.CatmullRomCurve3; coun
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CameraRig: reads scrollRef each frame, places camera along the curve and
-// banks (rolls) into turns using Frenet frames precomputed from the curve.
-// Result: camera tilts slightly into each bend, like a fighter jet — gives
-// the path real weight instead of feeling flat.
+// CameraRig: places camera along curve and adds a SUBTLE bank into turns.
+// Default up = world +Y so the world stays right-side-up. A small roll around
+// the forward axis is added based on how much the tangent is turning in the
+// horizontal plane — like an aircraft leaning into a curve. ±~10° max.
 // ─────────────────────────────────────────────────────────────────────────────
-const FRAME_STEPS = 600
-
 function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
-  // Precompute orthonormal frames along the curve once.
-  // binormals at each step → natural "up" direction that rolls with curve turns
-  const frames = useMemo(() => curve.computeFrenetFrames(FRAME_STEPS, false), [curve])
-
-  const posVec     = useMemo(() => new THREE.Vector3(), [])
-  const lookVec    = useMemo(() => new THREE.Vector3(), [])
-  const smoothUp   = useMemo(() => new THREE.Vector3(0, 1, 0), [])
-  const targetUp   = useMemo(() => new THREE.Vector3(), [])
-  const smoothRef  = useRef(0)
+  const posVec       = useMemo(() => new THREE.Vector3(),     [])
+  const lookVec      = useMemo(() => new THREE.Vector3(),     [])
+  const tanNow       = useMemo(() => new THREE.Vector3(),     [])
+  const tanAhead     = useMemo(() => new THREE.Vector3(),     [])
+  const forwardVec   = useMemo(() => new THREE.Vector3(),     [])
+  const upVec        = useMemo(() => new THREE.Vector3(0,1,0),[])
+  const rollQuat     = useMemo(() => new THREE.Quaternion(),  [])
+  const smoothRef    = useRef(0)
+  const smoothRollRef = useRef(0)
 
   useFrame(({ camera }) => {
     smoothRef.current += (scrollRef.current - smoothRef.current) * 0.12
@@ -434,25 +432,24 @@ function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
     const t     = Math.min(0.999,  Math.max(0, smoothRef.current))
     const tNext = Math.min(0.9999, t + 0.005)
 
-    curve.getPointAt(t,     posVec)
-    curve.getPointAt(tNext, lookVec)
+    curve.getPointAt(t,      posVec)
+    curve.getPointAt(tNext,  lookVec)
+    curve.getTangentAt(t,    tanNow)
+    curve.getTangentAt(Math.min(0.999, t + 0.02), tanAhead)
 
-    // Look up the binormal at this t (Frenet frame index). Frames are indexed
-    // 0..FRAME_STEPS; clamp + lerp adjacents for smoothness.
-    const idxF  = t * FRAME_STEPS
-    const idxA  = Math.floor(idxF)
-    const idxB  = Math.min(idxA + 1, FRAME_STEPS)
-    const frac  = idxF - idxA
+    // Lean angle from horizontal tangent change. Positive X-delta = curve
+    // bending right → roll right.
+    const deltaX     = tanAhead.x - tanNow.x
+    const targetRoll = THREE.MathUtils.clamp(deltaX * 6, -0.18, 0.18)
+    smoothRollRef.current += (targetRoll - smoothRollRef.current) * 0.05
 
-    const bA = frames.binormals[idxA] || frames.binormals[0]
-    const bB = frames.binormals[idxB] || bA
-    targetUp.copy(bA).lerp(bB, frac)
+    // Build up vector: world +Y rotated by smoothRoll around forward axis
+    forwardVec.copy(lookVec).sub(posVec).normalize()
+    upVec.set(0, 1, 0)
+    rollQuat.setFromAxisAngle(forwardVec, smoothRollRef.current)
+    upVec.applyQuaternion(rollQuat)
 
-    // Slow lerp on the up vector itself → no abrupt roll snaps when Frenet
-    // normals flip on s-curves
-    smoothUp.lerp(targetUp, 0.06).normalize()
-
-    camera.up.copy(smoothUp)
+    camera.up.copy(upVec)
     camera.position.copy(posVec)
     camera.lookAt(lookVec)
   })
