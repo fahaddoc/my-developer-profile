@@ -1,7 +1,7 @@
 // app/layout.tsx
 
 import type { Metadata, Viewport } from 'next'
-import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from 'next/font/google'
+import { Sora, Inter, JetBrains_Mono } from 'next/font/google'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { SmoothScroll } from '@/components/providers/SmoothScroll'
 import { JsonLd } from '@/components/seo/JsonLd'
@@ -9,7 +9,9 @@ import { personSchema, websiteSchema } from '@/lib/seo/jsonld'
 import { SITE_URL, SITE_NAME, AUTHOR, KEYWORDS, SOCIALS } from '@/lib/seo/site'
 import './globals.css'
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+// Sora — geometric grotesque (same family as the .monks display type the
+// user wanted to match). Loaded across the weight range we use in headings.
+const sora = Sora({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700', '800'],
   variable: '--font-display',
@@ -106,7 +108,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
   return (
-    <html lang="en" className={`${plusJakartaSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${sora.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="bg-bg-base text-text-primary font-body antialiased">
         <JsonLd data={personSchema()} />
         <JsonLd data={websiteSchema()} />
