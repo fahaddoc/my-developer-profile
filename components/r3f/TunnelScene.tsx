@@ -209,13 +209,14 @@ function Tunnel({
   // Inner skin sits just inside the rings (radius 2.18 vs ring radius 2.20)
   // so no z-fighting. Provides occlusion + deep void inside the tunnel.
   const skinGeometry = useMemo(
-    () => new THREE.TubeGeometry(curve, 240, 2.18, 36, false),
+    () => new THREE.TubeGeometry(curve, 240, 3.18, 36, false),
     [curve],
   )
 
-  // Shared torus geometry — single buffer, many transforms via InstancedMesh
+  // Shared torus geometry — single buffer, many transforms via InstancedMesh.
+  // Bigger ring (3.2) so the tunnel feels properly cavernous instead of cramped.
   const ringGeometry = useMemo(
-    () => new THREE.TorusGeometry(2.2, 0.012, 8, 80),
+    () => new THREE.TorusGeometry(3.2, 0.018, 8, 96),
     [],
   )
 
@@ -332,9 +333,10 @@ function Station({
 
   return (
     <group ref={groupRef}>
-      {/* Primary ring — perpendicular to the tunnel axis at this point */}
+      {/* Primary ring — sits just outside the main tunnel rings to read as
+          a thicker accent at the station */}
       <mesh>
-        <torusGeometry args={[2.35, 0.06, 10, 96]} />
+        <torusGeometry args={[3.35, 0.09, 10, 120]} />
         <meshBasicMaterial
           ref={ringMatRef}
           color={station.color}
@@ -344,9 +346,9 @@ function Station({
         />
       </mesh>
 
-      {/* Secondary inner ring — slightly smaller, dimmer, gives depth */}
+      {/* Secondary inner ring — smaller, dimmer, gives depth */}
       <mesh>
-        <torusGeometry args={[2.10, 0.025, 8, 64]} />
+        <torusGeometry args={[2.95, 0.035, 8, 96]} />
         <meshBasicMaterial
           color="#FFE6B4"
           transparent
@@ -359,9 +361,9 @@ function Station({
       {[0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle, i) => (
         <mesh
           key={i}
-          position={[Math.cos(angle) * 2.35, Math.sin(angle) * 2.35, 0]}
+          position={[Math.cos(angle) * 3.35, Math.sin(angle) * 3.35, 0]}
         >
-          <sphereGeometry args={[0.08, 12, 12]} />
+          <sphereGeometry args={[0.12, 12, 12]} />
           <meshBasicMaterial
             ref={i === 0 ? dotMatRef : undefined}
             color="#FFFAE6"
@@ -374,7 +376,7 @@ function Station({
 
       {/* Floating label above the ring (in local frame: +Y, slight +Z behind) */}
       <Text
-        position={[0, 1.55, 0.3]}
+        position={[0, 2.35, 0.3]}
         fontSize={0.32}
         color={station.color}
         anchorX="center"
@@ -445,9 +447,9 @@ function Particles({
       const t = Math.random()
       const p = curve.getPointAt(t)
 
-      // Random offset inside the tube radius (~2 units, with margin)
+      // Random offset inside the tube radius (~3 units, with margin)
       const angle  = Math.random() * Math.PI * 2
-      const radius = 0.4 + Math.random() * 1.55
+      const radius = 0.5 + Math.random() * 2.5
 
       // Need orthonormal basis at curve point for in-plane offset
       // Cheap approximation: use world XY plane (works because tunnel
@@ -583,7 +585,7 @@ function ProjectTiles({
       {featured.map((p, i) => {
         // 3 tiles evenly spaced around the ring (top, lower-left, lower-right)
         const angle  = (i / featured.length) * Math.PI * 2 + Math.PI / 2  // start top
-        const radius = 1.65
+        const radius = 2.55
         const x = Math.cos(angle) * radius
         const y = Math.sin(angle) * radius
 
