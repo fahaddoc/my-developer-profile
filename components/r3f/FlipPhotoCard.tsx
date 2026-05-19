@@ -6,8 +6,8 @@
 // drei <Html transform> (CSS3D conflict made both faces visible at once).
 // UX is the same: hover/tap to play intro, leave/tap again to return.
 
-import { useEffect, useRef, useState } from 'react'
-import { hexAlpha } from '@/components/r3f/TunnelScene'
+import { useEffect, useRef } from 'react'
+import { hexAlpha, useSound } from '@/components/r3f/TunnelScene'
 
 interface FlipPhotoCardProps {
   accent: string
@@ -16,8 +16,11 @@ interface FlipPhotoCardProps {
 }
 
 export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
-  const [showVideo, setShowVideo] = useState(false)
-  const [muted, setMuted]         = useState(true)
+  // showVideo is now driven by the SHARED sound store so the HUD's SOUND
+  // toggle and this card stay in lockstep. Hovering the card auto-turns
+  // sound ON; turning sound OFF (via card or HUD button) stops the video
+  // and returns to the sticker.
+  const [showVideo, setShowVideo] = useSound()
   const videoRef     = useRef<HTMLVideoElement>(null)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -25,7 +28,7 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
   const setShowVideoSoon = (next: boolean) => {
     if (closeTimerRef.current) { clearTimeout(closeTimerRef.current); closeTimerRef.current = null }
     if (next) setShowVideo(true)
-    else closeTimerRef.current = setTimeout(() => setShowVideo(false), 140)
+    else closeTimerRef.current = setTimeout(() => setShowVideo(false), 200)
   }
   useEffect(() => () => { if (closeTimerRef.current) clearTimeout(closeTimerRef.current) }, [])
 
@@ -33,8 +36,16 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    if (showVideo) v.play().catch(() => { /* autoplay blocked, poster stays */ })
-    else { v.pause(); v.currentTime = 0 }
+    if (showVideo) {
+      v.muted = false
+      v.play().catch(() => {
+        // Browser blocked unmuted autoplay — fall back to muted playback
+        v.muted = true
+        v.play().catch(() => { /* still blocked, poster stays */ })
+      })
+    } else {
+      v.pause(); v.currentTime = 0
+    }
   }, [showVideo])
 
   return (
@@ -48,7 +59,7 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
       }}
       onMouseEnter={() => setShowVideoSoon(true)}
       onMouseLeave={() => setShowVideoSoon(false)}
-      onClick={() => setShowVideo((v) => !v)}
+      onClick={() => setShowVideo(!showVideo)}
       role="button"
       aria-pressed={showVideo}
       aria-label={showVideo ? 'Showing intro video. Click to return to photo.' : 'Photo of Shah Fahad. Hover to play intro video.'}
@@ -90,7 +101,6 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
       <video
         ref={videoRef}
         poster="/videos/shah-intro-poster.png"
-        muted={muted}
         playsInline
         preload="metadata"
         style={{
@@ -132,42 +142,6 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
         hover for intro
       </div>
 
-      {/* Mute toggle (visible only while video is showing) */}
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setMuted((m) => !m) }}
-        aria-label={muted ? 'Unmute intro video' : 'Mute intro video'}
-        aria-pressed={!muted}
-        style={{
-          position: 'absolute',
-          bottom: -14, right: -10,
-          padding: '5px 10px', borderRadius: 999,
-          background: 'rgba(15,12,4,0.85)',
-          border: `1px solid ${hexAlpha(accent, 0.5)}`,
-          color: accent,
-          fontFamily: 'var(--font-mono), monospace',
-          fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
-          display: 'flex', alignItems: 'center', gap: 6,
-          cursor: 'pointer',
-          opacity: showVideo ? 1 : 0,
-          pointerEvents: showVideo ? 'auto' : 'none',
-          transition: 'opacity 250ms',
-        }}
-      >
-        {muted ? (
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-            <line x1="23" y1="9" x2="17" y2="15" />
-            <line x1="17" y1="9" x2="23" y2="15" />
-          </svg>
-        ) : (
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-          </svg>
-        )}
-        <span>{muted ? 'tap for sound' : 'mute'}</span>
-      </button>
     </div>
   )
 }

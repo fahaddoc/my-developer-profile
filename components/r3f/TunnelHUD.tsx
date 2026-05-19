@@ -5,11 +5,11 @@
 // the 3D scene. That kills the old collision between drei <Html> and the
 // passing tunnel rings.
 
-import { useEffect, useRef, useState } from 'react'
 import {
   STATIONS,
   nearestStation,
   useScrollProgress,
+  useSound,
   hexAlpha,
   type StationDef,
 } from '@/components/r3f/TunnelScene'
@@ -18,7 +18,7 @@ import { experience } from '@/data/projects'
 export function TunnelHUD() {
   const progress = useScrollProgress()
   const station  = nearestStation(progress)
-  const [sound, setSound] = useState(false)
+  const [sound, setSound] = useSound()
 
   const accent = station.color
 
@@ -81,7 +81,7 @@ export function TunnelHUD() {
       {/* ─── top-right: SOUND toggle ──────────────────────────────────── */}
       <button
         type="button"
-        onClick={() => setSound((v) => !v)}
+        onClick={() => setSound(!sound)}
         aria-label={sound ? 'Mute sound' : 'Enable sound'}
         aria-pressed={sound}
         style={{

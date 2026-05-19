@@ -27,6 +27,32 @@ import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
 // useScrollProgress hook below for HUD/UI updates outside the canvas.
 const scrollRef = { current: 0 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sound master store — single source of truth shared between the HUD SOUND
+// button and the intro FlipPhotoCard. Module-level so it works across the
+// React/R3F boundary without context plumbing.
+// ─────────────────────────────────────────────────────────────────────────────
+let _sound = false
+const _soundListeners = new Set<(v: boolean) => void>()
+export const soundStore = {
+  get: () => _sound,
+  set: (v: boolean) => {
+    if (_sound === v) return
+    _sound = v
+    _soundListeners.forEach((cb) => cb(v))
+  },
+  subscribe: (cb: (v: boolean) => void) => {
+    _soundListeners.add(cb)
+    return () => { _soundListeners.delete(cb) }
+  },
+}
+
+export function useSound(): [boolean, (v: boolean) => void] {
+  const [s, setS] = useState(_sound)
+  useEffect(() => soundStore.subscribe(setS), [])
+  return [s, soundStore.set]
+}
+
 // Tiny util: hex string ("#RRGGBB") → rgba string with alpha.
 // Used by StationContent so glow shadows match each station's accent.
 export function hexAlpha(hex: string, alpha: number): string {
