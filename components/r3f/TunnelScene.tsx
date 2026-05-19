@@ -12,9 +12,9 @@
 // Step 2 still skips: HTML content overlays (Step 3), mobile fallback,
 // integration with main portfolio.
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Text } from '@react-three/drei'
+import { Text, Html } from '@react-three/drei'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -45,17 +45,52 @@ const CURVE_POINTS: [number, number, number][] = [
 // Spread away from t=0/t=1 so camera has room to approach/leave each.
 // ─────────────────────────────────────────────────────────────────────────────
 export interface StationDef {
-  id:    string
-  label: string
-  t:     number
+  id:      string
+  label:   string
+  t:       number
+  heading: string
+  tagline: string
+  cta?:    { text: string; href: string }
 }
 
 export const STATIONS: StationDef[] = [
-  { id: 'hero',       label: '00 · INTRO',      t: 0.04 },
-  { id: 'about',      label: '01 · ABOUT',      t: 0.22 },
-  { id: 'projects',   label: '02 · PROJECTS',   t: 0.42 },
-  { id: 'experience', label: '03 · EXPERIENCE', t: 0.62 },
-  { id: 'contact',    label: '04 · CONTACT',    t: 0.86 },
+  {
+    id:      'hero',
+    label:   '00 · INTRO',
+    t:       0.04,
+    heading: 'Shah Fahad',
+    tagline: 'Senior Software Engineer — React, Next.js, Flutter, WebRTC. Real-time experiences from Karachi, Pakistan.',
+  },
+  {
+    id:      'about',
+    label:   '01 · ABOUT',
+    t:       0.22,
+    heading: 'Turning ideas into shipped products',
+    tagline: '6+ years · 4 companies · 9+ projects · 25+ clients. From MILETAP\'s real-time video platform to DigitalHire\'s hiring system.',
+  },
+  {
+    id:      'projects',
+    label:   '02 · PROJECTS',
+    t:       0.42,
+    heading: 'Featured work',
+    tagline: 'Konnect.im video conferencing · DigitalHire SaaS · WhatsApp ChatBot Simulator · Agent Shah 3D portfolio game.',
+    cta:     { text: 'view case studies →', href: '#projects' },
+  },
+  {
+    id:      'experience',
+    label:   '03 · EXPERIENCE',
+    t:       0.62,
+    heading: 'Professional journey',
+    tagline: 'DigitalHire (current) · MILETAP · E-Ocean · freelance & contract — frontend, real-time, mobile.',
+  },
+  {
+    id:      'contact',
+    label:   '04 · CONTACT',
+    t:       0.86,
+    heading: "Let's build something",
+    tagline: 'hello@shahfahad.dev · open to senior frontend & real-time roles, full-time and contract.',
+    cta:     { text: 'book a 15-min call →', href: 'https://cal.com/shahfahad' },
+  },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -139,20 +174,22 @@ function Tunnel({ curve }: { curve: THREE.CatmullRomCurve3 }) {
 // |scrollRef - t|.
 // ─────────────────────────────────────────────────────────────────────────────
 function Station({
-  curve, t, label,
+  curve, station, htmlContent,
 }: {
-  curve: THREE.CatmullRomCurve3
-  t:     number
-  label: string
+  curve:       THREE.CatmullRomCurve3
+  station:     StationDef
+  htmlContent: ReactNode
 }) {
-  const groupRef    = useRef<THREE.Group>(null)
-  const ringMatRef  = useRef<THREE.MeshBasicMaterial>(null)
-  const dotMatRef   = useRef<THREE.MeshBasicMaterial>(null)
-  // drei Text uses an internal material slot but we can grab the mesh
-  // and tweak material opacity in useFrame too — store via ref-callback
-  const textMatRef  = useRef<THREE.Material | null>(null)
+  const { t, label } = station
 
-  // Place + orient the group once on mount (curve is stable after memo)
+  const groupRef     = useRef<THREE.Group>(null)
+  const ringMatRef   = useRef<THREE.MeshBasicMaterial>(null)
+  const dotMatRef    = useRef<THREE.MeshBasicMaterial>(null)
+  const textMatRef   = useRef<THREE.Material | null>(null)
+  // HTML content div — opacity scrubbed each frame
+  const htmlDivRef   = useRef<HTMLDivElement>(null)
+
+  // Place + orient the group once on mount
   useEffect(() => {
     if (!groupRef.current) return
     const pos     = new THREE.Vector3()
@@ -161,24 +198,23 @@ function Station({
     curve.getTangentAt(t, tangent)
 
     groupRef.current.position.copy(pos)
-    // Aim group's local +Z down the path. lookAt expects a target point.
     groupRef.current.lookAt(pos.clone().add(tangent))
   }, [curve, t])
 
-  // Proximity scrubbing — opacity & label scale lerp toward "active" when
-  // camera is near this station.
+  // Proximity scrubbing
   useFrame(() => {
     const dist      = Math.abs(scrollRef.current - t)
-    // Within 0.06 of station = full strength; beyond 0.15 = baseline.
     const proximity = Math.max(0, 1 - dist / 0.10)
     const ringOp    = 0.18 + proximity * 0.82
     const textOp    = 0.25 + proximity * 0.75
+    // HTML fades sharper than ring — only fully visible when very close
+    const htmlOp    = Math.pow(proximity, 1.6)
 
     if (ringMatRef.current) ringMatRef.current.opacity = ringOp
     if (dotMatRef.current)  dotMatRef.current.opacity  = ringOp
     if (textMatRef.current) (textMatRef.current as THREE.MeshBasicMaterial).opacity = textOp
+    if (htmlDivRef.current) htmlDivRef.current.style.opacity = htmlOp.toFixed(3)
 
-    // Slight scale breath on active station for organic feel
     if (groupRef.current) {
       const breath = 1 + proximity * 0.06
       groupRef.current.scale.setScalar(breath)
@@ -238,7 +274,6 @@ function Station({
         outlineColor="#1A0E00"
         outlineWidth={0.012}
         onUpdate={(self) => {
-          // grab text material once it mounts so useFrame can scrub opacity
           if (!textMatRef.current && self.material) {
             textMatRef.current = self.material as THREE.Material
             ;(self.material as THREE.MeshBasicMaterial).transparent = true
@@ -247,6 +282,34 @@ function Station({
       >
         {label}
       </Text>
+
+      {/* HTML content overlay — projected in 3D space, transform mode follows
+          group orientation, distanceFactor scales naturally with camera approach.
+          Slightly off-axis so it doesn't sit dead-centre in the ring. */}
+      <Html
+        transform
+        position={[0, -0.4, -0.05]}
+        distanceFactor={5.5}
+        zIndexRange={[10, 0]}
+        pointerEvents="none"
+        center
+      >
+        <div
+          ref={htmlDivRef}
+          style={{
+            opacity: 0,
+            transition: 'opacity 120ms linear',
+            width: 460,
+            color: '#F5F5F7',
+            fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
+            textAlign: 'center',
+            userSelect: 'none',
+            pointerEvents: 'none',
+          }}
+        >
+          {htmlContent}
+        </div>
+      </Html>
     </group>
   )
 }
@@ -333,11 +396,91 @@ export function TunnelScene() {
         <Tunnel curve={curve} />
 
         {STATIONS.map((s) => (
-          <Station key={s.id} curve={curve} t={s.t} label={s.label} />
+          <Station
+            key={s.id}
+            curve={curve}
+            station={s}
+            htmlContent={<StationContent station={s} />}
+          />
         ))}
 
         <CameraRig curve={curve} />
       </Canvas>
     </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StationContent — the actual HTML projected at each station.
+// Lives outside the Canvas tree but is rendered INTO it via drei <Html>.
+// Uses inline styles so it doesn't depend on Tailwind being available inside
+// the CSS3D context.
+// ─────────────────────────────────────────────────────────────────────────────
+function StationContent({ station }: { station: StationDef }) {
+  return (
+    <>
+      <div
+        style={{
+          fontFamily: 'var(--font-mono), ui-monospace, monospace',
+          fontSize:    13,
+          letterSpacing: '0.32em',
+          textTransform: 'uppercase',
+          color:       '#FFB547',
+          marginBottom: 18,
+          textShadow:  '0 0 12px rgba(255,181,71,0.5)',
+        }}
+      >
+        {station.label}
+      </div>
+
+      <h2
+        style={{
+          fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
+          fontSize:    44,
+          fontWeight:  800,
+          lineHeight:  1.08,
+          color:       '#F5F5F7',
+          margin:      '0 0 18px',
+          letterSpacing: '-0.01em',
+        }}
+      >
+        {station.heading}
+      </h2>
+
+      <p
+        style={{
+          fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
+          fontSize:    16,
+          lineHeight:  1.55,
+          color:       '#C5C5CC',
+          margin:      0,
+          maxWidth:    420,
+          marginLeft:  'auto',
+          marginRight: 'auto',
+        }}
+      >
+        {station.tagline}
+      </p>
+
+      {station.cta && (
+        <div
+          style={{
+            marginTop:   22,
+            fontFamily:  'var(--font-mono), ui-monospace, monospace',
+            fontSize:    12,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color:       '#FFB547',
+            display:     'inline-block',
+            padding:     '10px 18px',
+            border:      '1px solid rgba(255,181,71,0.4)',
+            borderRadius: 4,
+            textShadow:  '0 0 8px rgba(255,181,71,0.55)',
+          }}
+        >
+          {station.cta.text}
+        </div>
+      )}
+    </>
   )
 }
