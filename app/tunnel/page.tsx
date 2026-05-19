@@ -19,7 +19,7 @@ export default function TunnelPreviewPage() {
             position: 'fixed',
             bottom:   24,
             right:    24,
-            color:    'rgba(255,181,71,0.45)',
+            color:    'rgba(94,234,212,0.45)',
             fontFamily: 'var(--font-mono), ui-monospace, monospace',
             fontSize: 10,
             letterSpacing: '0.25em',

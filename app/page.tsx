@@ -98,8 +98,8 @@ function BootSpinner() {
           width:      36,
           height:     36,
           borderRadius: '50%',
-          border:     '2px solid rgba(255,181,71,0.18)',
-          borderTopColor: '#FFB547',
+          border:     '2px solid rgba(94,234,212,0.18)',
+          borderTopColor: '#5EEAD4',
           animation:  'tunnel-spin 0.8s linear infinite',
         }}
       />
