@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Text, Html } from '@react-three/drei'
+import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -319,6 +320,80 @@ function Station({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Particles — dust motes scattered along the tunnel volume.
+// Generated once: sample points along the curve, jitter inside the tube radius,
+// render as instanced points. Adds depth perception during fly-through.
+// Subtle vertical bob driven by useFrame for "alive" feel.
+// ─────────────────────────────────────────────────────────────────────────────
+function Particles({ curve, count = 320 }: { curve: THREE.CatmullRomCurve3; count?: number }) {
+  // Geometry: BufferGeometry with `count` random points along + around the curve
+  const { geometry, basePositions } = useMemo(() => {
+    const positions = new Float32Array(count * 3)
+    const bases     = new Float32Array(count * 3)
+
+    for (let i = 0; i < count; i++) {
+      const t = Math.random()
+      const p = curve.getPointAt(t)
+
+      // Random offset inside the tube radius (~2 units, with margin)
+      const angle  = Math.random() * Math.PI * 2
+      const radius = 0.4 + Math.random() * 1.55
+
+      // Need orthonormal basis at curve point for in-plane offset
+      // Cheap approximation: use world XY plane (works because tunnel
+      // doesn't pitch much, mostly varies in X/Y around Z)
+      const offsetX = Math.cos(angle) * radius
+      const offsetY = Math.sin(angle) * radius
+
+      const x = p.x + offsetX
+      const y = p.y + offsetY
+      const z = p.z
+
+      positions[i * 3 + 0] = x
+      positions[i * 3 + 1] = y
+      positions[i * 3 + 2] = z
+
+      bases[i * 3 + 0] = x
+      bases[i * 3 + 1] = y
+      bases[i * 3 + 2] = z
+    }
+
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    return { geometry: geo, basePositions: bases }
+  }, [curve, count])
+
+  const pointsRef = useRef<THREE.Points>(null)
+
+  // Soft vertical bob to make particles feel alive — phase per particle
+  // so they don't all bob in sync
+  useFrame(({ clock }) => {
+    if (!pointsRef.current) return
+    const positions = pointsRef.current.geometry.attributes.position.array as Float32Array
+    const t = clock.elapsedTime
+    for (let i = 0; i < count; i++) {
+      const phase = i * 0.37   // deterministic per-particle offset
+      positions[i * 3 + 1] = basePositions[i * 3 + 1] + Math.sin(t * 0.4 + phase) * 0.08
+    }
+    pointsRef.current.geometry.attributes.position.needsUpdate = true
+  })
+
+  return (
+    <points ref={pointsRef} geometry={geometry}>
+      <pointsMaterial
+        size={0.06}
+        color="#FFE6B4"
+        sizeAttenuation
+        transparent
+        opacity={0.65}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </points>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CameraRig: reads scrollRef each frame, places camera along curve
 // ─────────────────────────────────────────────────────────────────────────────
 function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
@@ -398,6 +473,7 @@ export function TunnelScene() {
         <pointLight position={[0, 0, -5]} intensity={1.5} color="#FFB547" />
 
         <Tunnel curve={curve} />
+        <Particles curve={curve} count={340} />
 
         {STATIONS.map((s) => (
           <Station
@@ -409,6 +485,17 @@ export function TunnelScene() {
         ))}
 
         <CameraRig curve={curve} />
+
+        {/* Post-processing: bloom picks up unaltered (toneMapped:false) emissive
+            colours on the wireframe, rings, particles → real neon glow */}
+        <EffectComposer multisampling={0}>
+          <Bloom
+            intensity={0.75}
+            luminanceThreshold={0.25}
+            luminanceSmoothing={0.4}
+            mipmapBlur
+          />
+        </EffectComposer>
       </Canvas>
     </div>
   )
