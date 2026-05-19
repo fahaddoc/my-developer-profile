@@ -24,6 +24,16 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 // useScrollProgress hook below for HUD/UI updates outside the canvas.
 const scrollRef = { current: 0 }
 
+// Tiny util: hex string ("#RRGGBB") → rgba string with alpha.
+// Used by StationContent so glow shadows match each station's accent.
+function hexAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Curve definition
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,6 +61,7 @@ export interface StationDef {
   t:       number
   heading: string
   tagline: string
+  color:   string                                   // primary accent (hex)
   cta?:    { text: string; href: string }
 }
 
@@ -61,6 +72,7 @@ export const STATIONS: StationDef[] = [
     t:       0.04,
     heading: 'Shah Fahad',
     tagline: 'Senior Software Engineer — React, Next.js, Flutter, WebRTC. Real-time experiences from Karachi, Pakistan.',
+    color:   '#FFB547',   // signature amber
   },
   {
     id:      'about',
@@ -68,6 +80,7 @@ export const STATIONS: StationDef[] = [
     t:       0.22,
     heading: 'Turning ideas into shipped products',
     tagline: '6+ years · 4 companies · 9+ projects · 25+ clients. From MILETAP\'s real-time video platform to DigitalHire\'s hiring system.',
+    color:   '#FFCB75',   // lighter gold
   },
   {
     id:      'projects',
@@ -75,6 +88,7 @@ export const STATIONS: StationDef[] = [
     t:       0.42,
     heading: 'Featured work',
     tagline: 'Konnect.im video conferencing · DigitalHire SaaS · WhatsApp ChatBot Simulator · Agent Shah 3D portfolio game.',
+    color:   '#FF9D45',   // punchier orange-amber
     cta:     { text: 'view case studies →', href: '#projects' },
   },
   {
@@ -83,6 +97,7 @@ export const STATIONS: StationDef[] = [
     t:       0.62,
     heading: 'Professional journey',
     tagline: 'DigitalHire (current) · MILETAP · E-Ocean · freelance & contract — frontend, real-time, mobile.',
+    color:   '#E8A04A',   // deeper amber
   },
   {
     id:      'contact',
@@ -90,6 +105,7 @@ export const STATIONS: StationDef[] = [
     t:       0.86,
     heading: "Let's build something",
     tagline: 'hello@shahfahad.dev · open to senior frontend & real-time roles, full-time and contract.',
+    color:   '#FFD580',   // warm welcoming
     cta:     { text: 'book a 15-min call →', href: 'https://cal.com/shahfahad' },
   },
 ]
@@ -233,7 +249,7 @@ function Station({
         <torusGeometry args={[2.35, 0.06, 10, 96]} />
         <meshBasicMaterial
           ref={ringMatRef}
-          color="#FFB547"
+          color={station.color}
           transparent
           opacity={0.4}
           toneMapped={false}
@@ -272,7 +288,7 @@ function Station({
       <Text
         position={[0, 1.55, 0.3]}
         fontSize={0.32}
-        color="#FFB547"
+        color={station.color}
         anchorX="center"
         anchorY="middle"
         letterSpacing={0.18}
@@ -394,12 +410,23 @@ function Particles({ curve, count = 320 }: { curve: THREE.CatmullRomCurve3; coun
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CameraRig: reads scrollRef each frame, places camera along curve
+// CameraRig: reads scrollRef each frame, places camera along the curve and
+// banks (rolls) into turns using Frenet frames precomputed from the curve.
+// Result: camera tilts slightly into each bend, like a fighter jet — gives
+// the path real weight instead of feeling flat.
 // ─────────────────────────────────────────────────────────────────────────────
+const FRAME_STEPS = 600
+
 function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
-  const posVec    = useMemo(() => new THREE.Vector3(), [])
-  const lookVec   = useMemo(() => new THREE.Vector3(), [])
-  const smoothRef = useRef(0)
+  // Precompute orthonormal frames along the curve once.
+  // binormals at each step → natural "up" direction that rolls with curve turns
+  const frames = useMemo(() => curve.computeFrenetFrames(FRAME_STEPS, false), [curve])
+
+  const posVec     = useMemo(() => new THREE.Vector3(), [])
+  const lookVec    = useMemo(() => new THREE.Vector3(), [])
+  const smoothUp   = useMemo(() => new THREE.Vector3(0, 1, 0), [])
+  const targetUp   = useMemo(() => new THREE.Vector3(), [])
+  const smoothRef  = useRef(0)
 
   useFrame(({ camera }) => {
     smoothRef.current += (scrollRef.current - smoothRef.current) * 0.12
@@ -410,6 +437,22 @@ function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
     curve.getPointAt(t,     posVec)
     curve.getPointAt(tNext, lookVec)
 
+    // Look up the binormal at this t (Frenet frame index). Frames are indexed
+    // 0..FRAME_STEPS; clamp + lerp adjacents for smoothness.
+    const idxF  = t * FRAME_STEPS
+    const idxA  = Math.floor(idxF)
+    const idxB  = Math.min(idxA + 1, FRAME_STEPS)
+    const frac  = idxF - idxA
+
+    const bA = frames.binormals[idxA] || frames.binormals[0]
+    const bB = frames.binormals[idxB] || bA
+    targetUp.copy(bA).lerp(bB, frac)
+
+    // Slow lerp on the up vector itself → no abrupt roll snaps when Frenet
+    // normals flip on s-curves
+    smoothUp.lerp(targetUp, 0.06).normalize()
+
+    camera.up.copy(smoothUp)
     camera.position.copy(posVec)
     camera.lookAt(lookVec)
   })
@@ -516,9 +559,9 @@ function StationContent({ station }: { station: StationDef }) {
           fontSize:    13,
           letterSpacing: '0.32em',
           textTransform: 'uppercase',
-          color:       '#FFB547',
+          color:       station.color,
           marginBottom: 18,
-          textShadow:  '0 0 12px rgba(255,181,71,0.5)',
+          textShadow:  `0 0 12px ${hexAlpha(station.color, 0.5)}`,
         }}
       >
         {station.label}
@@ -561,12 +604,12 @@ function StationContent({ station }: { station: StationDef }) {
             fontSize:    12,
             letterSpacing: '0.22em',
             textTransform: 'uppercase',
-            color:       '#FFB547',
+            color:       station.color,
             display:     'inline-block',
             padding:     '10px 18px',
-            border:      '1px solid rgba(255,181,71,0.4)',
+            border:      `1px solid ${hexAlpha(station.color, 0.4)}`,
             borderRadius: 4,
-            textShadow:  '0 0 8px rgba(255,181,71,0.55)',
+            textShadow:  `0 0 8px ${hexAlpha(station.color, 0.55)}`,
           }}
         >
           {station.cta.text}
