@@ -13,6 +13,7 @@ import {
   hexAlpha,
   type StationDef,
 } from '@/components/r3f/TunnelScene'
+import { IntroMiniPlayer } from '@/components/r3f/IntroMiniPlayer'
 import { experience } from '@/data/projects'
 
 export function TunnelHUD() {
@@ -147,6 +148,9 @@ export function TunnelHUD() {
           )
         })}
       </nav>
+
+      {/* ─── floating intro mini-player (top-right, below SOUND) ──────── */}
+      <IntroMiniPlayer accent={accent} />
 
       {/* ─── center: station content overlay ──────────────────────────── */}
       <StationOverlay station={station} progress={progress} />
