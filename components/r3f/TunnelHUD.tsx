@@ -39,21 +39,21 @@ export function TunnelHUD() {
           color: '#F5F5F7', fontSize: 11, letterSpacing: '0.25em',
         }}
       >
-        <div style={{ marginBottom: 8 }}>SCROLL TO EXPLORE</div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ marginBottom: 6 }}>SCROLL TO EXPLORE</div>
+        <div style={{ display: 'flex', gap: 5 }}>
           {STATIONS.map((s, i) => {
             const active = progress >= s.t - (1 / STATIONS.length) * 0.6
+            const here   = i === Math.floor(progress * STATIONS.length)
             return (
               <span
                 key={s.id}
                 style={{
-                  width: 28, height: 2,
-                  background: active ? accent : 'rgba(255,255,255,0.18)',
+                  width: 18, height: 2,
+                  background: active ? accent : 'rgba(255,255,255,0.22)',
                   boxShadow:  active ? `0 0 6px ${accent}aa` : 'none',
-                  transition: 'background 200ms, box-shadow 200ms',
+                  transition: 'background 200ms, box-shadow 200ms, transform 200ms',
                   display:    'inline-block',
-                  // first dash longer to indicate "you are here" marker
-                  transform:  i === Math.floor(progress * STATIONS.length) ? 'scaleX(1.4)' : 'scaleX(1)',
+                  transform:  here ? 'scaleX(1.6)' : 'scaleX(1)',
                   transformOrigin: 'left',
                 }}
               />

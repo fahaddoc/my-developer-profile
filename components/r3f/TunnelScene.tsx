@@ -355,8 +355,8 @@ function Station({
           Slightly off-axis so it doesn't sit dead-centre in the ring. */}
       <Html
         transform
-        position={[0, -0.4, -0.05]}
-        distanceFactor={5.5}
+        position={[0, -0.45, -0.05]}
+        distanceFactor={5.0}
         zIndexRange={[10, 0]}
         pointerEvents="none"
         center
@@ -366,7 +366,7 @@ function Station({
           style={{
             opacity: 0,
             transition: 'opacity 120ms linear',
-            width: 460,
+            width: 540,
             color: '#F5F5F7',
             fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
             textAlign: 'center',
@@ -733,26 +733,12 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
 // the CSS3D context.
 // ─────────────────────────────────────────────────────────────────────────────
 function StationContent({ station }: { station: StationDef }) {
+  // Hero station gets the bespoke "calling-card" layout matching the design
+  // mockup: circular portrait, big two-tone name, role, tech stack, tagline.
+  if (station.id === 'hero') return <HeroIntroCard station={station} />
+
   return (
     <>
-      {station.imageSrc && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={station.imageSrc}
-          alt={station.heading}
-          style={{
-            width:        160,
-            height:       160,
-            objectFit:    'contain',
-            margin:       '0 auto 20px',
-            display:      'block',
-            filter:       `drop-shadow(0 0 18px ${hexAlpha(station.color, 0.6)}) drop-shadow(0 0 6px ${hexAlpha(station.color, 0.4)})`,
-            userSelect:   'none',
-            pointerEvents: 'none',
-          }}
-        />
-      )}
-
       <div
         style={{
           fontFamily: 'var(--font-mono), ui-monospace, monospace',
@@ -815,6 +801,111 @@ function StationContent({ station }: { station: StationDef }) {
           {station.cta.text}
         </div>
       )}
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HeroIntroCard — the calling-card layout for the INTRO station.
+// Circular portrait with neon ring, big two-tone "Shah Fahad" name,
+// role line, tech stack, tagline with accent-coloured location.
+// ─────────────────────────────────────────────────────────────────────────────
+function HeroIntroCard({ station }: { station: StationDef }) {
+  return (
+    <>
+      {/* Circular portrait with a thin glowing ring */}
+      <div
+        style={{
+          width:       200,
+          height:      200,
+          borderRadius: '50%',
+          margin:      '0 auto 28px',
+          overflow:    'hidden',
+          border:      `1px solid ${hexAlpha(station.color, 0.6)}`,
+          boxShadow:   `0 0 30px ${hexAlpha(station.color, 0.45)}, inset 0 0 22px ${hexAlpha(station.color, 0.2)}`,
+          background:  'rgba(10,8,4,0.45)',
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/shah-fahad.jpeg"
+          alt="Shah Fahad"
+          style={{
+            width:     '100%',
+            height:    '100%',
+            objectFit: 'cover',
+            display:   'block',
+            userSelect: 'none',
+            pointerEvents: 'none',
+            filter:    'contrast(1.05) saturate(0.9)',
+          }}
+        />
+      </div>
+
+      {/* Big two-tone name */}
+      <h1
+        style={{
+          fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
+          fontSize:    72,
+          fontWeight:  800,
+          lineHeight:  1,
+          margin:      '0 0 12px',
+          letterSpacing: '-0.02em',
+        }}
+      >
+        <span style={{ color: '#F5F5F7' }}>Shah</span>
+        <span style={{ color: '#F5F5F7' }}> </span>
+        <span style={{
+          color: station.color,
+          textShadow: `0 0 16px ${hexAlpha(station.color, 0.5)}`,
+        }}>
+          Fahad
+        </span>
+      </h1>
+
+      {/* Role */}
+      <p
+        style={{
+          fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
+          fontSize:    18,
+          margin:      '0 0 22px',
+          color:       'rgba(245,245,247,0.7)',
+          letterSpacing: '0.01em',
+        }}
+      >
+        Senior Software Engineer
+      </p>
+
+      {/* Tech stack */}
+      <p
+        style={{
+          fontFamily: 'var(--font-mono), ui-monospace, monospace',
+          fontSize:    13,
+          margin:      '0 0 14px',
+          color:       '#F5F5F7',
+          letterSpacing: '0.06em',
+        }}
+      >
+        React · Next.js · Flutter · WebRTC
+      </p>
+
+      {/* Tagline with accent location */}
+      <p
+        style={{
+          fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
+          fontSize:    14,
+          margin:      0,
+          color:       'rgba(245,245,247,0.6)',
+        }}
+      >
+        Real-time experiences from{' '}
+        <span style={{
+          color: station.color,
+          textShadow: `0 0 8px ${hexAlpha(station.color, 0.5)}`,
+        }}>
+          Karachi, Pakistan.
+        </span>
+      </p>
     </>
   )
 }
