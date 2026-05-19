@@ -27,11 +27,10 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
         pointerEvents:  'auto',
         cursor:         'pointer',
       }}
-      onMouseEnter={() => setSound(true)}
       onClick={() => setSound(!sound)}
       role="button"
       aria-pressed={sound}
-      aria-label={sound ? 'Intro playing. Click to stop.' : 'Hover to play intro video.'}
+      aria-label={sound ? 'Intro playing. Click to stop.' : 'Click to play intro video.'}
     >
       {/* Ambient amber halo behind the silhouette */}
       <div
@@ -91,7 +90,7 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
         ) : (
           <>
             <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor"><path d="M2 1.5v7l6-3.5z" /></svg>
-            hover for intro
+            click for intro
           </>
         )}
       </div>
