@@ -813,31 +813,37 @@ function StationContent({ station }: { station: StationDef }) {
 function HeroIntroCard({ station }: { station: StationDef }) {
   return (
     <>
-      {/* Circular portrait with a thin glowing ring */}
+      {/* Circular halo ring + sticker silhouette inside (cutout PNG, transparent bg) */}
       <div
         style={{
-          width:       200,
-          height:      200,
+          width:       210,
+          height:      210,
           borderRadius: '50%',
           margin:      '0 auto 28px',
-          overflow:    'hidden',
+          position:    'relative',
           border:      `1px solid ${hexAlpha(station.color, 0.6)}`,
           boxShadow:   `0 0 30px ${hexAlpha(station.color, 0.45)}, inset 0 0 22px ${hexAlpha(station.color, 0.2)}`,
-          background:  'rgba(10,8,4,0.45)',
+          background:  'radial-gradient(circle at 50% 55%, rgba(255,181,71,0.10), rgba(10,8,4,0.55) 70%)',
+          overflow:    'hidden',
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/images/shah-fahad.jpeg"
+          src={station.imageSrc}
           alt="Shah Fahad"
           style={{
-            width:     '100%',
-            height:    '100%',
-            objectFit: 'cover',
+            position:  'absolute',
+            inset:     '8% 8% -2% 8%',   // sit slightly tall, cutout breathes
+            width:     'auto',
+            height:    'auto',
+            maxWidth:  '90%',
+            maxHeight: '105%',
+            margin:    '0 auto',
+            objectFit: 'contain',
             display:   'block',
             userSelect: 'none',
             pointerEvents: 'none',
-            filter:    'contrast(1.05) saturate(0.9)',
+            filter:    `drop-shadow(0 0 14px ${hexAlpha(station.color, 0.4)})`,
           }}
         />
       </div>
