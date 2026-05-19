@@ -28,11 +28,12 @@ export function DepthScene({ children, strength = 1 }: DepthSceneProps) {
     offset: ['start end', 'end start'],
   })
 
-  // Pure axial zoom — section enters small (camera far), zooms in to natural
-  // size at viewport centre, zooms back out as it leaves. No rotation, no tilt.
+  // 3D dolly: section starts FAR BEHIND (small), reaches focal point at
+  // viewport centre, then ZOOMS FORWARD past the camera (grows, fades) —
+  // like camera passing through. Next section is doing the same dance behind it.
   const Z       = useTransform(scrollYProgress, [0, 0.5, 1],
-                    reduce ? [0, 0, 0] : [-800 * strength, 0, -800 * strength])
-  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1],
+                    reduce ? [0, 0, 0] : [-1100 * strength, 0, 700 * strength])
+  const opacity = useTransform(scrollYProgress, [0, 0.22, 0.7, 1],
                     reduce ? [1, 1, 1, 1] : [0, 1, 1, 0])
 
   const transform = useMotionTemplate`translateZ(${Z}px)`

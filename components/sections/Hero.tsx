@@ -606,12 +606,13 @@ export function Hero() {
     gsap.registerPlugin(ScrollTrigger)
 
     const ctx = gsap.context(() => {
-      gsap.set(sectionRef.current, { transformStyle: 'preserve-3d' })
+      gsap.set(sectionRef.current, { transformStyle: 'preserve-3d', transformOrigin: '50% 50%' })
+      // Forward dolly — hero zooms TOWARD viewer as user scrolls,
+      // fading as it passes the camera. Next section enters from behind.
       gsap.to(sectionRef.current, {
-        rotateX:  14,
-        z:        -180,
-        scale:    0.88,
-        opacity:  0.2,
+        z:        700,
+        scale:    1.0,   // scale baked via perspective Z
+        opacity:  0,
         ease:     'none',
         scrollTrigger: {
           trigger: sectionRef.current,
