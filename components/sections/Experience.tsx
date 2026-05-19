@@ -282,7 +282,7 @@ export function Experience() {
         <div className="max-w-content mx-auto px-6 relative z-10">
 
           <RevealText className="mb-14">
-            <span className="font-mono text-xs text-accent-violet uppercase tracking-widest">Experience</span>
+            <span className="font-mono text-xs text-accent-violet uppercase tracking-widest"><span className="text-text-muted mr-2">03.</span>Experience</span>
             <h2 className="font-display font-bold text-4xl md:text-5xl text-text-primary mt-2">
               Professional Journey
             </h2>

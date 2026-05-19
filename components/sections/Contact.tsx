@@ -500,7 +500,7 @@ export function Contact() {
           {/* ── Left column: heading + contact info + socials ─────────────── */}
           <div className="flex-1">
             <RevealText>
-              <span className="font-mono text-xs text-accent-violet uppercase tracking-widest">Contact</span>
+              <span className="font-mono text-xs text-accent-violet uppercase tracking-widest"><span className="text-text-muted mr-2">05.</span>Contact</span>
               <h2 className="font-display font-bold text-4xl md:text-5xl text-text-primary mt-2 mb-4">
                 Drop a Message
               </h2>
@@ -528,6 +528,43 @@ export function Contact() {
                 </svg>
                 <span className="text-sm">+92 304 2186009</span>
               </a>
+            </RevealText>
+
+            <RevealText delay={0.2} className="mt-6">
+              <a
+                href="https://cal.com/shahfahad"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center gap-3 px-5 py-3 rounded-lg font-mono text-sm tracking-widest uppercase font-bold transition-all duration-200"
+                style={{
+                  color:  '#22d3ee',
+                  border: '1px solid rgba(34,211,238,0.4)',
+                  background: 'rgba(34,211,238,0.06)',
+                  textShadow: '0 0 8px rgba(34,211,238,0.6)',
+                  boxShadow:  '0 0 0 rgba(34,211,238,0)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow  = '0 0 24px rgba(34,211,238,0.35), inset 0 0 12px rgba(34,211,238,0.18)'
+                  e.currentTarget.style.background = 'rgba(34,211,238,0.12)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow  = '0 0 0 rgba(34,211,238,0)'
+                  e.currentTarget.style.background = 'rgba(34,211,238,0.06)'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8"  y1="2" x2="8"  y2="6" />
+                  <line x1="3"  y1="10" x2="21" y2="10" />
+                </svg>
+                Book a 15-min call
+                <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+              </a>
+              <p className="font-mono text-[10px] tracking-widest uppercase mt-2 ml-1"
+                style={{ color: 'rgba(34,211,238,0.45)' }}>
+                ↳ pick a slot · no commitment
+              </p>
             </RevealText>
 
             <RevealText delay={0.25} className="mt-8 flex items-center gap-4">

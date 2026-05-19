@@ -760,7 +760,15 @@ export function Hero() {
               Senior Software Engineer
             </motion.p>
 
-            <motion.p {...fadeUp(0.5)} className="text-base md:text-lg text-text-secondary max-w-lg leading-relaxed">
+            <motion.p
+              {...fadeUp(0.45)}
+              className="font-display text-2xl md:text-3xl text-text-primary leading-tight max-w-xl"
+            >
+              6 years shipping real-time products that{' '}
+              <span className="text-accent-cyan text-glow-cyan">don&apos;t drop frames</span>.
+            </motion.p>
+
+            <motion.p {...fadeUp(0.55)} className="text-base md:text-lg text-text-secondary max-w-lg leading-relaxed">
               React, Next.js, Flutter and WebRTC engineer crafting high-performance,
               real-time web and mobile experiences that scale.
               Currently at <span className="text-text-primary font-medium">DigitalHire</span>, based in{' '}

@@ -492,7 +492,7 @@ export function Skills() {
         <div className="max-w-content mx-auto px-6 relative z-10">
 
           <RevealText className="mb-10">
-            <span className="font-mono text-xs text-accent-violet uppercase tracking-widest">Expertise</span>
+            <span className="font-mono text-xs text-accent-violet uppercase tracking-widest"><span className="text-text-muted mr-2">02.</span>Expertise</span>
             <h2 className="font-display font-bold text-4xl md:text-5xl text-text-primary mt-2">
               Skills & Expertise
             </h2>

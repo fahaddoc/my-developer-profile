@@ -427,7 +427,7 @@ export function About() {
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="mb-12"
             >
-              <span className="font-mono text-xs text-accent-violet uppercase tracking-widest">About Me</span>
+              <span className="font-mono text-xs text-accent-violet uppercase tracking-widest"><span className="text-text-muted mr-2">01.</span>About Me</span>
               <h2 className="font-display font-bold text-4xl md:text-5xl text-text-primary mt-2">
                 Turning ideas into products
               </h2>
