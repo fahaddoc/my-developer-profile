@@ -63,11 +63,12 @@ export default function Page() {
     <>
       <JsonLd data={profilePageSchema()} />
       <JsonLd data={projectsItemListSchema()} />
-      <Navbar />
 
       {stillResolving ? (
         <BootSpinner />
       ) : eligible && quality.level && PRESETS[quality.level].canvas ? (
+        // Tunnel mode owns its own nav inside the HUD chrome — classic
+        // Navbar would duplicate the top bar
         <TunnelMode level={quality.level} onLevelChange={quality.setOverride} reportLowFps={quality.reportLowFps} />
       ) : (
         <ClassicMode />
@@ -196,6 +197,7 @@ function TunnelMode({
 function ClassicMode() {
   return (
     <>
+      <Navbar />
       <main className="overflow-x-hidden w-full">
         <Hero />
         <About />
