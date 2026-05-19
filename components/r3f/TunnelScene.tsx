@@ -14,7 +14,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Text, Html, useTexture } from '@react-three/drei'
+import { Text, useTexture } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import gsap from 'gsap'
@@ -489,13 +489,13 @@ function ProjectTiles({
   stationT: number
   bob?:     boolean
 }) {
-  // Up to 8 projects in the orbital cloud: featured ones first, rest after,
-  // capped at 8 so the tunnel doesn't get crowded.
+  // 6 projects in the orbital cluster. Featured first, then rest.
+  // Capped at 6 because 8 felt cluttered around the station ring.
   const featured = useMemo(() => {
     const sorted = [...projects].sort(
       (a, b) => Number(b.featured ?? false) - Number(a.featured ?? false),
     )
-    return sorted.slice(0, 8)
+    return sorted.slice(0, 6)
   }, [])
 
   // Pre-load all textures (Suspense will block until ready)
@@ -505,18 +505,21 @@ function ProjectTiles({
   const orbitRef       = useRef<THREE.Group>(null)
   const matsRef        = useRef<THREE.MeshBasicMaterial[]>([])
   const borderMatsRef  = useRef<THREE.MeshBasicMaterial[]>([])
-  const linkRefs       = useRef<HTMLAnchorElement[]>([])
 
-  // Per-tile orbital config — alternating inner/outer radius and Z depth
-  // makes the cluster feel like a proper planetary system instead of a
-  // single flat ring.
-  const orbit = useMemo(() => featured.map((_, i) => ({
-    angle:  (i / featured.length) * Math.PI * 2 + (i % 2 ? Math.PI / featured.length : 0),
-    radius: i % 2 === 0 ? 2.1 : 2.85,
-    z:      i % 3 === 0 ? 0.2 : i % 3 === 1 ? 0.55 : 0.9,
-    scale:  i % 2 === 0 ? 0.85 : 1.0,
-    speed:  0.04 + (i % 4) * 0.012,   // each tile bobs at its own rate
-  })), [featured])
+  // Per-tile orbital config. All angles spread over the RIGHT semicircle
+  // (-π/2 .. +π/2) so the cluster doesn't visually collide with the left
+  // content panel. Inner/outer radii + Z bands give planetary parallax.
+  const orbit = useMemo(() => featured.map((_, i) => {
+    const slot = i / Math.max(1, featured.length - 1)   // 0..1
+    return {
+      // Spread from -55° to +55° on the right side of the station
+      angle:  (-0.55 + slot * 1.1) * Math.PI,
+      radius: i % 2 === 0 ? 1.85 : 2.55,
+      z:      0.3 + (i % 3) * 0.35,
+      scale:  i % 2 === 0 ? 0.78 : 0.92,
+      speed:  0.05 + (i % 4) * 0.012,
+    }
+  }), [featured])
 
   // Place + orient group at the projects station — same convention as the
   // Station component (faces upstream so tiles face the approaching camera).
@@ -543,33 +546,21 @@ function ProjectTiles({
     borderMatsRef.current.forEach((m) => {
       if (m) m.opacity = opacity * 0.85
     })
-    // Sharper proximity gate on the clickable VIEW link so it only appears
-    // when user is actually at the station and not earlier/later
-    const linkOp = Math.pow(proximity, 2.2)
-    linkRefs.current.forEach((a) => {
-      if (a) {
-        a.style.opacity = linkOp.toFixed(3)
-        // disable clicks when link is mostly transparent
-        a.style.pointerEvents = linkOp > 0.4 ? 'auto' : 'none'
-      }
-    })
 
-    // Solar-system slow rotation — only active when proximity > ~0
-    if (orbitRef.current && proximity > 0.01) {
-      orbitRef.current.rotation.z += dt * 0.06
-    }
-
-    // Subtle per-tile bob (independent radial wobble) — skipped on low quality
+    // Subtle per-tile radial wobble — gives the cluster a "breathing" feel
+    // without rotating around the station (which would push tiles into the
+    // left content panel). Tiles stay parked in their slot on the right.
     if (bob && orbitRef.current) {
       const t = performance.now() * 0.001
       orbitRef.current.children.forEach((tile, i) => {
         const cfg = orbit[i]
         if (!cfg) return
-        const wobble = Math.sin(t * cfg.speed * 6 + i * 1.7) * 0.08
+        const wobble = Math.sin(t * cfg.speed * 6 + i * 1.7) * 0.06
         tile.position.x = Math.cos(cfg.angle) * (cfg.radius + wobble)
         tile.position.y = Math.sin(cfg.angle) * (cfg.radius + wobble)
       })
     }
+    void dt
   })
 
   return (
@@ -615,68 +606,25 @@ function ProjectTiles({
               />
             </mesh>
 
-            {/* Tiny label below the tile */}
+            {/* Tiny title caption under the tile */}
             <Text
-              position={[0, -tileH * 0.78, 0]}
-              fontSize={0.075}
+              position={[0, -tileH * 0.72, 0]}
+              fontSize={0.07}
               color={p.color}
               anchorX="center"
               anchorY="middle"
               letterSpacing={0.1}
-              maxWidth={tileW * 1.1}
+              maxWidth={tileW * 1.15}
               outlineColor="#0A0A0A"
-              outlineWidth={0.004}
+              outlineWidth={0.003}
             >
               {p.title.toUpperCase()}
             </Text>
-
-            {/* Clickable case-study link — only interactive when near station */}
-            <Html
-              transform
-              position={[0, -0.75, 0.05]}
-              distanceFactor={5.0}
-              pointerEvents="auto"
-              center
-            >
-              <a
-                ref={(el) => { if (el) linkRefs.current[i] = el }}
-                href={`/projects/${p.id}`}
-                style={{
-                  display:       'inline-block',
-                  padding:       '5px 12px',
-                  fontFamily:    'var(--font-mono), ui-monospace, monospace',
-                  fontSize:      9,
-                  letterSpacing: '0.28em',
-                  textTransform: 'uppercase',
-                  fontWeight:    700,
-                  color:         p.color,
-                  background:    'rgba(10,8,4,0.65)',
-                  border:        `1px solid ${p.color}aa`,
-                  borderRadius:  3,
-                  textDecoration: 'none',
-                  textShadow:    `0 0 6px ${p.color}88`,
-                  boxShadow:     `0 0 14px ${p.color}33`,
-                  whiteSpace:    'nowrap',
-                  opacity:       0,
-                  transition:    'transform 180ms, box-shadow 180ms',
-                  pointerEvents: 'none',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.08)'
-                  e.currentTarget.style.boxShadow = `0 0 22px ${p.color}77`
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)'
-                  e.currentTarget.style.boxShadow = `0 0 14px ${p.color}33`
-                }}
-              >
-                view case →
-              </a>
-            </Html>
           </group>
         )
       })}
       </group>
+
     </group>
   )
 }
