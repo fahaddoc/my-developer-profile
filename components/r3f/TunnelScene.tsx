@@ -813,40 +813,21 @@ function StationContent({ station }: { station: StationDef }) {
 function HeroIntroCard({ station }: { station: StationDef }) {
   return (
     <>
-      {/* Circular halo ring + sticker silhouette inside (cutout PNG, transparent bg) */}
-      <div
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={station.imageSrc}
+        alt="Shah Fahad"
         style={{
-          width:       210,
-          height:      210,
-          borderRadius: '50%',
-          margin:      '0 auto 28px',
-          position:    'relative',
-          border:      `1px solid ${hexAlpha(station.color, 0.6)}`,
-          boxShadow:   `0 0 30px ${hexAlpha(station.color, 0.45)}, inset 0 0 22px ${hexAlpha(station.color, 0.2)}`,
-          background:  'radial-gradient(circle at 50% 55%, rgba(255,181,71,0.10), rgba(10,8,4,0.55) 70%)',
-          overflow:    'hidden',
+          width:        180,
+          height:       180,
+          objectFit:    'contain',
+          margin:       '0 auto 24px',
+          display:      'block',
+          filter:       `drop-shadow(0 0 18px ${hexAlpha(station.color, 0.6)}) drop-shadow(0 0 6px ${hexAlpha(station.color, 0.4)})`,
+          userSelect:   'none',
+          pointerEvents: 'none',
         }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={station.imageSrc}
-          alt="Shah Fahad"
-          style={{
-            position:  'absolute',
-            inset:     '8% 8% -2% 8%',   // sit slightly tall, cutout breathes
-            width:     'auto',
-            height:    'auto',
-            maxWidth:  '90%',
-            maxHeight: '105%',
-            margin:    '0 auto',
-            objectFit: 'contain',
-            display:   'block',
-            userSelect: 'none',
-            pointerEvents: 'none',
-            filter:    `drop-shadow(0 0 14px ${hexAlpha(station.color, 0.4)})`,
-          }}
-        />
-      </div>
+      />
 
       {/* Big two-tone name */}
       <h1
