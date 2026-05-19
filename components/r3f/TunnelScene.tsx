@@ -56,23 +56,25 @@ const CURVE_POINTS: [number, number, number][] = [
 // Spread away from t=0/t=1 so camera has room to approach/leave each.
 // ─────────────────────────────────────────────────────────────────────────────
 export interface StationDef {
-  id:      string
-  label:   string
-  t:       number
-  heading: string
-  tagline: string
-  color:   string                                   // primary accent (hex)
-  cta?:    { text: string; href: string }
+  id:        string
+  label:     string
+  t:         number
+  heading:   string
+  tagline:   string
+  color:     string                                   // primary accent (hex)
+  imageSrc?: string                                   // optional portrait above heading
+  cta?:      { text: string; href: string }
 }
 
 export const STATIONS: StationDef[] = [
   {
-    id:      'hero',
-    label:   '00 · INTRO',
-    t:       0.04,
-    heading: 'Shah Fahad',
-    tagline: 'Senior Software Engineer — React, Next.js, Flutter, WebRTC. Real-time experiences from Karachi, Pakistan.',
-    color:   '#FFB547',   // signature amber
+    id:        'hero',
+    label:     '00 · INTRO',
+    t:         0.04,
+    heading:   'Shah Fahad',
+    tagline:   'Senior Software Engineer — React, Next.js, Flutter, WebRTC. Real-time experiences from Karachi, Pakistan.',
+    color:     '#FFB547',
+    imageSrc:  '/images/shah-fahad-sticker.png',
   },
   {
     id:      'about',
@@ -550,6 +552,24 @@ export function TunnelScene() {
 function StationContent({ station }: { station: StationDef }) {
   return (
     <>
+      {station.imageSrc && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={station.imageSrc}
+          alt={station.heading}
+          style={{
+            width:        160,
+            height:       160,
+            objectFit:    'contain',
+            margin:       '0 auto 20px',
+            display:      'block',
+            filter:       `drop-shadow(0 0 18px ${hexAlpha(station.color, 0.6)}) drop-shadow(0 0 6px ${hexAlpha(station.color, 0.4)})`,
+            userSelect:   'none',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
       <div
         style={{
           fontFamily: 'var(--font-mono), ui-monospace, monospace',

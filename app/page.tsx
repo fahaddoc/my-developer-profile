@@ -28,6 +28,10 @@ const TunnelScene = dynamic(
   () => import('@/components/r3f/TunnelScene').then((m) => m.TunnelScene),
   { ssr: false },
 )
+const TunnelHUD = dynamic(
+  () => import('@/components/r3f/TunnelHUD').then((m) => m.TunnelHUD),
+  { ssr: false },
+)
 
 type Mode = 'classic' | 'tunnel'
 
@@ -85,10 +89,9 @@ function TunnelMode() {
   return (
     <>
       <TunnelScene />
+      <TunnelHUD />
 
-      {/* Scroll spacer — 500vh of scrollable height drives camera 0..1 along curve.
-          pointerEvents:none so the tunnel underneath can still receive nothing
-          (we don't want anything blocking; canvas itself has pointerEvents:none). */}
+      {/* Scroll spacer — 500vh of scrollable height drives camera 0..1 along curve. */}
       <main
         style={{
           height: '500vh',
