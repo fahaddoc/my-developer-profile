@@ -12,13 +12,14 @@
 // Step 2 still skips: HTML content overlays (Step 3), mobile fallback,
 // integration with main portfolio.
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, Suspense, type ReactNode } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Text, Html } from '@react-three/drei'
+import { Text, Html, useTexture } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { projects } from '@/data/projects'
 
 // Shared scroll progress — read each frame inside R3F, also subscribed via the
 // useScrollProgress hook below for HUD/UI updates outside the canvas.
@@ -412,6 +413,129 @@ function Particles({ curve, count = 320 }: { curve: THREE.CatmullRomCurve3; coun
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ProjectTiles — featured project thumbnails arranged around the PROJECTS
+// station ring. Each tile is a textured plane facing the approaching camera.
+// All tiles share proximity-based opacity scrub so they only appear near the
+// station and bloom into view as camera approaches.
+// ─────────────────────────────────────────────────────────────────────────────
+function ProjectTiles({
+  curve, stationT,
+}: {
+  curve:    THREE.CatmullRomCurve3
+  stationT: number
+}) {
+  const featured = useMemo(
+    () => projects.filter((p) => p.featured).slice(0, 3),
+    [],
+  )
+
+  // Pre-load all featured textures (Suspense will block until ready)
+  const textures = useTexture(featured.map((p) => p.image))
+
+  const groupRef = useRef<THREE.Group>(null)
+  const matsRef  = useRef<THREE.MeshBasicMaterial[]>([])
+  const borderMatsRef = useRef<THREE.MeshBasicMaterial[]>([])
+
+  // Place + orient group at the projects station — same convention as the
+  // Station component (faces upstream so tiles face the approaching camera).
+  useEffect(() => {
+    if (!groupRef.current) return
+    const pos     = new THREE.Vector3()
+    const tangent = new THREE.Vector3()
+    curve.getPointAt(stationT, pos)
+    curve.getTangentAt(stationT, tangent)
+    groupRef.current.position.copy(pos)
+    groupRef.current.lookAt(pos.clone().sub(tangent))
+  }, [curve, stationT])
+
+  // Proximity scrub — tiles fade in faster than ring/label so they "rise" out
+  // of nowhere as user nears the projects station, then fade as they leave
+  useFrame((_, dt) => {
+    const dist      = Math.abs(scrollRef.current - stationT)
+    const proximity = Math.max(0, 1 - dist / 0.13)
+    const opacity   = Math.pow(proximity, 1.4)
+
+    matsRef.current.forEach((m) => {
+      if (m) m.opacity = opacity
+    })
+    borderMatsRef.current.forEach((m) => {
+      if (m) m.opacity = opacity * 0.85
+    })
+
+    // Subtle Y-bob per tile for organic floating
+    if (groupRef.current) {
+      groupRef.current.children.forEach((tile, i) => {
+        const phase = i * 1.7
+        const t = performance.now() * 0.001
+        tile.position.y = tile.userData.baseY + Math.sin(t * 0.7 + phase) * 0.06
+      })
+    }
+
+    // dt unused; keeping arg name for clarity
+    void dt
+  })
+
+  return (
+    <group ref={groupRef}>
+      {featured.map((p, i) => {
+        // 3 tiles evenly spaced around the ring (top, lower-left, lower-right)
+        const angle  = (i / featured.length) * Math.PI * 2 + Math.PI / 2  // start top
+        const radius = 1.65
+        const x = Math.cos(angle) * radius
+        const y = Math.sin(angle) * radius
+
+        return (
+          <group
+            key={p.id}
+            position={[x, y, 0.4]}
+            userData={{ baseY: y }}
+          >
+            {/* Coloured border plane — slightly larger, behind the image */}
+            <mesh position={[0, 0, -0.01]}>
+              <planeGeometry args={[1.32, 0.86]} />
+              <meshBasicMaterial
+                ref={(m) => { if (m) borderMatsRef.current[i] = m }}
+                color={p.color}
+                transparent
+                opacity={0}
+                toneMapped={false}
+              />
+            </mesh>
+
+            {/* The thumbnail image */}
+            <mesh>
+              <planeGeometry args={[1.25, 0.78]} />
+              <meshBasicMaterial
+                ref={(m) => { if (m) matsRef.current[i] = m }}
+                map={textures[i]}
+                transparent
+                opacity={0}
+                toneMapped={false}
+              />
+            </mesh>
+
+            {/* Tiny label below the tile */}
+            <Text
+              position={[0, -0.55, 0]}
+              fontSize={0.085}
+              color={p.color}
+              anchorX="center"
+              anchorY="middle"
+              letterSpacing={0.1}
+              maxWidth={1.3}
+              outlineColor="#0A0A0A"
+              outlineWidth={0.004}
+            >
+              {p.title.toUpperCase()}
+            </Text>
+          </group>
+        )
+      })}
+    </group>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CameraRig: places camera along curve and adds a SUBTLE bank into turns.
 // Default up = world +Y so the world stays right-side-up. A small roll around
 // the forward axis is added based on how much the tangent is turning in the
@@ -525,6 +649,14 @@ export function TunnelScene() {
             htmlContent={<StationContent station={s} />}
           />
         ))}
+
+        {/* Featured project thumbnails arranged around the PROJECTS station */}
+        <Suspense fallback={null}>
+          <ProjectTiles
+            curve={curve}
+            stationT={STATIONS.find((s) => s.id === 'projects')!.t}
+          />
+        </Suspense>
 
         <CameraRig curve={curve} />
 
