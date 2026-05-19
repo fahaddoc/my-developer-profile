@@ -20,6 +20,7 @@ import * as THREE from 'three'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { projects } from '@/data/projects'
+import { type QualityPreset, PRESETS } from '@/lib/quality'
 
 // Shared scroll progress — read each frame inside R3F, also subscribed via the
 // useScrollProgress hook below for HUD/UI updates outside the canvas.
@@ -158,10 +159,15 @@ export function nearestStation(progress: number): StationDef {
 // ─────────────────────────────────────────────────────────────────────────────
 // Tunnel: TubeGeometry along the curve
 // ─────────────────────────────────────────────────────────────────────────────
-function Tunnel({ curve }: { curve: THREE.CatmullRomCurve3 }) {
+function Tunnel({
+  curve, tubeSegments,
+}: {
+  curve:        THREE.CatmullRomCurve3
+  tubeSegments: number
+}) {
   const tubeGeometry = useMemo(
-    () => new THREE.TubeGeometry(curve, 600, 2.2, 32, false),
-    [curve],
+    () => new THREE.TubeGeometry(curve, tubeSegments, 2.2, 32, false),
+    [curve, tubeSegments],
   )
 
   return (
@@ -344,7 +350,13 @@ function Station({
 // render as instanced points. Adds depth perception during fly-through.
 // Subtle vertical bob driven by useFrame for "alive" feel.
 // ─────────────────────────────────────────────────────────────────────────────
-function Particles({ curve, count = 320 }: { curve: THREE.CatmullRomCurve3; count?: number }) {
+function Particles({
+  curve, count = 320, bob = true,
+}: {
+  curve: THREE.CatmullRomCurve3
+  count?: number
+  bob?:   boolean
+}) {
   // Geometry: BufferGeometry with `count` random points along + around the curve
   const { geometry, basePositions } = useMemo(() => {
     const positions = new Float32Array(count * 3)
@@ -385,13 +397,13 @@ function Particles({ curve, count = 320 }: { curve: THREE.CatmullRomCurve3; coun
   const pointsRef = useRef<THREE.Points>(null)
 
   // Soft vertical bob to make particles feel alive — phase per particle
-  // so they don't all bob in sync
+  // so they don't all bob in sync. Skipped entirely on low quality.
   useFrame(({ clock }) => {
-    if (!pointsRef.current) return
+    if (!bob || !pointsRef.current) return
     const positions = pointsRef.current.geometry.attributes.position.array as Float32Array
     const t = clock.elapsedTime
     for (let i = 0; i < count; i++) {
-      const phase = i * 0.37   // deterministic per-particle offset
+      const phase = i * 0.37
       positions[i * 3 + 1] = basePositions[i * 3 + 1] + Math.sin(t * 0.4 + phase) * 0.08
     }
     pointsRef.current.geometry.attributes.position.needsUpdate = true
@@ -419,10 +431,11 @@ function Particles({ curve, count = 320 }: { curve: THREE.CatmullRomCurve3; coun
 // station and bloom into view as camera approaches.
 // ─────────────────────────────────────────────────────────────────────────────
 function ProjectTiles({
-  curve, stationT,
+  curve, stationT, bob = true,
 }: {
   curve:    THREE.CatmullRomCurve3
   stationT: number
+  bob?:     boolean
 }) {
   const featured = useMemo(
     () => projects.filter((p) => p.featured).slice(0, 3),
@@ -462,8 +475,8 @@ function ProjectTiles({
       if (m) m.opacity = opacity * 0.85
     })
 
-    // Subtle Y-bob per tile for organic floating
-    if (groupRef.current) {
+    // Subtle Y-bob per tile for organic floating (skipped on low quality)
+    if (bob && groupRef.current) {
       groupRef.current.children.forEach((tile, i) => {
         const phase = i * 1.7
         const t = performance.now() * 0.001
@@ -586,7 +599,7 @@ function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Public component — Canvas + scroll wiring + tunnel + stations
 // ─────────────────────────────────────────────────────────────────────────────
-export function TunnelScene() {
+export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset } = {}) {
   const curve = useMemo(() => new THREE.CatmullRomCurve3(
     CURVE_POINTS.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
     false,
@@ -638,8 +651,8 @@ export function TunnelScene() {
         <ambientLight intensity={0.4} />
         <pointLight position={[0, 0, -5]} intensity={1.5} color="#FFB547" />
 
-        <Tunnel curve={curve} />
-        <Particles curve={curve} count={340} />
+        <Tunnel curve={curve} tubeSegments={preset.tubeSegments} />
+        <Particles curve={curve} count={preset.particleCount} bob={preset.tileBob} />
 
         {STATIONS.map((s) => (
           <Station
@@ -650,26 +663,27 @@ export function TunnelScene() {
           />
         ))}
 
-        {/* Featured project thumbnails arranged around the PROJECTS station */}
         <Suspense fallback={null}>
           <ProjectTiles
             curve={curve}
             stationT={STATIONS.find((s) => s.id === 'projects')!.t}
+            bob={preset.tileBob}
           />
         </Suspense>
 
         <CameraRig curve={curve} />
 
-        {/* Post-processing: bloom picks up unaltered (toneMapped:false) emissive
-            colours on the wireframe, rings, particles → real neon glow */}
-        <EffectComposer multisampling={0}>
-          <Bloom
-            intensity={0.75}
-            luminanceThreshold={0.25}
-            luminanceSmoothing={0.4}
-            mipmapBlur
-          />
-        </EffectComposer>
+        {/* Post-processing only on mid/high quality */}
+        {preset.bloom && (
+          <EffectComposer multisampling={0}>
+            <Bloom
+              intensity={preset.bloomIntensity}
+              luminanceThreshold={0.25}
+              luminanceSmoothing={0.4}
+              mipmapBlur
+            />
+          </EffectComposer>
+        )}
       </Canvas>
     </div>
   )
