@@ -13,6 +13,7 @@
 // integration with main portfolio.
 
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Text, Html, useTexture } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
@@ -680,6 +681,7 @@ function ProjectTiles({
   const sunRef   = useRef<THREE.MeshBasicMaterial>(null)
   const sunGlowRef = useRef<THREE.MeshBasicMaterial>(null)
   const ringMatsRef = useRef<(THREE.MeshBasicMaterial | null)[]>([])
+  const router    = useRouter()
 
   // Three orbital rings — each its own group so we can rotate them at
   // different angular velocities (inner = fastest, outer = slowest).
@@ -704,6 +706,13 @@ function ProjectTiles({
     groupRef.current.lookAt(pos.clone().sub(tangent))
   }, [curve, stationT])
 
+  // Track which tile is hovered (-1 = none). Per-tile current Z + scale
+  // animate toward target each frame so the tile pops forward on hover.
+  const hoveredRef    = useRef<number>(-1)
+  const tileStatesRef = useRef<{ z: number; scale: number }[]>(
+    Array.from({ length: 9 }, () => ({ z: 0, scale: 1 })),
+  )
+
   useFrame(({ camera }, dt) => {
     const dist      = Math.abs(scrollRef.current - stationT)
     const proximity = Math.max(0, 1 - dist / 0.13)
@@ -715,18 +724,33 @@ function ProjectTiles({
     if (sunRef.current)     sunRef.current.opacity     = opacity
     if (sunGlowRef.current) sunGlowRef.current.opacity = opacity * 0.55
 
-    // Rotate each orbital ring at its own speed
-    if (bob) {
+    // Rotate each orbital ring at its own speed (paused while a tile is
+    // hovered — keeps the hovered tile from drifting under the cursor).
+    const anyHover = hoveredRef.current !== -1
+    if (bob && !anyHover) {
       ringRefs.current.forEach((g, i) => {
         if (g) g.rotation.z += dt * RING_SPEEDS[i]
       })
     }
 
-    // Billboard each tile to face camera (tiles stay readable while orbit spins)
+    // Hover lerp on each tile + camera billboard
     if (groupRef.current) {
+      let tileIdx = 0
       groupRef.current.traverse((obj) => {
         if (obj.userData?.tile) {
+          const isHover  = hoveredRef.current === tileIdx
+          const targetZ  = isHover ? 1.6 : 0
+          const targetSc = isHover ? 1.35 : 1
+          const st = tileStatesRef.current[tileIdx]
+          if (st) {
+            st.z     += (targetZ  - st.z)     * 0.18
+            st.scale += (targetSc - st.scale) * 0.18
+            obj.position.z = (obj.userData.baseZ ?? 0) + st.z
+            obj.scale.setScalar(st.scale)
+          }
+          // Billboard AFTER position so rotation is computed at new spot
           obj.lookAt(camera.position)
+          tileIdx++
         }
       })
     }
@@ -792,46 +816,69 @@ function ProjectTiles({
             const x = Math.cos(angle) * radius
             const y = Math.sin(angle) * radius
             const scl = TILE_SCALES[ringIdx]
-            const tileW = 1.05 * scl
-            const tileH = 0.66 * scl
+            // Hover lerp acts on local Z (we read baseZ from userData and
+            // add the lerp delta). Label position + fontSize are compensated
+            // by `/ scl` so they read at consistent world-space size + offset
+            // across all three rings.
+            const TILE_BASE_W = 1.05
+            const TILE_BASE_H = 0.66
 
             return (
               <group
                 key={p.id}
                 position={[x, y, 0]}
-                userData={{ tile: true }}
+                userData={{ tile: true, baseZ: 0 }}
+                onPointerOver={(e) => {
+                  e.stopPropagation()
+                  hoveredRef.current = i
+                  if (typeof document !== 'undefined') document.body.style.cursor = 'pointer'
+                }}
+                onPointerOut={(e) => {
+                  e.stopPropagation()
+                  if (hoveredRef.current === i) hoveredRef.current = -1
+                  if (typeof document !== 'undefined') document.body.style.cursor = ''
+                }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push(`/projects/${p.id}`)
+                }}
               >
-                {/* Coloured border behind image */}
-                <mesh position={[0, 0, -0.01]}>
-                  <planeGeometry args={[tileW * 1.06, tileH * 1.10]} />
-                  <meshBasicMaterial
-                    ref={(m) => { borderMatsRef.current[i] = m }}
-                    color={p.color}
-                    transparent
-                    opacity={0}
-                    toneMapped={false}
-                  />
-                </mesh>
-                {/* Project thumbnail */}
-                <mesh>
-                  <planeGeometry args={[tileW, tileH]} />
-                  <meshBasicMaterial
-                    ref={(m) => { matsRef.current[i] = m }}
-                    map={textures[i]}
-                    transparent
-                    opacity={0}
-                    toneMapped={false}
-                  />
-                </mesh>
-                {/* Title caption */}
+                {/* Apply the per-ring scale on an inner group so the OUTER
+                    group's local Z (used for hover lerp) is in world units. */}
+                <group scale={scl}>
+                  {/* Coloured border behind image */}
+                  <mesh position={[0, 0, -0.01]}>
+                    <planeGeometry args={[TILE_BASE_W * 1.06, TILE_BASE_H * 1.10]} />
+                    <meshBasicMaterial
+                      ref={(m) => { borderMatsRef.current[i] = m }}
+                      color={p.color}
+                      transparent
+                      opacity={0}
+                      toneMapped={false}
+                    />
+                  </mesh>
+                  {/* Project thumbnail */}
+                  <mesh>
+                    <planeGeometry args={[TILE_BASE_W, TILE_BASE_H]} />
+                    <meshBasicMaterial
+                      ref={(m) => { matsRef.current[i] = m }}
+                      map={textures[i]}
+                      transparent
+                      opacity={0}
+                      toneMapped={false}
+                    />
+                  </mesh>
+                </group>
+                {/* Title caption — OUTSIDE the scaled inner group, fixed
+                    world-space offset + size for consistent alignment */}
                 <Text
-                  position={[0, -tileH * 0.72, 0]}
-                  fontSize={0.06}
+                  position={[0, -(TILE_BASE_H * 0.85 * scl) - 0.08, 0]}
+                  fontSize={0.07}
                   color={p.color}
                   anchorX="center"
-                  anchorY="middle"
-                  letterSpacing={0.1}
-                  maxWidth={tileW * 1.15}
+                  anchorY="top"
+                  letterSpacing={0.08}
+                  maxWidth={1.4}
                   outlineColor="#0A0A0A"
                   outlineWidth={0.003}
                 >
@@ -1007,7 +1054,10 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         position: 'fixed',
         inset:    0,
         zIndex:   0,
-        pointerEvents: 'none',
+        // Canvas needs pointer events so mesh onPointerEnter / onClick on the
+        // project tiles can fire. HUD chrome sits on top in higher z-index and
+        // still receives clicks because it sets pointerEvents:auto on itself.
+        pointerEvents: 'auto',
         background: '#05050A',
       }}
     >
