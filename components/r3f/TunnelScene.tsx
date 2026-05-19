@@ -708,11 +708,12 @@ function ProjectTiles({
 
   // Track which tile is hovered (-1 = none). Reused vectors so the hover
   // animation doesn't allocate per frame.
-  const hoveredRef   = useRef<number>(-1)
+  const hoveredRef    = useRef<number>(-1)
   const lastScrollRef = useRef<number>(0)
-  const tmpDir       = useMemo(() => new THREE.Vector3(), [])
-  const tmpWorld     = useMemo(() => new THREE.Vector3(), [])
-  const tmpLocal     = useMemo(() => new THREE.Vector3(), [])
+  const tmpDir        = useMemo(() => new THREE.Vector3(), [])
+  const tmpWorld      = useMemo(() => new THREE.Vector3(), [])
+  const tmpLocal      = useMemo(() => new THREE.Vector3(), [])
+  const REST_ORIGIN   = useMemo(() => new THREE.Vector3(0, 0, 0), [])
 
   // Per-tile scale lerp state (rest=1, hovered ~1.8)
   const scaleRef = useRef<number[]>(Array.from({ length: 9 }, () => 1))
@@ -746,17 +747,17 @@ function ProjectTiles({
     }
     lastScrollRef.current = scrollRef.current
 
-    // Hover: tile flies in front of camera (paper stuck to lens), un-hover:
-    // tile glides back to its orbital rest spot. Lerp factor 0.16.
+    // Hover lerp is applied to an INNER group ('animTile') while the OUTER
+    // tile group + its hitbox stay static. That way the hitbox always lives
+    // at the rest position so the cursor doesn't oscillate over/out as the
+    // visible card glides toward the camera.
     if (groupRef.current) {
       camera.getWorldDirection(tmpDir)
-      // Pulled back from 1.6 → 2.6 so the tile fills less of the viewport
-      // and the title block below stays readable.
       const STICK_DIST = 2.6
 
       let tileIdx = 0
       groupRef.current.traverse((obj) => {
-        if (!obj.userData?.tile) return
+        if (!obj.userData?.animTile) return
         const isHover = hoveredRef.current === tileIdx
 
         if (isHover && obj.parent) {
@@ -765,11 +766,10 @@ function ProjectTiles({
           obj.parent.worldToLocal(tmpLocal)
           obj.position.lerp(tmpLocal, 0.16)
         } else {
-          const rest = obj.userData.restPos as THREE.Vector3 | undefined
-          if (rest) obj.position.lerp(rest, 0.14)
+          // rest position relative to outer group is the origin
+          obj.position.lerp(REST_ORIGIN, 0.14)
         }
 
-        // Hovered scale 1.8 — large enough to read but title stays on-screen
         const target = isHover ? 1.8 : 1
         const cur    = scaleRef.current[tileIdx] ?? 1
         const next   = cur + (target - cur) * 0.16
@@ -860,22 +860,35 @@ function ProjectTiles({
               <group
                 key={p.id}
                 position={[x, y, 0]}
-                userData={{ tile: true, restPos: new THREE.Vector3(x, y, 0) }}
-                onPointerOver={(e) => {
-                  e.stopPropagation()
-                  hoveredRef.current = i
-                  if (typeof document !== 'undefined') document.body.style.cursor = 'pointer'
-                }}
-                onPointerOut={(e) => {
-                  e.stopPropagation()
-                  if (hoveredRef.current === i) hoveredRef.current = -1
-                  if (typeof document !== 'undefined') document.body.style.cursor = ''
-                }}
                 onClick={(e) => {
                   e.stopPropagation()
                   router.push(`/projects/${p.id}`)
                 }}
               >
+                {/* Static invisible hitbox — bigger than the visible tile so
+                    a small cursor drift doesn't drop the hover. Lives on the
+                    outer (un-animated) group, so the visible card can lerp
+                    forward without the cursor losing the target. */}
+                <mesh
+                  position={[0, 0, 0]}
+                  onPointerOver={(e) => {
+                    e.stopPropagation()
+                    hoveredRef.current = i
+                    if (typeof document !== 'undefined') document.body.style.cursor = 'pointer'
+                  }}
+                  onPointerOut={(e) => {
+                    e.stopPropagation()
+                    if (hoveredRef.current === i) hoveredRef.current = -1
+                    if (typeof document !== 'undefined') document.body.style.cursor = ''
+                  }}
+                >
+                  <planeGeometry args={[TILE_BASE_W * 1.6 * scl, TILE_BASE_H * 2.2 * scl]} />
+                  <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+                </mesh>
+
+                {/* Animated inner group — useFrame lerps THIS for the
+                    fly-to-camera effect. Static hitbox above is unaffected. */}
+                <group userData={{ animTile: true }}>
                 {/* Per-ring scale on inner group so the outer group's local Z
                     (used for hover lerp) stays in world units. */}
                 <group scale={scl}>
@@ -938,6 +951,7 @@ function ProjectTiles({
                     {sub.toUpperCase()}
                   </Text>
                 )}
+                </group>
               </group>
             )
           })}
