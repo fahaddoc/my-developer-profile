@@ -85,7 +85,7 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
             relative rounded-2xl overflow-hidden
             border transition-all duration-300
             ${hovered
-              ? 'border-accent-cyan/60 shadow-[0_0_28px_rgba(34,211,238,0.22),0_0_60px_rgba(34,211,238,0.08)]'
+              ? 'border-accent-cyan/60 shadow-[0_0_28px_rgba(255, 181, 71,0.22),0_0_60px_rgba(255, 181, 71,0.08)]'
               : 'border-accent-violet/12'
             }
             bg-bg-surface
@@ -127,7 +127,7 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
                   <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                      backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,200,0.035) 2px, rgba(0,255,200,0.035) 4px)',
+                      backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,181,71,0.035) 2px, rgba(255,181,71,0.035) 4px)',
                     }}
                   />
 
@@ -136,8 +136,8 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
                     className="absolute left-0 right-0 pointer-events-none"
                     style={{
                       height: 3,
-                      background: 'linear-gradient(90deg, transparent, rgba(34,211,238,0.55), transparent)',
-                      boxShadow: '0 0 12px rgba(34,211,238,0.7)',
+                      background: 'linear-gradient(90deg, transparent, rgba(255, 181, 71,0.55), transparent)',
+                      boxShadow: '0 0 12px rgba(255, 181, 71,0.7)',
                     }}
                     initial={{ top: '-2%' }}
                     animate={{ top: '102%' }}
@@ -149,8 +149,8 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
                     <motion.p
                       className="font-mono text-sm font-bold tracking-[0.25em] uppercase"
                       style={{
-                        color: '#22d3ee',
-                        textShadow: '0 0 10px rgba(34,211,238,1), 0 0 22px rgba(34,211,238,0.6)',
+                        color: '#FFB547',
+                        textShadow: '0 0 10px rgba(255, 181, 71,1), 0 0 22px rgba(255, 181, 71,0.6)',
                       }}
                       animate={{ opacity: [1, 0.15, 1] }}
                       transition={{ duration: 0.85, repeat: Infinity, ease: 'easeInOut' }}
@@ -159,19 +159,19 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
                     </motion.p>
                     <p
                       className="mt-1.5 font-mono text-[10px] tracking-[0.3em] uppercase"
-                      style={{ color: 'rgba(34,211,238,0.5)' }}
+                      style={{ color: 'rgba(255, 181, 71,0.5)' }}
                     >
                       1 CREDIT · PRESS TO PLAY
                     </p>
 
                     {/* fake score display */}
                     <div className="mt-3 flex items-center justify-center gap-3">
-                      <span className="font-mono text-[9px] tracking-widest" style={{ color: 'rgba(168,85,247,0.7)' }}>
+                      <span className="font-mono text-[9px] tracking-widest" style={{ color: 'rgba(122, 122, 130,0.7)' }}>
                         HI-SCORE
                       </span>
                       <span
                         className="font-mono text-xs font-bold"
-                        style={{ color: '#a855f7', textShadow: '0 0 8px rgba(168,85,247,0.8)' }}
+                        style={{ color: '#7A7A82', textShadow: '0 0 8px rgba(122, 122, 130,0.8)' }}
                       >
                         {String(project.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) * 137 % 90000 + 10000)}
                       </span>
@@ -186,7 +186,7 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{
-                  boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6), inset 0 0 12px rgba(34,211,238,0.12)',
+                  boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6), inset 0 0 12px rgba(255, 181, 71,0.12)',
                 }}
               />
             )}
@@ -231,11 +231,11 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
             <motion.div
               style={{ width: 40, height: 3, borderRadius: '2px 2px 0 0' }}
               animate={hovered ? {
-                backgroundColor: ['rgba(34,211,238,0.1)', 'rgba(34,211,238,0.85)', 'rgba(34,211,238,0.4)'],
-                boxShadow: ['0 0 0px rgba(34,211,238,0)', '0 0 18px rgba(34,211,238,1)', '0 0 8px rgba(34,211,238,0.5)'],
+                backgroundColor: ['rgba(255, 181, 71,0.1)', 'rgba(255, 181, 71,0.85)', 'rgba(255, 181, 71,0.4)'],
+                boxShadow: ['0 0 0px rgba(255, 181, 71,0)', '0 0 18px rgba(255, 181, 71,1)', '0 0 8px rgba(255, 181, 71,0.5)'],
               } : {
-                backgroundColor: 'rgba(34,211,238,0)',
-                boxShadow: '0 0 0px rgba(34,211,238,0)',
+                backgroundColor: 'rgba(255, 181, 71,0)',
+                boxShadow: '0 0 0px rgba(255, 181, 71,0)',
               }}
               transition={{ duration: 0.45, ease: 'easeOut' }}
             />
@@ -246,7 +246,7 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
             className="absolute bottom-0 left-0 right-0 h-px transition-all duration-300"
             style={{
               background: hovered
-                ? 'linear-gradient(90deg, transparent, rgba(34,211,238,0.9), rgba(34,211,238,0.9), transparent)'
+                ? 'linear-gradient(90deg, transparent, rgba(255, 181, 71,0.9), rgba(255, 181, 71,0.9), transparent)'
                 : 'transparent',
             }}
           />

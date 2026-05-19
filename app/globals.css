@@ -7,18 +7,20 @@
   /* injected by next/font via layout.tsx */
   /* --font-display, --font-body, --font-mono */
 
-  --clr-violet: #a855f7;
-  --clr-cyan: #22d3ee;
-  --clr-emerald: #10b981;
+  /* editorial palette — single warm accent, muted neutrals */
+  --clr-violet: #7A7A82;    /* muted gray (former secondary) */
+  --clr-cyan: #FFB547;      /* amber primary */
+  --clr-emerald: #10b981;   /* success */
 
-  --glow-violet: rgba(168, 85, 247, 0.35);
-  --glow-violet-sm: rgba(168, 85, 247, 0.15);
-  --glow-cyan: rgba(34, 211, 238, 0.3);
-  --glow-cyan-sm: rgba(34, 211, 238, 0.12);
-  --glow-emerald: rgba(16, 185, 129, 0.3);
+  /* glows kept as vars for backwards compat but dialed way down */
+  --glow-violet:    rgba(122, 122, 130, 0.08);
+  --glow-violet-sm: rgba(122, 122, 130, 0.05);
+  --glow-cyan:      rgba(255, 181, 71, 0.10);
+  --glow-cyan-sm:   rgba(255, 181, 71, 0.05);
+  --glow-emerald:   rgba(16, 185, 129, 0.10);
 
-  --border-subtle: rgba(168, 85, 247, 0.12);
-  --border-hover: rgba(168, 85, 247, 0.4);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-hover:  rgba(255, 181, 71, 0.35);
 }
 
 * {
@@ -40,35 +42,19 @@ html::-webkit-scrollbar {
 }
 
 body {
-  background-color: #0a0a0a;
-  color: #f1f5f9;
+  background-color: #0A0A0B;
+  color: #F5F5F7;
   font-family: var(--font-body), system-ui, sans-serif;
   overflow-x: hidden;
 }
 
-/* dot grid — subtle tech feel, barely visible on dark bg */
+/* subtle paper texture — extremely faint warm grain, no dot grid */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: radial-gradient(rgba(168, 85, 247, 0.07) 1px, transparent 1px);
-  background-size: 32px 32px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* scanline overlay — gives that slight CRT depth, very subtle */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.03) 2px,
-    rgba(0, 0, 0, 0.03) 4px
-  );
+  background-image: radial-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 64px 64px;
   pointer-events: none;
   z-index: 0;
 }
@@ -84,56 +70,54 @@ footer {
 
 
 ::selection {
-  background: rgba(168, 85, 247, 0.3);
-  color: #f1f5f9;
+  background: rgba(255, 181, 71, 0.28);
+  color: #F5F5F7;
 }
 
 @layer utilities {
-  /* violet glow helpers */
+  /* dialled-down: subtle elevation, no halo. Names preserved for JSX compat. */
   .glow-violet {
-    box-shadow: 0 0 40px var(--glow-violet), 0 0 80px rgba(168, 85, 247, 0.1);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,0.4);
   }
 
   .glow-violet-sm {
-    box-shadow: 0 0 20px var(--glow-violet-sm);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.05);
   }
 
-  /* cyan glow — used on real-time / tech elements */
   .glow-cyan {
-    box-shadow: 0 0 40px var(--glow-cyan), 0 0 80px rgba(34, 211, 238, 0.08);
+    box-shadow: 0 0 0 1px rgba(255,181,71,0.22), 0 8px 24px rgba(0,0,0,0.35);
   }
 
   .glow-cyan-sm {
-    box-shadow: 0 0 16px var(--glow-cyan-sm);
+    box-shadow: 0 0 0 1px rgba(255,181,71,0.18);
   }
 
-  /* emerald — skills section */
   .glow-emerald-sm {
-    box-shadow: 0 0 16px var(--glow-emerald);
+    box-shadow: 0 0 0 1px rgba(16,185,129,0.22);
   }
 
-  /* neon text glow */
+  /* text glow utilities — almost-no-op, just slight crispness lift */
   .text-glow-violet {
-    text-shadow: 0 0 20px rgba(168, 85, 247, 0.7), 0 0 40px rgba(168, 85, 247, 0.3);
+    text-shadow: 0 0 1px rgba(255,255,255,0.15);
   }
 
   .text-glow-cyan {
-    text-shadow: 0 0 20px rgba(34, 211, 238, 0.7), 0 0 40px rgba(34, 211, 238, 0.3);
+    text-shadow: 0 0 1px rgba(255,181,71,0.4);
   }
 
   .border-subtle {
     border-color: var(--border-subtle);
   }
 
-  /* neon border on hover cards */
+  /* refined card — hairline border, no glow halo */
   .neon-card {
-    border: 1px solid rgba(168, 85, 247, 0.12);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
   }
 
   .neon-card:hover {
-    border-color: rgba(168, 85, 247, 0.45);
-    box-shadow: 0 0 30px rgba(168, 85, 247, 0.12), inset 0 0 30px rgba(168, 85, 247, 0.03);
+    border-color: rgba(255,181,71,0.35);
+    background-color: rgba(255,181,71,0.02);
   }
 }
 
@@ -151,11 +135,9 @@ footer {
   );
 }
 
-/* Persistent chromatic aberration on the photo (RGB-split) */
+/* Photo edge lift — minimal warm rim, no chromatic split */
 .rgb-split {
-  filter:
-    drop-shadow(1.2px 0 0 rgba(255, 0, 80, 0.55))
-    drop-shadow(-1.2px 0 0 rgba(0, 230, 255, 0.55));
+  filter: drop-shadow(0 1px 12px rgba(0, 0, 0, 0.5));
 }
 
 /* Periodic glitch — fires every ~9s for ~250ms */

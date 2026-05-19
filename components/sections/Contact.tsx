@@ -15,7 +15,7 @@ let _trailId = 0
 
 // ── Background: sparse dot grid + cursor-trail beam (unchanged) ──────────────
 const STEP      = 56
-const PRIMARY   = '34,211,238'
+const PRIMARY   = '255, 181, 71'
 const SECONDARY = '196,116,232'
 
 function ContactBackground() {
@@ -197,7 +197,7 @@ function ContactBackground() {
 type Spark = {
   x: number; y: number; vx: number; vy: number
   life: number; decay: number; size: number
-  color: '34,211,238' | '168,85,247' | '167,243,208'
+  color: '255, 181, 71' | '122, 122, 130' | '167,243,208'
 }
 
 function SparkCanvas({ formRef }: { formRef: React.RefObject<HTMLDivElement | null> }) {
@@ -219,7 +219,7 @@ function SparkCanvas({ formRef }: { formRef: React.RefObject<HTMLDivElement | nu
     const fireSparks = () => {
       const cx = W * 0.12 + Math.random() * W * 0.76
       const cy = H * 0.15 + Math.random() * H * 0.70
-      const palette: Spark['color'][] = ['34,211,238', '168,85,247', '167,243,208']
+      const palette: Spark['color'][] = ['255, 181, 71', '122, 122, 130', '167,243,208']
       for (let i = 0; i < 6; i++) {
         const angle = Math.random() * Math.PI * 2
         const spd   = 1.0 + Math.random() * 3.5
@@ -310,7 +310,7 @@ function SubmitExplosion({ onDone }: { onDone: () => void }) {
     Array.from({ length: 32 }, (_, i) => {
       const angle = (i / 32) * Math.PI * 2 + (Math.random() - 0.5) * 0.5
       const dist  = 55 + Math.random() * 130
-      const colors = ['#22d3ee', '#a855f7', '#34d399', '#f0abfc', '#67e8f9']
+      const colors = ['#FFB547', '#7A7A82', '#34d399', '#f0abfc', '#67e8f9']
       return {
         id:    i,
         tx:    Math.cos(angle) * dist,
@@ -334,7 +334,7 @@ function SubmitExplosion({ onDone }: { onDone: () => void }) {
         animate={{ opacity: 0 }}
         transition={{ duration: 0.55, ease: 'easeOut' }}
         style={{
-          background: 'radial-gradient(ellipse 70% 40% at 50% 90%, rgba(34,211,238,0.55) 0%, rgba(168,85,247,0.2) 45%, transparent 70%)',
+          background: 'radial-gradient(ellipse 70% 40% at 50% 90%, rgba(255, 181, 71,0.55) 0%, rgba(122, 122, 130,0.2) 45%, transparent 70%)',
         }}
       />
 
@@ -357,7 +357,7 @@ function SubmitExplosion({ onDone }: { onDone: () => void }) {
       {/* Ring burst */}
       <motion.div
         className="absolute rounded-full border"
-        style={{ borderColor: 'rgba(34,211,238,0.6)' }}
+        style={{ borderColor: 'rgba(255, 181, 71,0.6)' }}
         initial={{ width: 16, height: 16, opacity: 0.9 }}
         animate={{ width: 200, height: 200, opacity: 0 }}
         transition={{ duration: 0.65, ease: 'easeOut' }}
@@ -390,8 +390,8 @@ export function Contact() {
 
   // Signal bar color: cyan at low, blends toward violet at high charge
   const signalColor = signalStrength > 80
-    ? 'linear-gradient(90deg, rgba(34,211,238,0.6), rgba(168,85,247,1))'
-    : 'linear-gradient(90deg, rgba(34,211,238,0.7), rgba(168,85,247,0.7))'
+    ? 'linear-gradient(90deg, rgba(255, 181, 71,0.6), rgba(122, 122, 130,1))'
+    : 'linear-gradient(90deg, rgba(255, 181, 71,0.7), rgba(122, 122, 130,0.7))'
 
   // Called on every keydown in any form input
   const handleKeyActivity = (key: string) => {
@@ -460,15 +460,15 @@ export function Contact() {
     return {
       background: 'rgba(2,18,28,0.65)',
       border: `1px solid ${focused
-        ? (inputFlash ? 'rgba(34,211,238,0.95)' : 'rgba(34,211,238,0.65)')
-        : 'rgba(34,211,238,0.14)'}`,
+        ? (inputFlash ? 'rgba(255, 181, 71,0.95)' : 'rgba(255, 181, 71,0.65)')
+        : 'rgba(255, 181, 71,0.14)'}`,
       boxShadow: focused
-        ? `0 0 ${inputFlash ? '22' : '10'}px rgba(34,211,238,0.22), inset 0 0 8px rgba(34,211,238,0.03)`
+        ? `0 0 ${inputFlash ? '22' : '10'}px rgba(255, 181, 71,0.22), inset 0 0 8px rgba(255, 181, 71,0.03)`
         : 'none',
       borderRadius: '8px',
       padding: '12px 16px',
-      color: '#cff6ff',
-      caretColor: '#22d3ee',
+      color: '#FFE6B4',
+      caretColor: '#FFB547',
       fontFamily: '"Fira Code", "JetBrains Mono", monospace',
       fontSize: '13px',
       outline: 'none',
@@ -537,19 +537,19 @@ export function Contact() {
                 rel="noopener noreferrer"
                 className="group inline-flex items-center gap-3 px-5 py-3 rounded-lg font-mono text-sm tracking-widest uppercase font-bold transition-all duration-200"
                 style={{
-                  color:  '#22d3ee',
-                  border: '1px solid rgba(34,211,238,0.4)',
-                  background: 'rgba(34,211,238,0.06)',
-                  textShadow: '0 0 8px rgba(34,211,238,0.6)',
-                  boxShadow:  '0 0 0 rgba(34,211,238,0)',
+                  color:  '#FFB547',
+                  border: '1px solid rgba(255, 181, 71,0.4)',
+                  background: 'rgba(255, 181, 71,0.06)',
+                  textShadow: '0 0 8px rgba(255, 181, 71,0.6)',
+                  boxShadow:  '0 0 0 rgba(255, 181, 71,0)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow  = '0 0 24px rgba(34,211,238,0.35), inset 0 0 12px rgba(34,211,238,0.18)'
-                  e.currentTarget.style.background = 'rgba(34,211,238,0.12)'
+                  e.currentTarget.style.boxShadow  = '0 0 24px rgba(255, 181, 71,0.35), inset 0 0 12px rgba(255, 181, 71,0.18)'
+                  e.currentTarget.style.background = 'rgba(255, 181, 71,0.12)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow  = '0 0 0 rgba(34,211,238,0)'
-                  e.currentTarget.style.background = 'rgba(34,211,238,0.06)'
+                  e.currentTarget.style.boxShadow  = '0 0 0 rgba(255, 181, 71,0)'
+                  e.currentTarget.style.background = 'rgba(255, 181, 71,0.06)'
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -562,7 +562,7 @@ export function Contact() {
                 <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
               </a>
               <p className="font-mono text-[10px] tracking-widest uppercase mt-2 ml-1"
-                style={{ color: 'rgba(34,211,238,0.45)' }}>
+                style={{ color: 'rgba(255, 181, 71,0.45)' }}>
                 ↳ pick a slot · no commitment
               </p>
             </RevealText>
@@ -590,7 +590,7 @@ export function Contact() {
             <div className="flex items-center justify-between mb-4 px-4 py-2.5 rounded-lg"
               style={{
                 background: 'rgba(2,18,28,0.65)',
-                border: '1px solid rgba(34,211,238,0.18)',
+                border: '1px solid rgba(255, 181, 71,0.18)',
               }}>
               {/* fake traffic-light dots */}
               <div className="flex items-center gap-2">
@@ -598,16 +598,16 @@ export function Contact() {
                 <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'rgba(255,189,46,0.55)' }} />
                 <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'rgba(40,200,64,0.55)' }} />
                 <span className="ml-3 font-mono text-[10px] tracking-widest uppercase"
-                  style={{ color: 'rgba(34,211,238,0.45)' }}>
+                  style={{ color: 'rgba(255, 181, 71,0.45)' }}>
                   neon-terminal
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 {/* pulsing status dot */}
-                <motion.span className="w-1.5 h-1.5 rounded-full" style={{ background: '#22d3ee' }}
+                <motion.span className="w-1.5 h-1.5 rounded-full" style={{ background: '#FFB547' }}
                   animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 1.4, repeat: Infinity }} />
                 <span className="font-mono text-[10px] tracking-widest uppercase"
-                  style={{ color: 'rgba(34,211,238,0.50)' }}>
+                  style={{ color: 'rgba(255, 181, 71,0.50)' }}>
                   open channel
                 </span>
               </div>
@@ -617,7 +617,7 @@ export function Contact() {
             <div className="mb-5">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="font-mono text-[10px] tracking-widest uppercase"
-                  style={{ color: 'rgba(34,211,238,0.50)' }}>
+                  style={{ color: 'rgba(255, 181, 71,0.50)' }}>
                   Signal Strength
                 </span>
                 <div className="flex items-center gap-2">
@@ -632,11 +632,11 @@ export function Contact() {
                         transition={{ duration: 0.18 }}
                         className="font-mono text-[9px] tracking-wider px-2 py-0.5 rounded-sm"
                         style={{
-                          color: '#c084fc',
-                          background: 'rgba(168,85,247,0.12)',
-                          border: '1px solid rgba(168,85,247,0.55)',
-                          textShadow: '0 0 8px rgba(168,85,247,0.9)',
-                          boxShadow: '0 0 8px rgba(168,85,247,0.18)',
+                          color: '#FFB547',
+                          background: 'rgba(122, 122, 130,0.12)',
+                          border: '1px solid rgba(122, 122, 130,0.55)',
+                          textShadow: '0 0 8px rgba(122, 122, 130,0.9)',
+                          boxShadow: '0 0 8px rgba(122, 122, 130,0.18)',
                         }}
                       >
                         ⚡ OVERCLOCKED
@@ -645,7 +645,7 @@ export function Contact() {
                   </AnimatePresence>
 
                   <span className="font-mono text-[12px] font-bold"
-                    style={{ color: '#22d3ee', textShadow: '0 0 8px rgba(34,211,238,0.65)' }}>
+                    style={{ color: '#FFB547', textShadow: '0 0 8px rgba(255, 181, 71,0.65)' }}>
                     {signalStrength}%
                   </span>
                 </div>
@@ -653,10 +653,10 @@ export function Contact() {
 
               {/* Bar track */}
               <div className="h-1.5 rounded-full overflow-hidden"
-                style={{ background: 'rgba(34,211,238,0.07)', border: '1px solid rgba(34,211,238,0.1)' }}>
+                style={{ background: 'rgba(255, 181, 71,0.07)', border: '1px solid rgba(255, 181, 71,0.1)' }}>
                 <motion.div
                   className="h-full rounded-full"
-                  style={{ background: signalColor, boxShadow: '0 0 8px rgba(34,211,238,0.45)' }}
+                  style={{ background: signalColor, boxShadow: '0 0 8px rgba(255, 181, 71,0.45)' }}
                   animate={{ width: `${signalStrength}%` }}
                   transition={{ duration: 0.28, ease: 'easeOut' }}
                 />
@@ -666,7 +666,7 @@ export function Contact() {
               <div className="flex justify-between mt-1 px-0.5">
                 {Array.from({ length: 10 }, (_, i) => (
                   <span key={i} className="font-mono text-[8px]"
-                    style={{ color: signalStrength >= (i + 1) * 10 ? 'rgba(34,211,238,0.5)' : 'rgba(34,211,238,0.12)' }}>
+                    style={{ color: signalStrength >= (i + 1) * 10 ? 'rgba(255, 181, 71,0.5)' : 'rgba(255, 181, 71,0.12)' }}>
                     |
                   </span>
                 ))}
@@ -676,7 +676,7 @@ export function Contact() {
             {/* ── Character trail ticker — glowing chars float across ────── */}
             <div className="flex items-center gap-1 mb-4 h-7 overflow-hidden px-1">
               <span className="font-mono text-[9px] tracking-wider flex-shrink-0 mr-1"
-                style={{ color: 'rgba(34,211,238,0.28)' }}>
+                style={{ color: 'rgba(255, 181, 71,0.28)' }}>
                 INPUT:
               </span>
               <AnimatePresence>
@@ -689,8 +689,8 @@ export function Contact() {
                     transition={{ duration: 0.22, ease: 'easeOut' }}
                     className="font-mono text-sm font-bold flex-shrink-0"
                     style={{
-                      color: '#22d3ee',
-                      textShadow: '0 0 8px rgba(34,211,238,1), 0 0 18px rgba(34,211,238,0.5)',
+                      color: '#FFB547',
+                      textShadow: '0 0 8px rgba(255, 181, 71,1), 0 0 18px rgba(255, 181, 71,0.5)',
                     }}
                   >
                     {t.char}
@@ -704,7 +704,7 @@ export function Contact() {
                   <motion.span
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     className="font-mono text-base flex-shrink-0"
-                    style={{ color: 'rgba(34,211,238,0.65)' }}
+                    style={{ color: 'rgba(255, 181, 71,0.65)' }}
                   >
                     <motion.span
                       animate={{ opacity: [1, 0, 1] }}
@@ -763,7 +763,7 @@ export function Contact() {
                   {/* Char counter — bottom-right corner of textarea */}
                   <span
                     className="absolute bottom-3 right-3 font-mono text-[10px] pointer-events-none"
-                    style={{ color: 'rgba(34,211,238,0.28)' }}
+                    style={{ color: 'rgba(255, 181, 71,0.28)' }}
                   >
                     {form.message.length} chars
                   </span>
@@ -777,14 +777,14 @@ export function Contact() {
                     type="button" onClick={handleReset}
                     className="px-5 py-3 rounded-lg font-mono text-xs tracking-widest uppercase"
                     style={{
-                      background: 'rgba(168,85,247,0.06)',
-                      border: '1px solid rgba(168,85,247,0.28)',
-                      color: 'rgba(168,85,247,0.65)',
+                      background: 'rgba(122, 122, 130,0.06)',
+                      border: '1px solid rgba(122, 122, 130,0.28)',
+                      color: 'rgba(122, 122, 130,0.65)',
                     }}
                     whileHover={{
-                      borderColor: 'rgba(168,85,247,0.7)',
-                      color: '#c084fc',
-                      boxShadow: '0 0 12px rgba(168,85,247,0.22)',
+                      borderColor: 'rgba(122, 122, 130,0.7)',
+                      color: '#FFB547',
+                      boxShadow: '0 0 12px rgba(122, 122, 130,0.22)',
                     }}
                     whileTap={{ scale: 0.96 }}
                   >
@@ -799,18 +799,18 @@ export function Contact() {
                     style={{
                       background: status === 'sent'
                         ? 'rgba(16,185,129,0.12)'
-                        : 'linear-gradient(90deg, rgba(34,211,238,0.12), rgba(168,85,247,0.18))',
-                      border: `1px solid ${status === 'sent' ? 'rgba(52,211,153,0.55)' : 'rgba(34,211,238,0.38)'}`,
-                      color: status === 'sent' ? '#34d399' : '#22d3ee',
+                        : 'linear-gradient(90deg, rgba(255, 181, 71,0.12), rgba(122, 122, 130,0.18))',
+                      border: `1px solid ${status === 'sent' ? 'rgba(52,211,153,0.55)' : 'rgba(255, 181, 71,0.38)'}`,
+                      color: status === 'sent' ? '#34d399' : '#FFB547',
                       textShadow: status === 'sent'
                         ? '0 0 10px rgba(52,211,153,0.7)'
-                        : '0 0 10px rgba(34,211,238,0.65)',
-                      boxShadow: '0 0 14px rgba(34,211,238,0.1)',
+                        : '0 0 10px rgba(255, 181, 71,0.65)',
+                      boxShadow: '0 0 14px rgba(255, 181, 71,0.1)',
                       opacity: status === 'sending' ? 0.7 : 1,
                     }}
                     whileHover={status === 'idle' ? {
-                      boxShadow: '0 0 28px rgba(34,211,238,0.32)',
-                      borderColor: 'rgba(34,211,238,0.8)',
+                      boxShadow: '0 0 28px rgba(255, 181, 71,0.32)',
+                      borderColor: 'rgba(255, 181, 71,0.8)',
                     } : {}}
                     whileTap={status === 'idle' ? { scale: 0.98 } : {}}
                   >
@@ -819,7 +819,7 @@ export function Contact() {
                       <motion.div
                         className="absolute inset-0 pointer-events-none"
                         style={{
-                          background: 'linear-gradient(90deg, transparent 0%, rgba(34,211,238,0.14) 50%, transparent 100%)',
+                          background: 'linear-gradient(90deg, transparent 0%, rgba(255, 181, 71,0.14) 50%, transparent 100%)',
                           width: '55%',
                         }}
                         animate={{ x: ['-120%', '260%'] }}
@@ -865,27 +865,27 @@ export function Contact() {
                   className="mt-5 p-4 rounded-lg text-center"
                   style={{
                     background: 'rgba(2,18,28,0.7)',
-                    border: '1px solid rgba(34,211,238,0.28)',
-                    boxShadow: '0 0 20px rgba(34,211,238,0.08)',
+                    border: '1px solid rgba(255, 181, 71,0.28)',
+                    boxShadow: '0 0 20px rgba(255, 181, 71,0.08)',
                   }}
                 >
                   <motion.p
                     className="font-mono text-sm font-bold"
-                    style={{ color: '#22d3ee', textShadow: '0 0 12px rgba(34,211,238,0.85)' }}
+                    style={{ color: '#FFB547', textShadow: '0 0 12px rgba(255, 181, 71,0.85)' }}
                     animate={{ opacity: [1, 0.55, 1] }}
                     transition={{ duration: 1.6, repeat: Infinity }}
                   >
                     ✓ Message Sent to Shah Fahad's Network
                   </motion.p>
                   <p className="font-mono text-[10px] mt-1.5 tracking-wider uppercase"
-                    style={{ color: 'rgba(34,211,238,0.38)' }}>
+                    style={{ color: 'rgba(255, 181, 71,0.38)' }}>
                     Signal delivered // Response incoming
                   </p>
                   {/* Decorative scan line */}
                   <motion.div
                     className="mt-3 h-px rounded-full mx-auto"
                     style={{
-                      background: 'linear-gradient(90deg, transparent, rgba(34,211,238,0.6), transparent)',
+                      background: 'linear-gradient(90deg, transparent, rgba(255, 181, 71,0.6), transparent)',
                       width: '70%',
                     }}
                     animate={{ opacity: [0.4, 1, 0.4] }}

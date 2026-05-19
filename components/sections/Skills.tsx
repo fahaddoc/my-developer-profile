@@ -30,9 +30,9 @@ const HEX_NODES = [
   { id: 2, relX: 0.55, relY: 0.17, skill: 'TypeScript', color: '#3b82f6' },
   { id: 3, relX: 0.80, relY: 0.11, skill: 'Flutter',    color: '#54c5f8' },
   { id: 4, relX: 0.91, relY: 0.48, skill: 'Node.js',    color: '#4ade80' },
-  { id: 5, relX: 0.80, relY: 0.82, skill: 'WebRTC',     color: '#22d3ee' },
-  { id: 6, relX: 0.55, relY: 0.89, skill: 'SignalR',    color: '#c084fc' },
-  { id: 7, relX: 0.28, relY: 0.83, skill: 'Redux',      color: '#a78bfa' },
+  { id: 5, relX: 0.80, relY: 0.82, skill: 'WebRTC',     color: '#FFB547' },
+  { id: 6, relX: 0.55, relY: 0.89, skill: 'SignalR',    color: '#FFB547' },
+  { id: 7, relX: 0.28, relY: 0.83, skill: 'Redux',      color: '#FFCB75' },
   { id: 8, relX: 0.08, relY: 0.57, skill: 'Tailwind',   color: '#38bdf8' },
   { id: 9, relX: 0.47, relY: 0.51, skill: 'AWS',        color: '#fb923c' },
 ] as const
@@ -195,7 +195,7 @@ function CircuitCanvas({
       hexPath(h.x, h.y, r)
       ctx.fillStyle = isPowered
         ? `rgba(16,185,129,${0.09 * pulse})`
-        : isHovered ? 'rgba(168,85,247,0.07)' : 'rgba(168,85,247,0.03)'
+        : isHovered ? 'rgba(122, 122, 130,0.07)' : 'rgba(122, 122, 130,0.03)'
       ctx.fill()
 
       // Border
@@ -206,9 +206,9 @@ function CircuitCanvas({
         ctx.strokeStyle = `rgba(16,185,129,${0.90 * pulse})`
         ctx.lineWidth   = isHovered ? 2.5 : 2
       } else {
-        ctx.shadowColor = `rgba(168,85,247,${isHovered ? 0.6 : 0.25})`
+        ctx.shadowColor = `rgba(122, 122, 130,${isHovered ? 0.6 : 0.25})`
         ctx.shadowBlur  = isHovered ? 14 : 5
-        ctx.strokeStyle = `rgba(168,85,247,${isHovered ? 0.7 : 0.38})`
+        ctx.strokeStyle = `rgba(122, 122, 130,${isHovered ? 0.7 : 0.38})`
         ctx.lineWidth   = isHovered ? 2 : 1.2
       }
       hexPath(h.x, h.y, r)
@@ -234,7 +234,7 @@ function CircuitCanvas({
       // Small center dot when node is idle (visual hint it's clickable)
       if (!isPowered && !isHovered) {
         ctx.save()
-        ctx.fillStyle = 'rgba(168,85,247,0.45)'
+        ctx.fillStyle = 'rgba(122, 122, 130,0.45)'
         ctx.beginPath(); ctx.arc(h.x, h.y, 2.5, 0, Math.PI * 2); ctx.fill()
         ctx.restore()
       }
@@ -284,8 +284,8 @@ function CircuitCanvas({
     function drawDragLine(fromId: number, cx: number, cy: number) {
       const a = hexPos[fromId]
       ctx.save()
-      ctx.strokeStyle = 'rgba(34,211,238,0.60)'
-      ctx.shadowColor = 'rgba(34,211,238,0.75)'
+      ctx.strokeStyle = 'rgba(255, 181, 71,0.60)'
+      ctx.shadowColor = 'rgba(255, 181, 71,0.75)'
       ctx.shadowBlur  = 10
       ctx.lineWidth   = 1.5
       ctx.setLineDash([7, 5])
@@ -445,7 +445,7 @@ function CircuitCanvas({
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BG_PRIMARY   = '16,185,129'   // emerald
-const BG_SECONDARY = '34,211,238'   // cyan
+const BG_SECONDARY = '255, 181, 71'   // cyan
 const BG_COL = 28, BG_ROW = 28, BG_OFF = 14
 
 export function Skills() {
@@ -676,7 +676,7 @@ export function Skills() {
                     <span className="font-mono text-xs text-accent-violet uppercase tracking-widest">
                       {category.label}
                     </span>
-                    <div className="mt-2 h-px bg-[rgba(139,92,246,0.2)]" />
+                    <div className="mt-2 h-px bg-[rgba(122,122,130,0.2)]" />
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {category.skills.map(skill => (

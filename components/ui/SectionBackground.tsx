@@ -18,9 +18,9 @@
 import { useEffect, useRef } from 'react'
 
 interface SectionBackgroundProps {
-  /** RGB triplet for primary colour e.g. "34,211,238"  (cyan)   */
+  /** RGB triplet for primary colour e.g. "255, 181, 71"  (cyan)   */
   primary?: string
-  /** RGB triplet for secondary colour e.g. "168,85,247" (violet) */
+  /** RGB triplet for secondary colour e.g. "122, 122, 130" (violet) */
   secondary?: string
   /** Canvas cell size — match to your pattern's repeat interval  */
   cellSize?: number
@@ -31,8 +31,8 @@ interface SectionBackgroundProps {
 }
 
 export function SectionBackground({
-  primary    = '34,211,238',
-  secondary  = '168,85,247',
+  primary    = '255, 181, 71',
+  secondary  = '122, 122, 130',
   cellSize   = 80,
   beamMult   = 1,
   glowRadius = 520,
@@ -182,7 +182,7 @@ export function SectionBackground({
         ctx.save()
         ctx.shadowColor = `rgba(${primary},0.9)`
         ctx.shadowBlur  = 7
-        ctx.fillStyle   = `rgba(210,245,255,${life})`
+        ctx.fillStyle   = `rgba(255,230,180,${life})`
         const cs: [number, number][] = [
           [gx * CELL,        gy * CELL       ],
           [gx * CELL + CELL, gy * CELL       ],

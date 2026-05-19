@@ -127,14 +127,14 @@ function ProjectsBackground() {
           if (alpha < 0.02) continue
 
           const grad = ctx.createLinearGradient(ax, ay, bx, by)
-          grad.addColorStop(0,   `rgba(34,211,238,${alpha})`)
-          grad.addColorStop(0.5, `rgba(168,85,247,${alpha * 0.7})`)
-          grad.addColorStop(1,   `rgba(34,211,238,${alpha})`)
+          grad.addColorStop(0,   `rgba(255, 181, 71,${alpha})`)
+          grad.addColorStop(0.5, `rgba(122, 122, 130,${alpha * 0.7})`)
+          grad.addColorStop(1,   `rgba(255, 181, 71,${alpha})`)
 
           ctx.save()
           ctx.strokeStyle = grad
           ctx.lineWidth   = 0.8 + alpha
-          ctx.shadowColor = `rgba(34,211,238,${alpha * 0.8})`
+          ctx.shadowColor = `rgba(255, 181, 71,${alpha * 0.8})`
           ctx.shadowBlur  = 6
           ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke()
           ctx.restore()
@@ -149,16 +149,16 @@ function ProjectsBackground() {
         const r = 2 + b * 4.5
 
         ctx.save()
-        ctx.shadowColor = `rgba(34,211,238,${b * 0.9})`
+        ctx.shadowColor = `rgba(255, 181, 71,${b * 0.9})`
         ctx.shadowBlur  = 16 * b
-        ctx.fillStyle   = `rgba(34,211,238,${b * 0.88})`
+        ctx.fillStyle   = `rgba(255, 181, 71,${b * 0.88})`
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill()
         ctx.restore()
 
         // violet inner core on brightest dots
         if (b > 0.5) {
           ctx.save()
-          ctx.fillStyle = `rgba(220,200,255,${(b - 0.5) * 0.8})`
+          ctx.fillStyle = `rgba(200,200,210,${(b - 0.5) * 0.8})`
           ctx.beginPath(); ctx.arc(x, y, r * 0.45, 0, Math.PI * 2); ctx.fill()
           ctx.restore()
         }
@@ -173,9 +173,9 @@ function ProjectsBackground() {
         const [x, y] = dotPos(col, row)
         const ringR = (1 - life) * 20 + 2
         ctx.save()
-        ctx.strokeStyle = `rgba(168,85,247,${life * 0.75})`
+        ctx.strokeStyle = `rgba(122, 122, 130,${life * 0.75})`
         ctx.lineWidth   = life * 1.5
-        ctx.shadowColor = 'rgba(168,85,247,0.9)'; ctx.shadowBlur = 8
+        ctx.shadowColor = 'rgba(122, 122, 130,0.9)'; ctx.shadowBlur = 8
         ctx.beginPath(); ctx.arc(x, y, ringR, 0, Math.PI * 2); ctx.stroke()
         ctx.restore()
         sparks.set(key, life * 0.87)
@@ -191,12 +191,12 @@ function ProjectsBackground() {
           const grad = ctx.createLinearGradient(
             smoothX - nx * len, smoothY - ny * len, smoothX, smoothY,
           )
-          grad.addColorStop(0,   'rgba(34,211,238,0)')
-          grad.addColorStop(0.5, 'rgba(168,85,247,0.28)')
-          grad.addColorStop(1,   'rgba(34,211,238,0.88)')
+          grad.addColorStop(0,   'rgba(255, 181, 71,0)')
+          grad.addColorStop(0.5, 'rgba(122, 122, 130,0.28)')
+          grad.addColorStop(1,   'rgba(255, 181, 71,0.88)')
           ctx.save()
           ctx.strokeStyle = grad; ctx.lineWidth = 1.5; ctx.lineCap = 'round'
-          ctx.shadowColor = 'rgba(34,211,238,1)'; ctx.shadowBlur = 10
+          ctx.shadowColor = 'rgba(255, 181, 71,1)'; ctx.shadowBlur = 10
           ctx.beginPath()
           ctx.moveTo(smoothX - nx * len, smoothY - ny * len)
           ctx.lineTo(smoothX, smoothY)
@@ -234,7 +234,7 @@ function ProjectsBackground() {
       <div ref={glowRef} className="absolute pointer-events-none rounded-full opacity-0 transition-opacity duration-300"
         style={{
           width: 1080, height: 1080, top: 0, left: 0,
-          background: 'radial-gradient(circle, rgba(34,211,238,0.12) 0%, rgba(168,85,247,0.06) 38%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(255, 181, 71,0.12) 0%, rgba(122, 122, 130,0.06) 38%, transparent 70%)',
           willChange: 'transform, opacity',
         }} />
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
@@ -274,8 +274,8 @@ export function Projects() {
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute inset-0" style={{
           backgroundImage: `
-            radial-gradient(circle, rgba(34,211,238,0.13) 1.5px, transparent 1.5px),
-            radial-gradient(circle, rgba(168,85,247,0.08) 1px,   transparent 1px)
+            radial-gradient(circle, rgba(255, 181, 71,0.13) 1.5px, transparent 1.5px),
+            radial-gradient(circle, rgba(122, 122, 130,0.08) 1px,   transparent 1px)
           `,
           backgroundSize:     `${CELL}px ${CELL}px, ${CELL}px ${CELL}px`,
           backgroundPosition: `0 0, ${CELL / 2}px ${CELL / 2}px`,

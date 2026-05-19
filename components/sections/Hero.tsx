@@ -74,7 +74,7 @@ function makeParticle(x: number, y: number): Particle {
     radius: 1.8 + Math.random() * 2.8,
     life:   1,
     decay:  0.07 + Math.random() * 0.06,   // ~10–14s lifespan
-    color:  Math.random() < 0.62 ? '34,211,238' : '168,85,247',
+    color:  Math.random() < 0.62 ? '255, 181, 71' : '122, 122, 130',
     flash:  0,
   }
 }
@@ -416,7 +416,7 @@ function PhotoCard() {
       <div
         className="absolute inset-0 rounded-2xl"
         style={{
-          background: 'radial-gradient(circle at center, rgba(168,85,247,0.38) 0%, rgba(34,211,238,0.12) 50%, transparent 70%)',
+          background: 'radial-gradient(circle at center, rgba(122, 122, 130,0.38) 0%, rgba(255, 181, 71,0.12) 50%, transparent 70%)',
           transform: 'scale(1.3)',
           filter: 'blur(55px)',
           opacity: arrived ? 1 : 0,
@@ -450,7 +450,7 @@ function PhotoCard() {
               sizes="(max-width: 768px) 288px, (max-width: 1024px) 320px, 384px"
               style={{
                 filter: arrived
-                  ? 'drop-shadow(0 10px 14px rgba(0,0,0,0.45)) drop-shadow(0 0 22px rgba(168,85,247,0.5)) drop-shadow(0 0 42px rgba(34,211,238,0.2))'
+                  ? 'drop-shadow(0 10px 14px rgba(0,0,0,0.45)) drop-shadow(0 0 22px rgba(122, 122, 130,0.5)) drop-shadow(0 0 42px rgba(255, 181, 71,0.2))'
                   : 'drop-shadow(0 10px 14px rgba(0,0,0,0.45))',
                 transition: `filter ${GLOW_FADE_MS}ms ease-out`,
               }}
@@ -488,7 +488,7 @@ function PhotoCard() {
               className="w-full h-full object-contain object-bottom"
               style={{
                 filter: arrived
-                  ? 'drop-shadow(0 10px 14px rgba(0,0,0,0.45)) drop-shadow(0 0 22px rgba(168,85,247,0.5)) drop-shadow(0 0 42px rgba(34,211,238,0.2))'
+                  ? 'drop-shadow(0 10px 14px rgba(0,0,0,0.45)) drop-shadow(0 0 22px rgba(122, 122, 130,0.5)) drop-shadow(0 0 42px rgba(255, 181, 71,0.2))'
                   : 'drop-shadow(0 10px 14px rgba(0,0,0,0.45))',
                 transition: `filter ${GLOW_FADE_MS}ms ease-out`,
               }}
@@ -636,15 +636,15 @@ export function Hero() {
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute inset-0" style={{
           backgroundImage: `
-            linear-gradient(rgba(168,85,247,0.07) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(168,85,247,0.07) 1px, transparent 1px)
+            linear-gradient(rgba(122, 122, 130,0.07) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(122, 122, 130,0.07) 1px, transparent 1px)
           `,
           backgroundSize: '80px 80px',
         }} />
         {/* Cell border neon effect (existing) */}
         <SectionBackground
-          primary="34,211,238"
-          secondary="168,85,247"
+          primary="255, 181, 71"
+          secondary="122, 122, 130"
           cellSize={80}
           glowRadius={540}
         />
@@ -683,7 +683,7 @@ export function Hero() {
                 left: f.x,
                 top:  f.y,
                 transform: 'translate(-50%, -50%)',
-                textShadow: '0 0 8px rgba(34,211,238,0.9)',
+                textShadow: '0 0 8px rgba(255, 181, 71,0.9)',
               }}
             >
               +1
@@ -708,8 +708,8 @@ export function Hero() {
             <span className="font-mono text-xs text-text-muted">Network</span>
             <motion.span
               key={networkCount}
-              initial={{ scale: 1.6, color: '#22d3ee' }}
-              animate={{ scale: 1,   color: '#22d3ee' }}
+              initial={{ scale: 1.6, color: '#FFB547' }}
+              animate={{ scale: 1,   color: '#FFB547' }}
               transition={{ type: 'spring', stiffness: 500, damping: 18 }}
               className="font-mono text-xs font-bold text-accent-cyan"
             >

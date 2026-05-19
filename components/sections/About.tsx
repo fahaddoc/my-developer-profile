@@ -12,18 +12,18 @@ const diagonalLines = `
     45deg,
     transparent           0px,
     transparent           49px,
-    rgba(168,85,247,0.07) 49px,
-    rgba(168,85,247,0.07) 50px
+    rgba(122, 122, 130,0.07) 49px,
+    rgba(122, 122, 130,0.07) 50px
   ),
   repeating-linear-gradient(
     -45deg,
     transparent           0px,
     transparent           69px,
-    rgba(168,85,247,0.05) 69px,
-    rgba(168,85,247,0.05) 70px
+    rgba(122, 122, 130,0.05) 69px,
+    rgba(122, 122, 130,0.05) 70px
   )
 `
-const noiseDots = `radial-gradient(rgba(168,85,247,0.025) 1px, transparent 1px)`
+const noiseDots = `radial-gradient(rgba(122, 122, 130,0.025) 1px, transparent 1px)`
 
 // ── AboutBackground (unchanged — diagonal circuit lines canvas) ───────────────
 function AboutBackground() {
@@ -141,8 +141,8 @@ function AboutBackground() {
         const clip = clip45(pi * STEP_POS)
         if (clip) {
           ctx.save()
-          ctx.shadowColor = `rgba(168,85,247,${b * 0.85})`; ctx.shadowBlur = 10 * b
-          ctx.strokeStyle = `rgba(168,85,247,${b * 0.8})`;  ctx.lineWidth  = 1 + b * 0.6
+          ctx.shadowColor = `rgba(122, 122, 130,${b * 0.85})`; ctx.shadowBlur = 10 * b
+          ctx.strokeStyle = `rgba(122, 122, 130,${b * 0.8})`;  ctx.lineWidth  = 1 + b * 0.6
           ctx.beginPath(); ctx.moveTo(clip[0][0], clip[0][1]); ctx.lineTo(clip[1][0], clip[1][1]); ctx.stroke()
           ctx.restore()
         }
@@ -153,8 +153,8 @@ function AboutBackground() {
         const clip = clipN45(ni * STEP_NEG)
         if (clip) {
           ctx.save()
-          ctx.shadowColor = `rgba(34,211,238,${b * 0.8})`;  ctx.shadowBlur = 10 * b
-          ctx.strokeStyle = `rgba(34,211,238,${b * 0.75})`; ctx.lineWidth  = 1 + b * 0.5
+          ctx.shadowColor = `rgba(255, 181, 71,${b * 0.8})`;  ctx.shadowBlur = 10 * b
+          ctx.strokeStyle = `rgba(255, 181, 71,${b * 0.75})`; ctx.lineWidth  = 1 + b * 0.5
           ctx.beginPath(); ctx.moveTo(clip[0][0], clip[0][1]); ctx.lineTo(clip[1][0], clip[1][1]); ctx.stroke()
           ctx.restore()
         }
@@ -167,10 +167,10 @@ function AboutBackground() {
         const iy = (ni * STEP_NEG - pi * STEP_POS) / 2
         if (ix < 0 || ix > W || iy < 0 || iy > H) { sparks.set(key, life * 0.88); return }
         ctx.save()
-        ctx.fillStyle = `rgba(255,255,255,${life})`; ctx.shadowColor = 'rgba(210,235,255,0.95)'; ctx.shadowBlur = 8 * life
+        ctx.fillStyle = `rgba(255,255,255,${life})`; ctx.shadowColor = 'rgba(255,230,180,0.95)'; ctx.shadowBlur = 8 * life
         ctx.beginPath(); ctx.arc(ix, iy, 2.5 * life, 0, Math.PI * 2); ctx.fill()
         const arm = 8 * life
-        ctx.strokeStyle = `rgba(220,245,255,${life * 0.8})`; ctx.lineWidth = 1; ctx.shadowBlur = 4 * life
+        ctx.strokeStyle = `rgba(255,230,180,${life * 0.8})`; ctx.lineWidth = 1; ctx.shadowBlur = 4 * life
         ctx.beginPath()
         ctx.moveTo(ix - arm*0.7, iy - arm*0.7); ctx.lineTo(ix + arm*0.7, iy + arm*0.7)
         ctx.moveTo(ix - arm*0.7, iy + arm*0.7); ctx.lineTo(ix + arm*0.7, iy - arm*0.7)
@@ -185,9 +185,9 @@ function AboutBackground() {
           const len = Math.min(spd * 10, 180)
           const nx = vx / spd, ny = vy / spd
           const grad = ctx.createLinearGradient(smoothX - nx*len, smoothY - ny*len, smoothX, smoothY)
-          grad.addColorStop(0, 'rgba(168,85,247,0)'); grad.addColorStop(0.5, 'rgba(34,211,238,0.30)'); grad.addColorStop(1, 'rgba(168,85,247,0.85)')
+          grad.addColorStop(0, 'rgba(122, 122, 130,0)'); grad.addColorStop(0.5, 'rgba(255, 181, 71,0.30)'); grad.addColorStop(1, 'rgba(122, 122, 130,0.85)')
           ctx.save(); ctx.strokeStyle = grad; ctx.lineWidth = 1.5; ctx.lineCap = 'round'
-          ctx.shadowColor = 'rgba(168,85,247,1)'; ctx.shadowBlur = 10
+          ctx.shadowColor = 'rgba(122, 122, 130,1)'; ctx.shadowBlur = 10
           ctx.beginPath(); ctx.moveTo(smoothX - nx*len, smoothY - ny*len); ctx.lineTo(smoothX, smoothY); ctx.stroke(); ctx.restore()
         }
       }
@@ -221,7 +221,7 @@ function AboutBackground() {
     <>
       <div ref={glowRef} className="absolute pointer-events-none rounded-full opacity-0 transition-opacity duration-300"
         style={{ width: 1000, height: 1000, top: 0, left: 0,
-          background: 'radial-gradient(circle, rgba(168,85,247,0.14) 0%, rgba(34,211,238,0.07) 38%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(122, 122, 130,0.14) 0%, rgba(255, 181, 71,0.07) 38%, transparent 70%)',
           willChange: 'transform, opacity' }} />
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
     </>
@@ -234,8 +234,8 @@ const paths = [
   {
     id:       'career',
     label:    'Career',
-    color:    '#a855f7',
-    rgb:      '168,85,247',
+    color:    '#7A7A82',
+    rgb:      '122, 122, 130',
     border:   'border-accent-violet/40',
     bg:       'bg-accent-violet/10',
     textCol:  'text-accent-violet',
@@ -250,8 +250,8 @@ const paths = [
   {
     id:       'passion',
     label:    'Passion',
-    color:    '#22d3ee',
-    rgb:      '34,211,238',
+    color:    '#FFB547',
+    rgb:      '255, 181, 71',
     border:   'border-accent-cyan/40',
     bg:       'bg-accent-cyan/10',
     textCol:  'text-accent-cyan',

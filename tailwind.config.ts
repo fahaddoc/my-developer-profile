@@ -8,19 +8,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        'bg-base':      '#0a0a0a',
-        'bg-surface':   '#0d0d14',
-        'bg-elevated':  '#111120',
+        'bg-base':      '#0A0A0B',
+        'bg-surface':   '#111114',
+        'bg-elevated':  '#16161A',
 
-        // updated violet to a punchier purple-pink
-        'accent-violet':  '#a855f7',
-        'accent-cyan':    '#22d3ee',
-        'accent-green':   '#22c55e',
+        // single warm accent — replaces cyberpunk neon dual palette.
+        // token names preserved so JSX doesn't need refactor.
+        'accent-violet':  '#7A7A82',   // muted gray (former secondary)
+        'accent-cyan':    '#FFB547',   // amber primary
+        'accent-green':   '#22c55e',   // success state (hex game wires)
         'accent-emerald': '#10b981',
 
-        'text-primary':   '#f1f5f9',
-        'text-secondary': '#94a3b8',
-        'text-muted':     '#475569',
+        'text-primary':   '#F5F5F7',
+        'text-secondary': '#9CA3AF',
+        'text-muted':     '#5B5B63',
       },
 
       fontFamily: {
@@ -33,12 +34,13 @@ const config: Config = {
         content: '1200px',
       },
 
-      // neon drop shadows as box-shadow utilities — useful for cards, buttons
+      // refined elevation — soft hairline glow, no cyberpunk halo.
+      // keep token names so existing JSX classes work unchanged.
       boxShadow: {
-        'neon-violet': '0 0 20px rgba(168, 85, 247, 0.4), 0 0 60px rgba(168, 85, 247, 0.15)',
-        'neon-cyan':   '0 0 20px rgba(34, 211, 238, 0.4), 0 0 60px rgba(34, 211, 238, 0.12)',
-        'neon-emerald':'0 0 20px rgba(16, 185, 129, 0.4), 0 0 60px rgba(16, 185, 129, 0.12)',
-        'card-hover':  '0 8px 40px rgba(168, 85, 247, 0.15), 0 0 0 1px rgba(168, 85, 247, 0.3)',
+        'neon-violet': '0 1px 0 rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,0.4)',
+        'neon-cyan':   '0 0 0 1px rgba(255,181,71,0.25), 0 8px 24px rgba(0,0,0,0.35)',
+        'neon-emerald':'0 0 0 1px rgba(16,185,129,0.25), 0 8px 24px rgba(0,0,0,0.35)',
+        'card-hover':  '0 1px 0 rgba(255,255,255,0.05), 0 12px 36px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,181,71,0.18)',
       },
 
       keyframes: {
@@ -64,12 +66,10 @@ const config: Config = {
           '33%':      { transform: 'translate(30px, -20px) scale(1.05)' },
           '66%':      { transform: 'translate(-20px, 15px) scale(0.97)' },
         },
-        // neon flicker for section headings — subtle, not annoying
+        // editorial: subtle opacity breath only, no flicker
         'neon-flicker': {
-          '0%, 95%, 100%': { opacity: '1' },
-          '96%':           { opacity: '0.85' },
-          '97%':           { opacity: '1' },
-          '98%':           { opacity: '0.9' },
+          '0%, 100%': { opacity: '1' },
+          '50%':      { opacity: '0.92' },
         },
       },
 

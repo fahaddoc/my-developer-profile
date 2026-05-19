@@ -17,8 +17,8 @@ const HEX_W  = R * SQ3                  // hex width  (flat-to-flat)
 const COL_SP = HEX_W                    // horizontal distance between centers in same row
 const ROW_SP = R * 1.5                  // vertical   distance between row centers
 
-const PRIMARY   = '139,92,246'   // violet-500
-const SECONDARY = '34,211,238'   // cyan-400
+const PRIMARY   = '122,122,130'   // violet-500
+const SECONDARY = '255, 181, 71'   // cyan-400
 
 // Hex center for (col, row) in pointy-top grid
 // Odd rows are offset right by half a column
@@ -300,7 +300,7 @@ export function Experience() {
               href="/Shah_Fahad_Resume.pdf"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-accent-violet text-white font-medium text-sm hover:bg-opacity-90 hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all duration-200"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-accent-violet text-white font-medium text-sm hover:bg-opacity-90 hover:shadow-[0_0_20px_rgba(122,122,130,0.4)] transition-all duration-200"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />

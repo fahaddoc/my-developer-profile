@@ -22,8 +22,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       fontSize: 10,
       letterSpacing: '0.14em',
       textTransform: 'uppercase',
-      color: '#a855f7',
-      textShadow: '0 0 8px rgba(168,85,247,0.55)',
+      color: '#7A7A82',
+      textShadow: '0 0 8px rgba(122, 122, 130,0.55)',
     }}>
       {children}
     </p>
@@ -124,8 +124,8 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
               borderRadius: 16,
               overflow: 'hidden',           // clip image + rounded corners
               background: '#0b0b18',
-              border: '1px solid rgba(139,92,246,0.35)',
-              boxShadow: '0 0 0 1px rgba(139,92,246,0.08), 0 32px 80px rgba(0,0,0,0.75), 0 0 50px rgba(139,92,246,0.07)',
+              border: '1px solid rgba(122,122,130,0.35)',
+              boxShadow: '0 0 0 1px rgba(122,122,130,0.08), 0 32px 80px rgba(0,0,0,0.75), 0 0 50px rgba(122,122,130,0.07)',
             }}
           >
 
@@ -151,8 +151,8 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <span style={{
                     fontFamily: 'monospace', fontSize: 11, letterSpacing: '0.14em',
-                    textTransform: 'uppercase', color: '#22d3ee',
-                    textShadow: '0 0 10px rgba(34,211,238,0.7)',
+                    textTransform: 'uppercase', color: '#FFB547',
+                    textShadow: '0 0 10px rgba(255, 181, 71,0.7)',
                   }}>
                     {project.company}
                   </span>
@@ -189,9 +189,9 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
                 }}
                 onMouseEnter={e => {
                   const b = e.currentTarget
-                  b.style.borderColor = 'rgba(168,85,247,0.65)'
+                  b.style.borderColor = 'rgba(122, 122, 130,0.65)'
                   b.style.color = '#fff'
-                  b.style.background = 'rgba(139,92,246,0.25)'
+                  b.style.background = 'rgba(122,122,130,0.25)'
                 }}
                 onMouseLeave={e => {
                   const b = e.currentTarget
@@ -216,9 +216,9 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
               {/* custom thin neon scrollbar */}
               <style>{`
                 .modal-body::-webkit-scrollbar { width: 4px }
-                .modal-body::-webkit-scrollbar-track { background: rgba(139,92,246,0.05) }
-                .modal-body::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.35); border-radius: 4px }
-                .modal-body::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.6) }
+                .modal-body::-webkit-scrollbar-track { background: rgba(122,122,130,0.05) }
+                .modal-body::-webkit-scrollbar-thumb { background: rgba(122,122,130,0.35); border-radius: 4px }
+                .modal-body::-webkit-scrollbar-thumb:hover { background: rgba(122,122,130,0.6) }
               `}</style>
 
               <div
@@ -235,7 +235,7 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
                 </p>
 
                 {/* Divider */}
-                <div style={{ height: 1, background: 'rgba(139,92,246,0.12)' }} />
+                <div style={{ height: 1, background: 'rgba(122,122,130,0.12)' }} />
 
                 {/* Problem */}
                 <Section label="Problem" text={project.problem} />
@@ -252,8 +252,8 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
                         <span style={{
                           marginTop: 6, flexShrink: 0,
                           width: 5, height: 5, borderRadius: '50%',
-                          background: '#a855f7',
-                          boxShadow: '0 0 6px rgba(168,85,247,0.6)',
+                          background: '#7A7A82',
+                          boxShadow: '0 0 6px rgba(122, 122, 130,0.6)',
                           display: 'inline-block',
                         }} />
                         <span style={{ fontSize: 13, lineHeight: 1.55, color: 'rgba(203,213,225,0.75)' }}>{f}</span>
@@ -277,7 +277,7 @@ export function ProjectModal({ project, onClose }: ProjectModalProps) {
                   <div style={{
                     display: 'flex', gap: 12,
                     paddingTop: 20,
-                    borderTop: '1px solid rgba(139,92,246,0.14)',
+                    borderTop: '1px solid rgba(122,122,130,0.14)',
                   }}>
                     {project.githubUrl && (
                       <LinkButton
@@ -328,7 +328,7 @@ function LinkButton({
   icon: React.ReactNode
   variant: 'violet' | 'cyan'
 }) {
-  const c = variant === 'cyan' ? '34,211,238' : '168,85,247'
+  const c = variant === 'cyan' ? '255, 181, 71' : '122, 122, 130'
   return (
     <a
       href={href}

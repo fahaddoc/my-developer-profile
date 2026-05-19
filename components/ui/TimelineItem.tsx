@@ -21,14 +21,14 @@ export function TimelineItem({ item, index }: TimelineItemProps) {
       className="relative pl-8 pb-10 last:pb-0"
     >
       {/* Vertical line */}
-      <div className="absolute left-0 top-0 bottom-0 w-px bg-[rgba(139,92,246,0.2)]" />
+      <div className="absolute left-0 top-0 bottom-0 w-px bg-[rgba(122,122,130,0.2)]" />
 
       {/* Dot */}
       <div
         className={`absolute left-[-4px] top-1.5 w-2 h-2 rounded-full border-2 ${
           item.current
-            ? 'bg-accent-violet border-accent-violet shadow-[0_0_8px_rgba(139,92,246,0.6)]'
-            : 'bg-bg-base border-[rgba(139,92,246,0.4)]'
+            ? 'bg-accent-violet border-accent-violet shadow-[0_0_8px_rgba(122,122,130,0.6)]'
+            : 'bg-bg-base border-[rgba(122,122,130,0.4)]'
         }`}
       />
 
@@ -58,7 +58,7 @@ export function TimelineItem({ item, index }: TimelineItemProps) {
         {item.tech.map((t) => (
           <span
             key={t}
-            className="px-2 py-0.5 text-xs font-mono rounded-full bg-[rgba(139,92,246,0.08)] border border-[rgba(139,92,246,0.2)] text-text-muted"
+            className="px-2 py-0.5 text-xs font-mono rounded-full bg-[rgba(122,122,130,0.08)] border border-[rgba(122,122,130,0.2)] text-text-muted"
           >
             {t}
           </span>
