@@ -23,10 +23,33 @@ import { experience } from '@/data/projects'
 function scrollToStation(id: string) {
   const el = document.getElementById(id)
   if (!el) return
+  const target = el.offsetTop
+
   if (lenisInstance) {
-    lenisInstance.scrollTo(el, { duration: 1.6, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
+    // Lenis was measured before TunnelMode rendered its 500vh spacer,
+    // so its `limit` was stale (0). Force a re-measure right before scroll.
+    lenisInstance.resize()
+
+    // Smooth animation: rAF a manual lerp from current to target. Lenis
+    // takes the final scroll via setScroll so its internal state stays
+    // synced with the page. (Lenis's own scrollTo+duration wasn't ticking
+    // on our setup; this gives reliable smooth nav.)
+    const startY = lenisInstance.scroll
+    const dist   = target - startY
+    if (Math.abs(dist) < 1) return
+    const duration = 1200   // ms
+    const startT   = performance.now()
+    const easeOut  = (t: number) => 1 - Math.pow(1 - t, 3)
+
+    const step = (now: number) => {
+      const p = Math.min(1, (now - startT) / duration)
+      const y = startY + dist * easeOut(p)
+      lenisInstance!.scrollTo(y, { immediate: true })
+      if (p < 1) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
   } else {
-    el.scrollIntoView({ behavior: 'smooth' })
+    window.scrollTo({ top: target, behavior: 'smooth' })
   }
 }
 
