@@ -443,10 +443,37 @@ function Station({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Particles — dust motes scattered along the tunnel volume.
-// Generated once: sample points along the curve, jitter inside the tube radius,
-// render as instanced points. Adds depth perception during fly-through.
-// Subtle vertical bob driven by useFrame for "alive" feel.
+// Sparkle texture — soft radial gradient on a canvas, painted once and
+// re-used by the Particles material. Turns the default square gl.POINTS sprite
+// into a soft round star with falloff. Cached at module scope.
+// ─────────────────────────────────────────────────────────────────────────────
+let _sparkleTexture: THREE.Texture | null = null
+function getSparkleTexture(): THREE.Texture | null {
+  if (typeof document === 'undefined') return null
+  if (_sparkleTexture) return _sparkleTexture
+  const c   = document.createElement('canvas')
+  c.width   = 128
+  c.height  = 128
+  const ctx = c.getContext('2d')
+  if (!ctx) return null
+  const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
+  grad.addColorStop(0,    'rgba(255, 255, 245, 1)')
+  grad.addColorStop(0.15, 'rgba(255, 230, 180, 0.9)')
+  grad.addColorStop(0.5,  'rgba(255, 181, 71, 0.35)')
+  grad.addColorStop(1,    'rgba(255, 181, 71, 0)')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, 128, 128)
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  _sparkleTexture = tex
+  return tex
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Particles — sparkling stars scattered through the tunnel volume.
+// Per-particle position, base size, and phase (for twinkle) are stored on the
+// geometry. A small shader varies point size + alpha by time on the GPU so
+// every star pulses with its own rhythm.
 // ─────────────────────────────────────────────────────────────────────────────
 function Particles({
   curve, count = 320, bob = true,
@@ -455,22 +482,18 @@ function Particles({
   count?: number
   bob?:   boolean
 }) {
-  // Geometry: BufferGeometry with `count` random points along + around the curve
   const { geometry, basePositions } = useMemo(() => {
     const positions = new Float32Array(count * 3)
     const bases     = new Float32Array(count * 3)
+    const sizes     = new Float32Array(count)
+    const phases    = new Float32Array(count)
 
     for (let i = 0; i < count; i++) {
       const t = Math.random()
       const p = curve.getPointAt(t)
 
-      // Random offset inside the tube radius (~3 units, with margin)
       const angle  = Math.random() * Math.PI * 2
       const radius = 0.5 + Math.random() * 2.5
-
-      // Need orthonormal basis at curve point for in-plane offset
-      // Cheap approximation: use world XY plane (works because tunnel
-      // doesn't pitch much, mostly varies in X/Y around Z)
       const offsetX = Math.cos(angle) * radius
       const offsetY = Math.sin(angle) * radius
 
@@ -478,45 +501,85 @@ function Particles({
       const y = p.y + offsetY
       const z = p.z
 
-      positions[i * 3 + 0] = x
-      positions[i * 3 + 1] = y
-      positions[i * 3 + 2] = z
+      positions[i * 3 + 0] = x; positions[i * 3 + 1] = y; positions[i * 3 + 2] = z
+      bases    [i * 3 + 0] = x; bases    [i * 3 + 1] = y; bases    [i * 3 + 2] = z
 
-      bases[i * 3 + 0] = x
-      bases[i * 3 + 1] = y
-      bases[i * 3 + 2] = z
+      // Per-particle base size and twinkle phase
+      sizes[i]  = 0.14 + Math.random() * 0.22
+      phases[i] = Math.random() * Math.PI * 2
     }
 
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geo.setAttribute('aSize',    new THREE.BufferAttribute(sizes, 1))
+    geo.setAttribute('aPhase',   new THREE.BufferAttribute(phases, 1))
     return { geometry: geo, basePositions: bases }
   }, [curve, count])
 
   const pointsRef = useRef<THREE.Points>(null)
+  const matRef    = useRef<THREE.ShaderMaterial>(null)
+  const texture   = useMemo(() => getSparkleTexture(), [])
 
-  // Soft vertical bob to make particles feel alive — phase per particle
-  // so they don't all bob in sync. Skipped entirely on low quality.
+  // Twinkle uniform + soft vertical bob (positions)
   useFrame(({ clock }) => {
-    if (!bob || !pointsRef.current) return
-    const positions = pointsRef.current.geometry.attributes.position.array as Float32Array
     const t = clock.elapsedTime
-    for (let i = 0; i < count; i++) {
-      const phase = i * 0.37
-      positions[i * 3 + 1] = basePositions[i * 3 + 1] + Math.sin(t * 0.4 + phase) * 0.08
+    if (matRef.current) {
+      matRef.current.uniforms.uTime.value = t
     }
-    pointsRef.current.geometry.attributes.position.needsUpdate = true
+    if (bob && pointsRef.current) {
+      const positions = pointsRef.current.geometry.attributes.position.array as Float32Array
+      for (let i = 0; i < count; i++) {
+        const phase = i * 0.37
+        positions[i * 3 + 1] = basePositions[i * 3 + 1] + Math.sin(t * 0.4 + phase) * 0.08
+      }
+      pointsRef.current.geometry.attributes.position.needsUpdate = true
+    }
   })
 
   return (
     <points ref={pointsRef} geometry={geometry}>
-      <pointsMaterial
-        size={0.06}
-        color="#FFE6B4"
-        sizeAttenuation
+      <shaderMaterial
+        ref={matRef}
         transparent
-        opacity={0.65}
         depthWrite={false}
+        blending={THREE.AdditiveBlending}
         toneMapped={false}
+        uniforms={{
+          uTime:    { value: 0 },
+          uMap:     { value: texture },
+          uPxScale: { value: 600 },  // size attenuation factor
+        }}
+        vertexShader={`
+          attribute float aSize;
+          attribute float aPhase;
+          uniform float uTime;
+          uniform float uPxScale;
+          varying float vAlpha;
+          void main() {
+            // Per-particle twinkle: alpha + size oscillate at unique phase
+            float tw = 0.5 + 0.5 * sin(uTime * 2.0 + aPhase);
+            // Mostly bright with small dips, never fully dark
+            float alpha = 0.55 + 0.45 * tw;
+            vAlpha = alpha;
+
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
+
+            // size attenuation by depth so far stars are tiny
+            float size = aSize * (0.8 + 0.6 * tw);
+            gl_PointSize = size * uPxScale / -mvPosition.z;
+          }
+        `}
+        fragmentShader={`
+          uniform sampler2D uMap;
+          varying float vAlpha;
+          void main() {
+            vec4 tex = texture2D(uMap, gl_PointCoord);
+            // discard the corners to keep the sprite obviously round
+            if (tex.a < 0.02) discard;
+            gl_FragColor = vec4(tex.rgb, tex.a * vAlpha);
+          }
+        `}
       />
     </points>
   )
