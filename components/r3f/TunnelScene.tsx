@@ -485,6 +485,7 @@ function ProjectTiles({
   const groupRef = useRef<THREE.Group>(null)
   const matsRef  = useRef<THREE.MeshBasicMaterial[]>([])
   const borderMatsRef = useRef<THREE.MeshBasicMaterial[]>([])
+  const linkRefs       = useRef<HTMLAnchorElement[]>([])
 
   // Place + orient group at the projects station — same convention as the
   // Station component (faces upstream so tiles face the approaching camera).
@@ -510,6 +511,16 @@ function ProjectTiles({
     })
     borderMatsRef.current.forEach((m) => {
       if (m) m.opacity = opacity * 0.85
+    })
+    // Sharper proximity gate on the clickable VIEW link so it only appears
+    // when user is actually at the station and not earlier/later
+    const linkOp = Math.pow(proximity, 2.2)
+    linkRefs.current.forEach((a) => {
+      if (a) {
+        a.style.opacity = linkOp.toFixed(3)
+        // disable clicks when link is mostly transparent
+        a.style.pointerEvents = linkOp > 0.4 ? 'auto' : 'none'
+      }
     })
 
     // Subtle Y-bob per tile for organic floating (skipped on low quality)
@@ -578,6 +589,50 @@ function ProjectTiles({
             >
               {p.title.toUpperCase()}
             </Text>
+
+            {/* Clickable case-study link — only interactive when near station */}
+            <Html
+              transform
+              position={[0, -0.75, 0.05]}
+              distanceFactor={5.0}
+              pointerEvents="auto"
+              center
+            >
+              <a
+                ref={(el) => { if (el) linkRefs.current[i] = el }}
+                href={`/projects/${p.id}`}
+                style={{
+                  display:       'inline-block',
+                  padding:       '5px 12px',
+                  fontFamily:    'var(--font-mono), ui-monospace, monospace',
+                  fontSize:      9,
+                  letterSpacing: '0.28em',
+                  textTransform: 'uppercase',
+                  fontWeight:    700,
+                  color:         p.color,
+                  background:    'rgba(10,8,4,0.65)',
+                  border:        `1px solid ${p.color}aa`,
+                  borderRadius:  3,
+                  textDecoration: 'none',
+                  textShadow:    `0 0 6px ${p.color}88`,
+                  boxShadow:     `0 0 14px ${p.color}33`,
+                  whiteSpace:    'nowrap',
+                  opacity:       0,
+                  transition:    'transform 180ms, box-shadow 180ms',
+                  pointerEvents: 'none',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.08)'
+                  e.currentTarget.style.boxShadow = `0 0 22px ${p.color}77`
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)'
+                  e.currentTarget.style.boxShadow = `0 0 14px ${p.color}33`
+                }}
+              >
+                view case →
+              </a>
+            </Html>
           </group>
         )
       })}
