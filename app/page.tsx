@@ -18,7 +18,7 @@ export default function Page() {
       <JsonLd data={profilePageSchema()} />
       <JsonLd data={projectsItemListSchema()} />
       <Navbar />
-      <main className="overflow-x-hidden w-full">
+      <main className="w-full">
         <Hero />
         <ScrollStack>
           <About />
