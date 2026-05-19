@@ -489,40 +489,34 @@ function ProjectTiles({
   stationT: number
   bob?:     boolean
 }) {
-  // 6 projects in the orbital cluster. Featured first, then rest.
-  // Capped at 6 because 8 felt cluttered around the station ring.
-  const featured = useMemo(() => {
+  // 9 projects across 3 orbital rings (3 per ring). Featured first.
+  const pool = useMemo(() => {
     const sorted = [...projects].sort(
       (a, b) => Number(b.featured ?? false) - Number(a.featured ?? false),
     )
-    return sorted.slice(0, 6)
+    return sorted.slice(0, 9)
   }, [])
 
-  // Pre-load all textures (Suspense will block until ready)
-  const textures = useTexture(featured.map((p) => p.image))
+  const textures = useTexture(pool.map((p) => p.image))
 
-  const groupRef       = useRef<THREE.Group>(null)
-  const orbitRef       = useRef<THREE.Group>(null)
-  const matsRef        = useRef<THREE.MeshBasicMaterial[]>([])
-  const borderMatsRef  = useRef<THREE.MeshBasicMaterial[]>([])
+  const groupRef = useRef<THREE.Group>(null)
+  const sunRef   = useRef<THREE.MeshBasicMaterial>(null)
+  const sunGlowRef = useRef<THREE.MeshBasicMaterial>(null)
+  const ringMatsRef = useRef<(THREE.MeshBasicMaterial | null)[]>([])
 
-  // Per-tile orbital config. All angles spread over the RIGHT semicircle
-  // (-π/2 .. +π/2) so the cluster doesn't visually collide with the left
-  // content panel. Inner/outer radii + Z bands give planetary parallax.
-  const orbit = useMemo(() => featured.map((_, i) => {
-    const slot = i / Math.max(1, featured.length - 1)   // 0..1
-    return {
-      // Spread from -55° to +55° on the right side of the station
-      angle:  (-0.55 + slot * 1.1) * Math.PI,
-      radius: i % 2 === 0 ? 1.85 : 2.55,
-      z:      0.3 + (i % 3) * 0.35,
-      scale:  i % 2 === 0 ? 0.78 : 0.92,
-      speed:  0.05 + (i % 4) * 0.012,
-    }
-  }), [featured])
+  // Three orbital rings — each its own group so we can rotate them at
+  // different angular velocities (inner = fastest, outer = slowest).
+  const ringRefs = useRef<(THREE.Group | null)[]>([null, null, null])
 
-  // Place + orient group at the projects station — same convention as the
-  // Station component (faces upstream so tiles face the approaching camera).
+  // Per-orbital-ring radii (in world units inside the tunnel; tunnel r=3.2)
+  const RING_RADII  = [1.20, 1.95, 2.65]
+  const RING_SPEEDS = [0.18, 0.10, -0.06]  // outer reverses for visual interest
+  const TILE_SCALES = [0.55, 0.72, 0.85]   // inner smaller, outer larger
+
+  const matsRef       = useRef<(THREE.MeshBasicMaterial | null)[]>([])
+  const borderMatsRef = useRef<(THREE.MeshBasicMaterial | null)[]>([])
+
+  // Place + orient group at the projects station
   useEffect(() => {
     if (!groupRef.current) return
     const pos     = new THREE.Vector3()
@@ -533,98 +527,137 @@ function ProjectTiles({
     groupRef.current.lookAt(pos.clone().sub(tangent))
   }, [curve, stationT])
 
-  // Proximity scrub — tiles fade in faster than ring/label so they "rise" out
-  // of nowhere as user nears the projects station, then fade as they leave
-  useFrame((_, dt) => {
+  useFrame(({ camera }, dt) => {
     const dist      = Math.abs(scrollRef.current - stationT)
     const proximity = Math.max(0, 1 - dist / 0.13)
     const opacity   = Math.pow(proximity, 1.4)
 
-    matsRef.current.forEach((m) => {
-      if (m) m.opacity = opacity
-    })
-    borderMatsRef.current.forEach((m) => {
-      if (m) m.opacity = opacity * 0.85
-    })
+    matsRef.current.forEach((m) => { if (m) m.opacity = opacity })
+    borderMatsRef.current.forEach((m) => { if (m) m.opacity = opacity * 0.85 })
+    ringMatsRef.current.forEach((m) => { if (m) m.opacity = opacity * 0.18 })
+    if (sunRef.current)     sunRef.current.opacity     = opacity
+    if (sunGlowRef.current) sunGlowRef.current.opacity = opacity * 0.4
 
-    // Subtle per-tile radial wobble — gives the cluster a "breathing" feel
-    // without rotating around the station (which would push tiles into the
-    // left content panel). Tiles stay parked in their slot on the right.
-    if (bob && orbitRef.current) {
-      const t = performance.now() * 0.001
-      orbitRef.current.children.forEach((tile, i) => {
-        const cfg = orbit[i]
-        if (!cfg) return
-        const wobble = Math.sin(t * cfg.speed * 6 + i * 1.7) * 0.06
-        tile.position.x = Math.cos(cfg.angle) * (cfg.radius + wobble)
-        tile.position.y = Math.sin(cfg.angle) * (cfg.radius + wobble)
+    // Rotate each orbital ring at its own speed
+    if (bob) {
+      ringRefs.current.forEach((g, i) => {
+        if (g) g.rotation.z += dt * RING_SPEEDS[i]
       })
     }
-    void dt
+
+    // Billboard each tile to face camera (tiles stay readable while orbit spins)
+    if (groupRef.current) {
+      groupRef.current.traverse((obj) => {
+        if (obj.userData?.tile) {
+          obj.lookAt(camera.position)
+        }
+      })
+    }
   })
 
   return (
     <group ref={groupRef}>
-      {/* orbit subgroup rotates around the curve tangent (camera-facing axis)
-          so all tiles sweep through the projects station as planets in a system */}
-      <group ref={orbitRef}>
-        {featured.map((p, i) => {
-          const cfg = orbit[i]
-          const x   = Math.cos(cfg.angle) * cfg.radius
-          const y   = Math.sin(cfg.angle) * cfg.radius
-          const tileW = 1.05 * cfg.scale
-          const tileH = 0.66 * cfg.scale
+      {/* ─── Central sun ────────────────────────────────────────────────── */}
+      {/* Outer halo — large, very faint, blooms heavily */}
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[0.95, 32, 32]} />
+        <meshBasicMaterial
+          ref={sunGlowRef}
+          color="#FFB547"
+          transparent
+          opacity={0}
+          toneMapped={false}
+        />
+      </mesh>
+      {/* Inner core — bright sphere */}
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[0.45, 32, 32]} />
+        <meshBasicMaterial
+          ref={sunRef}
+          color="#FFE6B4"
+          transparent
+          opacity={0}
+          toneMapped={false}
+        />
+      </mesh>
 
-          return (
-            <group
-              key={p.id}
-              position={[x, y, cfg.z]}
-              scale={cfg.scale}
-              userData={{ baseAngle: cfg.angle, baseRadius: cfg.radius }}
-            >
-            {/* Coloured border plane — slightly larger, behind the image */}
-            <mesh position={[0, 0, -0.01]}>
-              <planeGeometry args={[tileW * 1.06, tileH * 1.10]} />
-              <meshBasicMaterial
-                ref={(m) => { if (m) borderMatsRef.current[i] = m }}
-                color={p.color}
-                transparent
-                opacity={0}
-                toneMapped={false}
-              />
-            </mesh>
+      {/* ─── Faint orbital path rings (visual anchors) ──────────────────── */}
+      {RING_RADII.map((r, i) => (
+        <mesh key={`path-${i}`} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[r, 0.005, 4, 96]} />
+          <meshBasicMaterial
+            ref={(m) => { ringMatsRef.current[i] = m }}
+            color="#FFB547"
+            transparent
+            opacity={0}
+            toneMapped={false}
+          />
+        </mesh>
+      ))}
 
-            {/* The thumbnail image */}
-            <mesh>
-              <planeGeometry args={[tileW, tileH]} />
-              <meshBasicMaterial
-                ref={(m) => { if (m) matsRef.current[i] = m }}
-                map={textures[i]}
-                transparent
-                opacity={0}
-                toneMapped={false}
-              />
-            </mesh>
+      {/* ─── 3 orbital rings, 3 tiles each ─────────────────────────────── */}
+      {[0, 1, 2].map((ringIdx) => (
+        <group
+          key={`ring-${ringIdx}`}
+          ref={(g) => { ringRefs.current[ringIdx] = g }}
+        >
+          {pool.slice(ringIdx * 3, ringIdx * 3 + 3).map((p, slot) => {
+            const i = ringIdx * 3 + slot
+            const angle = (slot / 3) * Math.PI * 2 + (ringIdx * Math.PI / 5)
+            const radius = RING_RADII[ringIdx]
+            const x = Math.cos(angle) * radius
+            const y = Math.sin(angle) * radius
+            const scl = TILE_SCALES[ringIdx]
+            const tileW = 1.05 * scl
+            const tileH = 0.66 * scl
 
-            {/* Tiny title caption under the tile */}
-            <Text
-              position={[0, -tileH * 0.72, 0]}
-              fontSize={0.07}
-              color={p.color}
-              anchorX="center"
-              anchorY="middle"
-              letterSpacing={0.1}
-              maxWidth={tileW * 1.15}
-              outlineColor="#0A0A0A"
-              outlineWidth={0.003}
-            >
-              {p.title.toUpperCase()}
-            </Text>
-          </group>
-        )
-      })}
-      </group>
-
+            return (
+              <group
+                key={p.id}
+                position={[x, y, 0]}
+                userData={{ tile: true }}
+              >
+                {/* Coloured border behind image */}
+                <mesh position={[0, 0, -0.01]}>
+                  <planeGeometry args={[tileW * 1.06, tileH * 1.10]} />
+                  <meshBasicMaterial
+                    ref={(m) => { borderMatsRef.current[i] = m }}
+                    color={p.color}
+                    transparent
+                    opacity={0}
+                    toneMapped={false}
+                  />
+                </mesh>
+                {/* Project thumbnail */}
+                <mesh>
+                  <planeGeometry args={[tileW, tileH]} />
+                  <meshBasicMaterial
+                    ref={(m) => { matsRef.current[i] = m }}
+                    map={textures[i]}
+                    transparent
+                    opacity={0}
+                    toneMapped={false}
+                  />
+                </mesh>
+                {/* Title caption */}
+                <Text
+                  position={[0, -tileH * 0.72, 0]}
+                  fontSize={0.06}
+                  color={p.color}
+                  anchorX="center"
+                  anchorY="middle"
+                  letterSpacing={0.1}
+                  maxWidth={tileW * 1.15}
+                  outlineColor="#0A0A0A"
+                  outlineWidth={0.003}
+                >
+                  {p.title.toUpperCase()}
+                </Text>
+              </group>
+            )
+          })}
+        </group>
+      ))}
     </group>
   )
 }
