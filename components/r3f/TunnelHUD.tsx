@@ -14,7 +14,21 @@ import {
   type StationDef,
 } from '@/components/r3f/TunnelScene'
 import { IntroMiniPlayer } from '@/components/r3f/IntroMiniPlayer'
+import { lenisInstance } from '@/components/providers/SmoothScroll'
 import { experience } from '@/data/projects'
+
+// Lenis hijacks native scroll, so el.scrollIntoView({behavior:'smooth'})
+// gets cancelled mid-animation. Use lenis.scrollTo when available so the
+// nav clicks actually glide to the target station.
+function scrollToStation(id: string) {
+  const el = document.getElementById(id)
+  if (!el) return
+  if (lenisInstance) {
+    lenisInstance.scrollTo(el, { duration: 1.6, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
+  } else {
+    el.scrollIntoView({ behavior: 'smooth' })
+  }
+}
 
 export function TunnelHUD() {
   const progress = useScrollProgress()
@@ -116,7 +130,7 @@ export function TunnelHUD() {
             <button
               key={s.id}
               type="button"
-              onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => scrollToStation(s.id)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 14,
                 background: 'transparent', border: 'none', cursor: 'pointer',
@@ -325,7 +339,7 @@ function HeroCard({ station }: { station: StationDef }) {
         href="#about"
         onClick={(e) => {
           e.preventDefault()
-          document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })
+          scrollToStation('about')
         }}
         style={ctaBtn(station.color)}
       >
