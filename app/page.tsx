@@ -26,6 +26,7 @@ import { profilePageSchema, projectsItemListSchema } from '@/lib/seo/jsonld'
 
 import { useQualityLevel } from '@/components/r3f/useQualityLevel'
 import { QualityToggle } from '@/components/r3f/QualityToggle'
+import { TunnelAnchors, useTunnelLoop } from '@/components/r3f/TunnelScrollRails'
 import { PRESETS, type QualityLevel } from '@/lib/quality'
 
 const TunnelScene = dynamic(
@@ -147,72 +148,9 @@ function TunnelMode({
     return () => cancelAnimationFrame(rafId)
   }, [reportLowFps])
 
-  // Loop tunnel: at the bottom, the next downward wheel/touch input jumps
-  // back to the start so the journey replays. We poll via rAF instead of
-  // preventing wheel events so we never fight Lenis for the same input.
-  useEffect(() => {
-    let cooldown      = 0
-    let lastWheelDown = 0
-    const COOLDOWN_MS = 700
-    const RECENT_MS   = 300
-
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY > 0) lastWheelDown = performance.now()
-    }
-    window.addEventListener('wheel', onWheel, { passive: true })
-
-    let rafId = 0
-    const tick = () => {
-      const lenis = (window as unknown as {
-        __lenis?: { scroll: number; limit: number; scrollTo: (y: number, opts?: { immediate?: boolean; force?: boolean; lock?: boolean }) => void }
-      }).__lenis
-
-      if (lenis && lenis.limit > 0) {
-        const now      = performance.now()
-        const atBottom = lenis.scroll >= lenis.limit - 1
-        const wheeled  = now - lastWheelDown < RECENT_MS
-        const ready    = now - cooldown > COOLDOWN_MS
-        if (atBottom && wheeled && ready) {
-          cooldown      = now
-          lastWheelDown = 0
-          lenis.scrollTo(0, { immediate: true, force: true, lock: false })
-        }
-      }
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
-
-    return () => {
-      window.removeEventListener('wheel', onWheel)
-      cancelAnimationFrame(rafId)
-    }
-  }, [])
+  useTunnelLoop()
 
   const preset = PRESETS[level]
-
-  // Anchors land the camera slightly BEFORE each station so its ring is
-  // visible AHEAD in the centre of view. The offset is small enough that
-  // nearestStation() still resolves to the clicked station (gap to adjacent
-  // stations is ≥0.18, so an offset of 0.03 is well inside the slot).
-  //
-  //  Anchor progress = stationT − 0.03
-  //  → camera is ~5.7 world units upstream of the station
-  //  → station ring fills ~50% of vertical view (proximity ≈ 0.7)
-  //  → drei Text label "0X · NAME" is also at full visibility
-  //
-  // The total scrollable distance is `main height − viewport height`
-  // = 500vh − 100vh = 400vh.
-  const SCROLLABLE_VH = 400
-  const beforeT = (t: number) => Math.max(0, t - 0.03) * SCROLLABLE_VH
-
-  const anchors = [
-    { id: 'hero',       topVh: beforeT(0.04) },   //  4vh  (already at start)
-    { id: 'about',      topVh: beforeT(0.22) },   //  76vh
-    { id: 'projects',   topVh: beforeT(0.42) },   // 156vh
-    { id: 'experience', topVh: beforeT(0.62) },   // 236vh
-    { id: 'skills',     topVh: beforeT(0.74) },   // between exp & contact
-    { id: 'contact',    topVh: beforeT(0.86) },   // 332vh
-  ]
 
   return (
     <>
@@ -228,20 +166,7 @@ function TunnelMode({
           pointerEvents: 'none',
         }}
       >
-        {anchors.map(({ id, topVh }) => (
-          <div
-            key={id}
-            id={id}
-            style={{
-              position: 'absolute',
-              top: `${topVh}vh`,
-              left: 0, right: 0,
-              height: 1,
-              pointerEvents: 'none',
-            }}
-            aria-hidden="true"
-          />
-        ))}
+        <TunnelAnchors />
       </main>
     </>
   )
