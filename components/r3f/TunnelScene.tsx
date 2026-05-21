@@ -265,10 +265,9 @@ function Tunnel({
   const DOTS_PER_RING = 14
   const RING_RADIUS   = 3.2
 
-  const { dotsGeometry, lineGeometry } = useMemo(() => {
+  const dotsGeometry = useMemo(() => {
     const frames = curve.computeFrenetFrames(ringCount, false)
     const dots   = new Float32Array((ringCount + 1) * DOTS_PER_RING * 3)
-    const pairs: number[] = []
     const pos    = new THREE.Vector3()
 
     for (let r = 0; r <= ringCount; r++) {
@@ -287,42 +286,29 @@ function Tunnel({
         dots[idx + 1] = pos.y + normal.y * cos + binormal.y * sin
         dots[idx + 2] = pos.z + normal.z * cos + binormal.z * sin
       }
-      // Connect adjacent dots inside each ring with thin lines.
-      for (let d = 0; d < DOTS_PER_RING; d++) {
-        const a = (ringStart + d) * 3
-        const b = (ringStart + ((d + 1) % DOTS_PER_RING)) * 3
-        pairs.push(
-          dots[a], dots[a + 1], dots[a + 2],
-          dots[b], dots[b + 1], dots[b + 2],
-        )
-      }
     }
 
     const dg = new THREE.BufferGeometry()
     dg.setAttribute('position', new THREE.BufferAttribute(dots, 3))
-    const lg = new THREE.BufferGeometry()
-    lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pairs), 3))
-    return { dotsGeometry: dg, lineGeometry: lg }
+    return dg
   }, [curve, ringCount])
 
-  useEffect(() => () => {
-    dotsGeometry.dispose()
-    lineGeometry.dispose()
-  }, [dotsGeometry, lineGeometry])
+  useEffect(() => () => dotsGeometry.dispose(), [dotsGeometry])
 
   const dotTexture = useMemo(() => getSparkleTexture(), [])
 
   return (
     <>
-      {/* Constellation dots — kept subtle so the nebula reads as the backdrop
-          and the tunnel rings don't form a busy lattice everywhere. */}
+      {/* Constellation dots — tiny faint sparkles along the curve. Connector
+          lines dropped entirely so the tunnel doesn't read as a lattice
+          between stations; nebula carries the visual now. */}
       <points geometry={dotsGeometry}>
         <pointsMaterial
-          size={0.14}
+          size={0.10}
           color={dotColor}
           sizeAttenuation
           transparent
-          opacity={0.45}
+          opacity={0.22}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
           toneMapped={false}
@@ -330,17 +316,6 @@ function Tunnel({
           alphaTest={0.02}
         />
       </points>
-
-      {/* Connector lines — almost invisible, just a hint of structure */}
-      <lineSegments geometry={lineGeometry}>
-        <lineBasicMaterial
-          color={dotColor}
-          transparent
-          opacity={0.12}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </lineSegments>
     </>
   )
 }
