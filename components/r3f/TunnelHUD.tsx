@@ -180,16 +180,11 @@ export function TunnelHUD() {
                 transition: 'all 220ms',
                 flexShrink: 0,
               }} />
-              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-                <span style={{
-                  fontSize: 13, fontWeight: 700,
-                  color: isActive ? accent : 'rgba(245,245,247,0.5)',
-                  letterSpacing: '0.06em',
-                }}>{s.num}</span>
-                <span style={{
-                  fontSize: 9, letterSpacing: '0.28em', marginTop: 4,
-                }}>{s.short}</span>
-              </span>
+              <span style={{
+                fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.28em',
+                color: isActive ? accent : 'rgba(245,245,247,0.5)',
+              }}>{s.short}</span>
             </button>
           )
         })}
