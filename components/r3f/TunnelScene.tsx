@@ -258,104 +258,84 @@ function Tunnel({
     [curve, ringCount],
   )
 
-  // Code rain — vertical streams of cyan glyph-dots falling along the tunnel
-  // length, dripping from the far end toward the camera. Each column has its
-  // own angle around the circumference and its own falling phase/speed.
-  const COLUMNS = 36
-  const ROWS    = 44
-  const WALL_R  = 3.05    // tuck the drops just inside the dark skin
+  // Hyperspace warp — elongated star lines blasting along the curve toward
+  // the camera. Each star has its own t (position along curve), radius,
+  // angle, speed and tail length. Positions are recomputed each frame using
+  // pre-sampled Frenet frames + curve points so the streaks bend with the
+  // tunnel instead of running on a straight z-axis.
+  const STAR_COUNT    = 280
+  const FRAME_SAMPLES = 220
 
-  const { positions, colIds, rowIds } = useMemo(() => {
-    const total     = COLUMNS * ROWS
-    const positions = new Float32Array(total * 3)
-    const colIds    = new Float32Array(total)
-    const rowIds    = new Float32Array(total)
-    const frames    = curve.computeFrenetFrames(ROWS - 1, false)
-    const pos       = new THREE.Vector3()
-
-    for (let r = 0; r < ROWS; r++) {
-      // r=0 is the far end of the tunnel (drops spawn there),
-      // r=ROWS-1 is the near end (drops die there). Map to curve t = 1 → 0.
-      const t = 1 - r / (ROWS - 1)
-      const normal   = frames.normals[r]   || frames.normals[frames.normals.length - 1]
-      const binormal = frames.binormals[r] || frames.binormals[frames.binormals.length - 1]
-      curve.getPointAt(t, pos)
-
-      for (let c = 0; c < COLUMNS; c++) {
-        const angle = (c / COLUMNS) * Math.PI * 2
-        const ca    = Math.cos(angle) * WALL_R
-        const sa    = Math.sin(angle) * WALL_R
-        const i     = (c * ROWS + r) * 3
-        positions[i + 0] = pos.x + normal.x * ca + binormal.x * sa
-        positions[i + 1] = pos.y + normal.y * ca + binormal.y * sa
-        positions[i + 2] = pos.z + normal.z * ca + binormal.z * sa
-        colIds[c * ROWS + r] = c
-        rowIds[c * ROWS + r] = r
-      }
+  const sampledPoints = useMemo(() => {
+    const pts: THREE.Vector3[] = []
+    for (let i = 0; i <= FRAME_SAMPLES; i++) {
+      const out = new THREE.Vector3()
+      curve.getPointAt(i / FRAME_SAMPLES, out)
+      pts.push(out)
     }
-    return { positions, colIds, rowIds }
+    return pts
   }, [curve])
+  const sampledFrames = useMemo(
+    () => curve.computeFrenetFrames(FRAME_SAMPLES, false),
+    [curve],
+  )
 
-  const sparkleTex = useMemo(() => getSparkleTexture(), [])
+  const stars = useMemo(() => {
+    const rng = (i: number, n: number) => {
+      const s = Math.sin(i * 12.9898 + n * 7.31) * 43758.5453
+      return s - Math.floor(s)
+    }
+    return Array.from({ length: STAR_COUNT }, (_, i) => ({
+      t:      rng(i, 0),                              // along-curve param (0 = near camera, 1 = far end)
+      angle:  rng(i, 1) * Math.PI * 2,
+      radius: 3.05 * (0.08 + rng(i, 2) * 0.92),
+      speed:  0.14 + rng(i, 3) * 0.30,                // t-units per second
+      tailT:  0.006 + rng(i, 4) * 0.022,              // tail length in t-units
+    }))
+  }, [])
 
-  const rainMat = useMemo(() => new THREE.ShaderMaterial({
-    uniforms: {
-      uTime:    { value: 0 },
-      uMap:     { value: sparkleTex },
-      uColor:   { value: new THREE.Color('#5EEAD4') },
-      uHeadCol: { value: new THREE.Color('#C6F8EE') },
-      uRows:    { value: ROWS },
-    },
-    vertexShader: /* glsl */ `
-      attribute float aCol;
-      attribute float aRow;
-      uniform float uTime;
-      uniform float uRows;
-      varying float vAlpha;
-      varying float vLead;
-      void main() {
-        // Per-column speed + offset (deterministic pseudo-random by column id)
-        float seed  = fract(sin(aCol * 12.9898) * 43758.5453);
-        float speed = 0.8 + seed * 1.8;
-        float headRow = mod(uTime * speed * 5.5 + aCol * 1.7, uRows + 8.0);
-        float dist = headRow - aRow;
-        // Brightness: peak at head, decay upward (drops below head are dim).
-        float a = exp(-abs(dist) * 0.5);
-        if (dist < 0.0) a = 0.0;
-        vAlpha = a * 0.95;
-        // Head marker — narrow window around dist≈0 paints in cream color
-        vLead  = step(dist, 0.6) * step(-0.6, dist);
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = 26.0 * (1.0 / -mv.z) * (1.0 + vLead * 0.9);
-        gl_Position  = projectionMatrix * mv;
-      }
-    `,
-    fragmentShader: /* glsl */ `
-      uniform sampler2D uMap;
-      uniform vec3 uColor;
-      uniform vec3 uHeadCol;
-      varying float vAlpha;
-      varying float vLead;
-      void main() {
-        vec4 tex = texture2D(uMap, gl_PointCoord);
-        vec3 col = mix(uColor, uHeadCol, vLead);
-        gl_FragColor = vec4(col, tex.a * vAlpha);
-        if (gl_FragColor.a < 0.02) discard;
-      }
-    `,
-    transparent: true,
-    depthWrite:  false,
-    blending:    THREE.AdditiveBlending,
-    toneMapped:  false,
-  }), [sparkleTex])
+  const positions = useMemo(() => new Float32Array(STAR_COUNT * 2 * 3), [])
+  const geomRef   = useRef<THREE.BufferGeometry>(null)
 
-  useFrame(({ clock }) => {
-    rainMat.uniforms.uTime.value = clock.elapsedTime
+  useFrame((_, dt) => {
+    const buf = positions
+    for (let i = 0; i < STAR_COUNT; i++) {
+      const s = stars[i]
+      // Move toward camera. t=0 is near end; star resets to far end when it
+      // passes the camera so the stream is continuous.
+      s.t -= dt * s.speed
+      if (s.t < 0) s.t = 1
+
+      const headSample = Math.min(FRAME_SAMPLES, Math.max(0, Math.floor(s.t * FRAME_SAMPLES)))
+      const tailT      = Math.min(1, s.t + s.tailT)
+      const tailSample = Math.min(FRAME_SAMPLES, Math.max(0, Math.floor(tailT * FRAME_SAMPLES)))
+
+      const ph = sampledPoints[headSample]
+      const nh = sampledFrames.normals[headSample]
+      const bh = sampledFrames.binormals[headSample]
+      const pt = sampledPoints[tailSample]
+      const nt = sampledFrames.normals[tailSample]
+      const bt = sampledFrames.binormals[tailSample]
+
+      const cos = Math.cos(s.angle) * s.radius
+      const sin = Math.sin(s.angle) * s.radius
+
+      const i6 = i * 6
+      buf[i6 + 0] = ph.x + nh.x * cos + bh.x * sin
+      buf[i6 + 1] = ph.y + nh.y * cos + bh.y * sin
+      buf[i6 + 2] = ph.z + nh.z * cos + bh.z * sin
+      buf[i6 + 3] = pt.x + nt.x * cos + bt.x * sin
+      buf[i6 + 4] = pt.y + nt.y * cos + bt.y * sin
+      buf[i6 + 5] = pt.z + nt.z * cos + bt.z * sin
+    }
+    if (geomRef.current) {
+      geomRef.current.attributes.position.needsUpdate = true
+    }
   })
 
   return (
     <>
-      {/* Inner skin — keeps the tunnel reading as a void */}
+      {/* Inner skin — keeps the tunnel reading as a void behind the warp */}
       <mesh geometry={skinGeometry}>
         <meshBasicMaterial
           color="#0A0A12"
@@ -365,14 +345,19 @@ function Tunnel({
         />
       </mesh>
 
-      {/* Falling code points */}
-      <points material={rainMat}>
-        <bufferGeometry>
+      {/* Warp streaks — line segments per star (head + tail) */}
+      <lineSegments>
+        <bufferGeometry ref={geomRef}>
           <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-          <bufferAttribute attach="attributes-aCol"     args={[colIds, 1]} />
-          <bufferAttribute attach="attributes-aRow"     args={[rowIds, 1]} />
         </bufferGeometry>
-      </points>
+        <lineBasicMaterial
+          color="#C6F8EE"
+          transparent
+          opacity={0.95}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </lineSegments>
     </>
   )
 }
