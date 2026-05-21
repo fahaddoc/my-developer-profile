@@ -114,12 +114,12 @@ function makeNebulaMaterial(opts: {
         float n1 = fbm(uv + uScrollA * uTime);
         float n2 = fbm(uv * 1.7 + uScrollB * uTime);
         float n  = n1 * 0.65 + n2 * 0.35;
-        n = pow(n, 1.35);
+        n = pow(n, 1.05);          // less crush → more bright area
 
-        vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.20, 0.6, n));
-        col = mix(col, uColorBright, smoothstep(0.62, 1.0, n) * uBrightStrength);
+        vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.10, 0.55, n));
+        col = mix(col, uColorBright, smoothstep(0.40, 0.95, n) * uBrightStrength);
 
-        float pulse = 1.0 - uPulseDepth + uPulseDepth * (0.5 + 0.5 * sin(uTime * 0.35));
+        float pulse = 1.0 - uPulseDepth + uPulseDepth * (0.5 + 0.5 * sin(uTime * 0.45));
         gl_FragColor = vec4(col, uAlpha * pulse);
       }
     `,
@@ -145,31 +145,33 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
   }, [])
 
   // ── Inner + outer nebula materials ─────────────────────────────────────
+  // Dark-mode palette tuned per user's reference: deep navy → strong cyan glow.
   const innerMat = useMemo(() => makeNebulaMaterial({
-    colorDeep:      isLight ? '#e6eef5' : '#04050c',
-    colorMid:       isLight ? '#cbe2e6' : '#0e2c4a',
-    colorBright:    isLight ? '#4f9aa6' : accent,
-    alpha:          isLight ? 0.60 : 0.96,
-    brightStrength: isLight ? 0.35 : 0.70,
+    colorDeep:      isLight ? '#dde9ee' : '#050d26',
+    colorMid:       isLight ? '#aed3da' : '#1a4db3',
+    colorBright:    isLight ? '#1a8ea0' : '#00ccff',
+    alpha:          isLight ? 0.78 : 1.00,
+    brightStrength: isLight ? 0.55 : 1.10,
     uvScaleX:       4.0,
     uvScaleY:       2.5,
     scrollA:        [ 0.022,  0.031],
     scrollB:        [-0.018,  0.025],
-    pulseDepth:     0.10,
-  }), [isLight, accent])
+    pulseDepth:     0.14,
+  }), [isLight])
 
   const outerMat = useMemo(() => makeNebulaMaterial({
-    colorDeep:      isLight ? '#eef4f8' : '#0a0b18',
-    colorMid:       isLight ? '#dceaef' : '#172a44',
-    colorBright:    isLight ? '#7ab4bd' : '#88f2dd',
-    alpha:          isLight ? 0.35 : 0.55,
-    brightStrength: isLight ? 0.25 : 0.45,
+    colorDeep:      isLight ? '#e9eff5' : '#030514',
+    colorMid:       isLight ? '#bcd9e2' : '#143380',
+    colorBright:    isLight ? '#4ea1ac' : '#33a6f2',
+    alpha:          isLight ? 0.55 : 0.92,
+    brightStrength: isLight ? 0.40 : 0.85,
     uvScaleX:       2.4,
     uvScaleY:       1.6,
     scrollA:        [ 0.009,  0.013],
     scrollB:        [-0.006,  0.011],
-    pulseDepth:     0.08,
-  }), [isLight, accent])
+    pulseDepth:     0.10,
+  }), [isLight])
+  void accent  // accent no longer used — explicit nebula palette per spec
 
   useEffect(() => () => { innerMat.dispose(); outerMat.dispose() }, [innerMat, outerMat])
 
@@ -188,7 +190,7 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
       positions[i * 3 + 2] *= jitter
       // Lognormal-ish: most stars small, a few stand out
       const u = rng()
-      sizes[i]  = 0.18 + Math.pow(u, 3) * 1.1
+      sizes[i]  = 0.28 + Math.pow(u, 2.4) * 1.6
       phases[i] = rng() * Math.PI * 2
     }
     const g = new THREE.BufferGeometry()
@@ -199,10 +201,10 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
     const m = new THREE.ShaderMaterial({
       uniforms: {
         uTime:    { value: 0 },
-        uColor:   { value: new THREE.Color(isLight ? '#3e8a92' : '#ffffff') },
-        uTintB:   { value: new THREE.Color(isLight ? '#5fa8b3' : accent) },
-        uOpacity: { value: isLight ? 0.55 : 0.95 },
-        uPxScale: { value: 320 },
+        uColor:   { value: new THREE.Color(isLight ? '#1a8ea0' : '#ffffff') },
+        uTintB:   { value: new THREE.Color(isLight ? '#3a7a85' : '#00ccff') },
+        uOpacity: { value: isLight ? 0.7 : 1.0 },
+        uPxScale: { value: 420 },
       },
       vertexShader: /* glsl */ `
         attribute float aSize;
