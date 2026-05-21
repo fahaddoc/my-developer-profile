@@ -63,7 +63,7 @@ export function ParticlePortrait({
   step = 3,
   accentTint = '#5EEAD4',
   intro = DEFAULT_INTRO,
-  fontPx = 14,
+  fontPx = 26,
 }: ParticlePortraitProps) {
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -270,8 +270,9 @@ export function ParticlePortrait({
         const a = (hover ? 1 : (p.a / 255)) * Math.max(0.55, 1 - drift * 0.3)
 
         ctx.fillStyle = `rgba(${r},${g},${b},${a})`
-        // Slightly larger rect when settled into text shape — boosts readability
-        const settled = drift < 0.25 ? 2 : 1.4
+        // Bigger rect when settled into text shape — boosts readability at
+        // the canvas's now-larger native resolution.
+        const settled = hover && drift < 0.3 ? 2.8 : 2.0
         ctx.fillRect(p.x + wx, p.y + wy, settled, settled)
       }
 
