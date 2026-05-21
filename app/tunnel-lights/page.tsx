@@ -4,7 +4,7 @@
 
 'use client'
 
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
@@ -454,6 +454,13 @@ function VariantCanvas({ variant }: { variant: Variant }) {
 }
 
 export default function TunnelLightsPage() {
+  // Single Canvas + variant picker. Previously this page mounted 6 R3F
+  // Canvases simultaneously — each with its own WebGL context + bloom
+  // postprocess → ~500 MB of GPU memory. Now: one canvas, one variant at a
+  // time, picker buttons swap the active component.
+  const [active, setActive] = useState<Variant>('warp-speed')
+  const current = VARIANTS.find((v) => v.id === active) ?? VARIANTS[0]
+
   return (
     <main
       style={{
@@ -472,7 +479,7 @@ export default function TunnelLightsPage() {
             color: ACCENT, marginBottom: 6,
             textShadow: `0 0 10px ${ACCENT}66`,
           }}>
-            SANDBOX · /tunnel-lights · round 5
+            SANDBOX · /tunnel-lights · single canvas
           </div>
           <h1 style={{
             fontSize: 36, fontWeight: 800, margin: 0, letterSpacing: '-0.02em',
@@ -483,48 +490,91 @@ export default function TunnelLightsPage() {
             fontSize: 14, color: 'rgba(245,245,247,0.6)',
             margin: '8px 0 0', maxWidth: 720,
           }}>
-            Full-environment vibes — warp speed, equalizer, jet HUD, cube grid
-            pulse, server LEDs, glowing jellies. Pick one and I&apos;ll wire it.
+            Click a variant to preview. Only one runs at a time so the page
+            doesn&apos;t cook your GPU.
           </p>
         </div>
 
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-            gap: 22,
+            gridTemplateColumns: 'minmax(0, 1fr) 300px',
+            gap: 24,
+            alignItems: 'start',
           }}
         >
-          {VARIANTS.map((v) => (
+          {/* Live preview — single Canvas */}
+          <div
+            style={{
+              borderRadius: 12,
+              overflow: 'hidden',
+              border: `1px solid ${ACCENT}44`,
+              background: '#0A0A14',
+              boxShadow: `0 0 0 1px ${ACCENT}10, 0 12px 32px rgba(0,0,0,0.55)`,
+              aspectRatio: '16 / 10',
+              position: 'relative',
+            }}
+          >
+            <VariantCanvas variant={active} />
             <div
-              key={v.id}
               style={{
-                borderRadius: 12,
-                overflow: 'hidden',
-                border: `1px solid ${ACCENT}33`,
-                background: '#0A0A14',
-                boxShadow: `0 0 0 1px ${ACCENT}10, 0 8px 24px rgba(0,0,0,0.5)`,
+                position: 'absolute',
+                top: 14, left: 14,
+                padding: '5px 10px',
+                borderRadius: 6,
+                background: 'rgba(8,10,14,0.7)',
+                backdropFilter: 'blur(4px)',
+                border: `1px solid ${ACCENT}55`,
+                fontFamily: 'var(--font-mono), monospace',
+                fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase',
+                color: ACCENT,
               }}
             >
-              <div style={{ aspectRatio: '16 / 10', position: 'relative' }}>
-                <VariantCanvas variant={v.id} />
-              </div>
-              <div style={{ padding: '14px 16px 16px' }}>
-                <div style={{
-                  fontFamily: 'var(--font-mono), monospace',
-                  fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
-                  color: ACCENT, marginBottom: 6,
-                }}>
-                  {v.title}
-                </div>
-                <div style={{
-                  fontSize: 13, color: 'rgba(245,245,247,0.72)', lineHeight: 1.45,
-                }}>
-                  {v.blurb}
-                </div>
-              </div>
+              {current.title}
             </div>
-          ))}
+          </div>
+
+          {/* Picker */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {VARIANTS.map((v) => {
+              const isActive = v.id === active
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setActive(v.id)}
+                  style={{
+                    textAlign: 'left',
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    border: `1px solid ${isActive ? ACCENT : `${ACCENT}22`}`,
+                    background: isActive ? `${ACCENT}11` : '#0A0A14',
+                    color: '#F5F5F7',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-display), system-ui, sans-serif',
+                    boxShadow: isActive
+                      ? `0 0 18px ${ACCENT}33, inset 0 0 14px ${ACCENT}14`
+                      : 'none',
+                    transition: 'all 180ms',
+                  }}
+                >
+                  <div style={{
+                    fontFamily: 'var(--font-mono), monospace',
+                    fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
+                    color: isActive ? ACCENT : 'rgba(245,245,247,0.55)',
+                    marginBottom: 4,
+                  }}>
+                    {v.title}
+                  </div>
+                  <div style={{
+                    fontSize: 12, color: 'rgba(245,245,247,0.68)', lineHeight: 1.4,
+                  }}>
+                    {v.blurb}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
     </main>

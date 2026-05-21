@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Text, Html, useTexture } from '@react-three/drei'
+import { Text, Html } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import gsap from 'gsap'
@@ -758,10 +758,9 @@ function ProjectTiles({
     return sorted.slice(0, 9)
   }, [])
 
-  // Preload textures so the useTexture API still warms its cache — we no
-  // longer paint them on a plane, but keeping the call avoids an FOUC if we
-  // re-add them later for richer card variants.
-  useTexture(pool.map((p) => p.image))
+  // (Old card design painted project images on a plane via useTexture; the
+  // new card design is HTML/CSS, so we no longer preload the images here —
+  // that was ~36 MB of GPU texture memory for nothing.)
 
   const groupRef = useRef<THREE.Group>(null)
   const sunRef   = useRef<THREE.MeshBasicMaterial>(null)
