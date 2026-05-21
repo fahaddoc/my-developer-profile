@@ -205,7 +205,7 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
         uTime:    { value: 0 },
         uColor:   { value: new THREE.Color(isLight ? '#1a8ea0' : '#ffffff') },
         uTintB:   { value: new THREE.Color(isLight ? '#3a7a85' : '#5EEAD4') },
-        uOpacity: { value: isLight ? 0.7 : 1.0 },
+        uOpacity: { value: isLight ? 0.55 : 0.82 },
         uPxScale: { value: 520 },
       },
       vertexShader: /* glsl */ `
@@ -216,11 +216,12 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
         varying float vTwinkle;
         varying float vTint;
         void main() {
-          // Higher twinkle floor + tighter size variation so every star is
-          // continuously visible. Twinkle now modulates BRIGHTNESS only, not
-          // size — keeps stars from "shrinking out" mid-pulse.
           float tw = 0.5 + 0.5 * sin(uTime * 1.4 + aPhase * 6.283);
-          vTwinkle = 0.75 + 0.25 * tw;
+          // Per-star brightness baseline driven by size — small stars stay
+          // dim, large "hero" stars glow strongly. Gives the field real
+          // variation instead of a uniform sea of points.
+          float baseBright = smoothstep(0.55, 2.05, aSize);
+          vTwinkle = (0.35 + baseBright * 0.55) * (0.85 + 0.15 * tw);
           vTint = step(0.78, fract(aPhase * 0.317)); // ~22% tinted accent
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
           gl_PointSize = aSize * uPxScale / -mv.z;
