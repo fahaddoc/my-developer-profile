@@ -172,10 +172,16 @@ export function ParticlePortrait({
         }
       }
 
-      // Build particles — text target sourced by cycling
+      // Build particles — map each particle to a text position uniformly
+      // distributed across the whole text. Modulo cycling was bugged: when
+      // text pixels outnumbered particles, only the FIRST N text positions
+      // (the top of the paragraph) got particles → bottom of text never
+      // rendered. Now particles are spread across the entire text array.
+      const tLen = textPositions.length
+      const pLen = portraitPixels.length
       const ps: Particle[] = portraitPixels.map((p, idx) => {
-        const t = textPositions.length > 0
-          ? textPositions[idx % textPositions.length]
+        const t = tLen > 0
+          ? textPositions[Math.floor((idx * tLen) / pLen)]
           : { x: width / 2, y: height / 2 }
         return {
           px: p.x, py: p.y,
