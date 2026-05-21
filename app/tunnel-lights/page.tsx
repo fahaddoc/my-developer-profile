@@ -109,20 +109,18 @@ function TunnelDemo({ variant }: { variant: Variant }) {
   )
 
   // Per-dot phase + beacon flag (random, deterministic via seed)
-  const { phases, beaconFlags, beaconCount } = useMemo(() => {
+  const { phases, beaconFlags } = useMemo(() => {
     const total = RING_COUNT * DOTS_PER_RING
     const phases = new Float32Array(total)
     const beaconFlags = new Float32Array(total)
-    let beaconCount = 0
     for (let i = 0; i < total; i++) {
-      // Cheap deterministic pseudo-random
       const s = Math.sin(i * 12.9898) * 43758.5453
       phases[i] = (s - Math.floor(s)) * Math.PI * 2
       const r = Math.sin(i * 7.91 + 4.17) * 43758.5453
       const rand = r - Math.floor(r)
-      if (rand < 0.05) { beaconFlags[i] = 1; beaconCount++ }
+      if (rand < 0.05) beaconFlags[i] = 1
     }
-    return { phases, beaconFlags, beaconCount }
+    return { phases, beaconFlags }
   }, [])
 
   // Per-dot depth (z normalized 0..1, far → near)
@@ -387,11 +385,6 @@ function TunnelDemo({ variant }: { variant: Variant }) {
         </points>
       )}
 
-      {/* Note: aPhase/aBeacon/aDepth attributes also drive beacon variant
-          (count threshold check happens inside the shader). */}
-      {variant === 'beacons' && (
-        <span style={{ display: 'none' }} data-beacon-count={beaconCount} />
-      )}
     </group>
   )
 }
