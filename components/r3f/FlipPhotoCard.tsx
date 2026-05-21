@@ -8,6 +8,7 @@
 // the intro video in the HUD top-right.
 
 import { hexAlpha, useSound } from '@/components/r3f/TunnelScene'
+import { ParticlePortrait } from '@/components/r3f/ParticlePortrait'
 
 interface FlipPhotoCardProps {
   accent: string
@@ -91,19 +92,23 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
         )
       })}
 
-      {/* The cutout — clean, untouched. Slight cyan rim glow via drop-shadow. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/images/shah-fahad-sticker.png"
-        alt="Shah Fahad portrait"
+      {/* The cutout — rendered as a particle field. Hover triggers a dust-
+          dispersion effect (sampled pixels drift outward with cyan tint),
+          mouseLeave springs them back home. */}
+      <div
         style={{
           position: 'absolute', inset: 0,
-          width: '100%', height: '100%',
-          objectFit: 'contain', objectPosition: 'bottom',
           filter: `drop-shadow(0 0 14px ${hexAlpha(accent, 0.45)}) drop-shadow(0 0 32px ${hexAlpha(accent, 0.18)})`,
-          pointerEvents: 'none',
         }}
-      />
+      >
+        <ParticlePortrait
+          src="/images/shah-fahad-sticker.png"
+          width={264}
+          height={350}
+          step={2}
+          accentTint={accent}
+        />
+      </div>
 
       {/* Hint chip */}
       <div
