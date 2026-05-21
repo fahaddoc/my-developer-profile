@@ -258,63 +258,47 @@ function Tunnel({
     [curve],
   )
 
-  // Replace solid TorusGeometry rings with a "string-of-lights" look:
-  // each ring becomes DOTS_PER_RING points around the tube circumference,
-  // with thin amber lines connecting adjacent dots in the same ring.
-  // Constellation aesthetic — matches the user's reference image.
-  const DOTS_PER_RING = 18
-  const RING_RADIUS   = 3.2
+  // Double helix — two continuous strands wrap the curve, offset by π.
+  // Replaces the dotted-ring constellation. Uses the curve's Frenet frame so
+  // the spiral follows the tunnel's bends instead of a straight z-axis.
+  const HELIX_RADIUS = 3.2
+  const TURNS        = 24                   // total revolutions across the whole tunnel
+  const SEGMENTS_PER_RING = 6               // samples per ring → smooth strand
+  const segments     = Math.max(800, ringCount * SEGMENTS_PER_RING)
 
-  const { dotsGeometry, lineGeometry } = useMemo(() => {
-    const frames    = curve.computeFrenetFrames(ringCount, false)
-    const dots      = new Float32Array((ringCount + 1) * DOTS_PER_RING * 3)
-    const linePairs: number[] = []
-    const pos       = new THREE.Vector3()
+  const { strandA, strandB } = useMemo(() => {
+    const frames = curve.computeFrenetFrames(segments, false)
+    const a      = new Float32Array((segments + 1) * 3)
+    const b      = new Float32Array((segments + 1) * 3)
+    const pos    = new THREE.Vector3()
 
-    for (let r = 0; r <= ringCount; r++) {
-      const t        = r / ringCount
-      const normal   = frames.normals[r]   || frames.normals[0]
-      const binormal = frames.binormals[r] || frames.binormals[0]
+    for (let s = 0; s <= segments; s++) {
+      const t        = s / segments
+      const normal   = frames.normals[s]   || frames.normals[frames.normals.length - 1]
+      const binormal = frames.binormals[s] || frames.binormals[frames.binormals.length - 1]
       curve.getPointAt(t, pos)
 
-      const ringStart = r * DOTS_PER_RING
+      const angle = t * TURNS * Math.PI * 2
+      const ca    = Math.cos(angle) * HELIX_RADIUS
+      const sa    = Math.sin(angle) * HELIX_RADIUS
+      a[s * 3 + 0] = pos.x + normal.x * ca + binormal.x * sa
+      a[s * 3 + 1] = pos.y + normal.y * ca + binormal.y * sa
+      a[s * 3 + 2] = pos.z + normal.z * ca + binormal.z * sa
 
-      for (let d = 0; d < DOTS_PER_RING; d++) {
-        const angle = (d / DOTS_PER_RING) * Math.PI * 2
-        const cos   = Math.cos(angle) * RING_RADIUS
-        const sin   = Math.sin(angle) * RING_RADIUS
-
-        const px = pos.x + normal.x * cos + binormal.x * sin
-        const py = pos.y + normal.y * cos + binormal.y * sin
-        const pz = pos.z + normal.z * cos + binormal.z * sin
-
-        const idx = (ringStart + d) * 3
-        dots[idx]     = px
-        dots[idx + 1] = py
-        dots[idx + 2] = pz
-      }
-
-      // Connect adjacent dots in this ring with line segments (closed loop)
-      for (let d = 0; d < DOTS_PER_RING; d++) {
-        const a = (ringStart + d) * 3
-        const b = (ringStart + ((d + 1) % DOTS_PER_RING)) * 3
-        linePairs.push(
-          dots[a], dots[a + 1], dots[a + 2],
-          dots[b], dots[b + 1], dots[b + 2],
-        )
-      }
+      // Strand B — same helix offset by π (180°)
+      const cb = Math.cos(angle + Math.PI) * HELIX_RADIUS
+      const sb = Math.sin(angle + Math.PI) * HELIX_RADIUS
+      b[s * 3 + 0] = pos.x + normal.x * cb + binormal.x * sb
+      b[s * 3 + 1] = pos.y + normal.y * cb + binormal.y * sb
+      b[s * 3 + 2] = pos.z + normal.z * cb + binormal.z * sb
     }
 
-    const dg = new THREE.BufferGeometry()
-    dg.setAttribute('position', new THREE.BufferAttribute(dots, 3))
-
-    const lg = new THREE.BufferGeometry()
-    lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(linePairs), 3))
-
-    return { dotsGeometry: dg, lineGeometry: lg }
-  }, [curve, ringCount])
-
-  const dotTexture = useMemo(() => getSparkleTexture(), [])
+    const gA = new THREE.BufferGeometry()
+    gA.setAttribute('position', new THREE.BufferAttribute(a, 3))
+    const gB = new THREE.BufferGeometry()
+    gB.setAttribute('position', new THREE.BufferAttribute(b, 3))
+    return { strandA: gA, strandB: gB }
+  }, [curve, segments])
 
   return (
     <>
@@ -328,32 +312,28 @@ function Tunnel({
         />
       </mesh>
 
-      {/* Ring dots — string-of-lights pattern around each ring perimeter */}
-      <points geometry={dotsGeometry}>
-        <pointsMaterial
-          size={0.16}
-          color="#5EEAD4"
-          sizeAttenuation
-          transparent
-          opacity={0.95}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-          toneMapped={false}
-          map={dotTexture ?? undefined}
-          alphaTest={0.02}
-        />
-      </points>
-
-      {/* Thin lines stitching adjacent dots in each ring */}
-      <lineSegments geometry={lineGeometry}>
+      {/* Helix strand A — primary accent teal */}
+      <line>
+        <primitive object={strandA} attach="geometry" />
         <lineBasicMaterial
           color="#5EEAD4"
           transparent
-          opacity={0.35}
+          opacity={0.85}
           depthWrite={false}
           toneMapped={false}
         />
-      </lineSegments>
+      </line>
+      {/* Helix strand B — lighter cream, lower opacity for depth contrast */}
+      <line>
+        <primitive object={strandB} attach="geometry" />
+        <lineBasicMaterial
+          color="#C6F8EE"
+          transparent
+          opacity={0.55}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </line>
     </>
   )
 }
