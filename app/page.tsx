@@ -147,6 +147,34 @@ function TunnelMode({
     return () => cancelAnimationFrame(rafId)
   }, [reportLowFps])
 
+  // Loop tunnel: when user is at scroll bottom and continues scrolling down,
+  // jump back to the start so the journey replays infinitely.
+  useEffect(() => {
+    let cooldown = 0
+    const ATBOTTOM_PX = 2
+    const COOLDOWN_MS = 600
+
+    const lenisOf = () => (window as unknown as {
+      __lenis?: { scroll: number; limit: number; scrollTo: (y: number, opts?: { immediate?: boolean; force?: boolean; lock?: boolean }) => void }
+    }).__lenis
+
+    const onWheel = (e: WheelEvent) => {
+      const lenis = lenisOf()
+      if (!lenis || lenis.limit <= 0) return
+      if (e.deltaY <= 0) return
+      const now = performance.now()
+      if (now - cooldown < COOLDOWN_MS) return
+      if (lenis.scroll >= lenis.limit - ATBOTTOM_PX) {
+        cooldown = now
+        e.preventDefault()
+        lenis.scrollTo(0, { immediate: true, force: true, lock: false })
+      }
+    }
+
+    window.addEventListener('wheel', onWheel, { passive: false })
+    return () => window.removeEventListener('wheel', onWheel)
+  }, [])
+
   const preset = PRESETS[level]
 
   // Anchors land the camera slightly BEFORE each station so its ring is
