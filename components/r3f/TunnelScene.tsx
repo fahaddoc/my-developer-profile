@@ -375,6 +375,8 @@ interface PlanetConfig {
   bands:        number     // 0 = no horizontal bands, 1 = strong gas-giant bands
   noiseScale:   number
   rimStrength:  number
+  polarCap?:    number     // 0 = none, 1 = strong ice caps at poles (Earth-like)
+  cloudCover?:  number     // 0 = none, 1 = full clouds (Earth-like)
   radius:       number
   offset:       [number, number, number]   // local position in station group
   spinSpeed:    number     // rad/sec on Y axis
@@ -427,16 +429,18 @@ const PLANETS: Record<string, PlanetConfig> = {
     offset:      [ 1.7,  0.4, -2.1],
     spinSpeed:   0.07,
   },
-  contact: {    // magenta dusty world
-    colorDeep:   '#3a0822',
-    colorMid:    '#c5408a',
-    colorBright: '#ffc2dc',
+  contact: {    // Earth — blue oceans, green continents, white clouds, polar caps
+    colorDeep:   '#062a5a',   // deep ocean
+    colorMid:    '#1a6fb8',   // surface ocean blue
+    colorBright: '#3e9c54',   // continental green
     bands:       0.0,
-    noiseScale:  5.0,
-    rimStrength: 0.65,
-    radius:      1.40,
+    noiseScale:  4.2,
+    rimStrength: 0.55,        // atmospheric blue rim glow
+    polarCap:    0.85,
+    cloudCover:  0.55,
+    radius:      1.45,
     offset:      [-1.6, -0.4, -2.2],
-    spinSpeed:   0.09,
+    spinSpeed:   0.06,
   },
 }
 
@@ -457,6 +461,8 @@ function Planet({ stationId, opacityRef }: {
       uBands:       { value: cfg.bands },
       uNoiseScale:  { value: cfg.noiseScale },
       uRimStrength: { value: cfg.rimStrength },
+      uPolarCap:    { value: cfg.polarCap   ?? 0 },
+      uCloudCover:  { value: cfg.cloudCover ?? 0 },
     },
     vertexShader: /* glsl */ `
       varying vec3 vLocalPos;
@@ -480,6 +486,8 @@ function Planet({ stationId, opacityRef }: {
       uniform float uBands;
       uniform float uNoiseScale;
       uniform float uRimStrength;
+      uniform float uPolarCap;
+      uniform float uCloudCover;
       varying vec3 vLocalPos;
       varying vec3 vLocalNormal;
       varying vec3 vNormalView;
@@ -501,25 +509,43 @@ function Planet({ stationId, opacityRef }: {
         return v;
       }
 
-      void main() {
-        // Triplanar projection — sample fbm on the 3 cardinal planes of the
-        // local position and blend by normal direction. Avoids the seam that
-        // a flat vUv mapping creates at the longitude wraparound.
-        vec3 p = vLocalPos * uNoiseScale + vec3(uTime * 0.02, 0.0, uTime * 0.014);
+      // Triplanar fbm at a given scale + uv offset — used for surface + clouds
+      float triplanar(vec3 p, vec3 absN, float total) {
         float n1 = fbm(p.xy);
         float n2 = fbm(p.yz * 1.2);
         float n3 = fbm(p.xz * 1.4);
+        return (n1 * absN.z + n2 * absN.x + n3 * absN.y) / total;
+      }
+
+      void main() {
         vec3 absN = pow(abs(vLocalNormal), vec3(2.0));
         float total = absN.x + absN.y + absN.z + 1e-5;
-        float surface = (n1 * absN.z + n2 * absN.x + n3 * absN.y) / total;
 
-        // Bands — based on latitude (vLatitude), distorted by surface noise.
-        // Latitude is single-valued so no seam.
+        // Surface fbm
+        vec3 p = vLocalPos * uNoiseScale + vec3(uTime * 0.02, 0.0, uTime * 0.014);
+        float surface = triplanar(p, absN, total);
+
+        // Bands — latitude with noise distortion
         float bandPattern = 0.5 + 0.5 * sin(vLatitude * 7.0 + surface * 3.5);
         float pattern = mix(surface, bandPattern, uBands);
 
         vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.25, 0.7, pattern));
         col = mix(col, uColorBright, smoothstep(0.65, 0.92, pattern) * 0.55);
+
+        // Polar ice caps — brighten near the poles (high |latitude| component).
+        // Driven by the y component of the LOCAL normal so the cap rotates
+        // with the sphere properly.
+        float polarMask = smoothstep(0.78, 0.96, abs(vLocalNormal.y));
+        col = mix(col, vec3(0.92, 0.96, 1.0), polarMask * uPolarCap);
+
+        // Cloud layer — second fbm at different scale, scrolls faster than
+        // surface so clouds drift over the planet.
+        if (uCloudCover > 0.01) {
+          vec3 cp = vLocalPos * uNoiseScale * 0.65 + vec3(uTime * 0.05, 0.0, uTime * 0.03);
+          float cloud = triplanar(cp, absN, total);
+          cloud = smoothstep(0.52, 0.85, cloud);
+          col = mix(col, vec3(1.0), cloud * uCloudCover * 0.75);
+        }
 
         // Fresnel rim — soft glow at silhouette
         float rim = pow(1.0 - max(0.0, vNormalView.z), 2.0);
