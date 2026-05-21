@@ -763,8 +763,6 @@ function ProjectTiles({
   // that was ~36 MB of GPU texture memory for nothing.)
 
   const groupRef = useRef<THREE.Group>(null)
-  const sunRef   = useRef<THREE.MeshBasicMaterial>(null)
-  const sunGlowRef = useRef<THREE.MeshBasicMaterial>(null)
   const ringMatsRef = useRef<(THREE.MeshBasicMaterial | null)[]>([])
   const cardRefs  = useRef<(HTMLDivElement | null)[]>([])
   const router    = useRouter()
@@ -826,8 +824,6 @@ function ProjectTiles({
       el.style.pointerEvents = interactiveOn ? 'auto' : 'none'
     })
     ringMatsRef.current.forEach((m) => { if (m) m.opacity = opacity * 0.18 })
-    if (sunRef.current)     sunRef.current.opacity     = opacity
-    if (sunGlowRef.current) sunGlowRef.current.opacity = opacity * 0.55
 
     // Pause orbital rings while a tile is hovered so it doesn't drift away
     const anyHover = hoveredRef.current !== -1
@@ -880,30 +876,8 @@ function ProjectTiles({
           Offset z=-4 keeps the sun + tiles visible as camera nears stationT
           and gracefully falls behind once camera passes through. */}
       <group position={[0, 0, -4]}>
-      {/* ─── Central sun (the focus of the scene) ───────────────────────── */}
-      {/* Outer halo — very faint, large, blooms heavily for that solar corona */}
-      <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[1.5, 32, 32]} />
-        <meshBasicMaterial
-          ref={sunGlowRef}
-          color="#5EEAD4"
-          transparent
-          opacity={0}
-          toneMapped={false}
-          depthWrite={false}
-        />
-      </mesh>
-      {/* Inner core — bright cream sphere */}
-      <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[0.7, 48, 48]} />
-        <meshBasicMaterial
-          ref={sunRef}
-          color="#C6F8EE"
-          transparent
-          opacity={0}
-          toneMapped={false}
-        />
-      </mesh>
+      {/* Central sun + glow halo removed — the PROJECTS station planet
+          (rendered by the Station/Planet component) is the focal sphere now. */}
 
       {/* ─── Faint orbital path rings (visual anchors) ──────────────────── */}
       {RING_RADII.map((r, i) => (
