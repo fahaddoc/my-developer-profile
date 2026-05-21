@@ -660,6 +660,85 @@ function Particles({
 // All tiles share proximity-based opacity scrub so they only appear near the
 // station and bloom into view as camera approaches.
 // ─────────────────────────────────────────────────────────────────────────────
+// Category → SVG icon for the project card. Falls back to a monitor icon for
+// any category not explicitly mapped.
+const CATEGORY_ICON: Record<string, React.ReactNode> = {
+  web: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="14" rx="2" />
+      <path d="M8 21h8m-4-3v3" />
+    </svg>
+  ),
+  mobile: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="6" y="2" width="12" height="20" rx="2.5" />
+      <path d="M11 18h2" />
+    </svg>
+  ),
+  realtime: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="6" width="14" height="12" rx="2" />
+      <path d="m16 10 6-3v10l-6-3z" />
+    </svg>
+  ),
+}
+
+// Project-id overrides so the icon hints at the actual product type, not just
+// the abstract category bucket. Anything missing falls back to CATEGORY_ICON.
+const PROJECT_ICON_OVERRIDE: Record<string, React.ReactNode> = {
+  'agent-shah-3d': (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="8" width="18" height="11" rx="3" />
+      <path d="M8 13h2m1-2v4m4-2h2" />
+      <circle cx="17" cy="12" r=".8" fill="currentColor" stroke="none" />
+      <circle cx="17" cy="15" r=".8" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  'eocean': (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12c0 4.418-4.03 8-9 8a9.9 9.9 0 0 1-4.36-.99L3 20l1.04-3.91A7.7 7.7 0 0 1 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+  ),
+  'kistpay': (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18M7 14l4-4 3 3 6-7" />
+    </svg>
+  ),
+  'reapagro': (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19h16M6 19V10m4 9V6m4 13v-8m4 8V8" />
+    </svg>
+  ),
+  'screening': (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="14" rx="2" />
+      <path d="M6 8h4M6 12h2m6-4h4m-4 4h4M6 16h12" />
+    </svg>
+  ),
+  'leavesystem': (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="5" width="16" height="16" rx="2" />
+      <path d="M16 3v4M8 3v4m-4 6h16" />
+    </svg>
+  ),
+  'opd': (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M12 8v6m-3-3h6" />
+    </svg>
+  ),
+  'khawateen': (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="13" rx="2" />
+      <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+    </svg>
+  ),
+}
+
+function iconFor(p: { id: string; category: string }): React.ReactNode {
+  return PROJECT_ICON_OVERRIDE[p.id] ?? CATEGORY_ICON[p.category] ?? CATEGORY_ICON.web
+}
+
 function ProjectTiles({
   curve, stationT, bob = true,
 }: {
@@ -675,12 +754,16 @@ function ProjectTiles({
     return sorted.slice(0, 9)
   }, [])
 
-  const textures = useTexture(pool.map((p) => p.image))
+  // Preload textures so the useTexture API still warms its cache — we no
+  // longer paint them on a plane, but keeping the call avoids an FOUC if we
+  // re-add them later for richer card variants.
+  useTexture(pool.map((p) => p.image))
 
   const groupRef = useRef<THREE.Group>(null)
   const sunRef   = useRef<THREE.MeshBasicMaterial>(null)
   const sunGlowRef = useRef<THREE.MeshBasicMaterial>(null)
   const ringMatsRef = useRef<(THREE.MeshBasicMaterial | null)[]>([])
+  const cardRefs  = useRef<(HTMLDivElement | null)[]>([])
   const router    = useRouter()
 
   // Three orbital rings — each its own group so we can rotate them at
@@ -690,10 +773,7 @@ function ProjectTiles({
   // Per-orbital-ring radii (in world units inside the tunnel; tunnel r=3.2)
   const RING_RADII  = [1.20, 1.95, 2.65]
   const RING_SPEEDS = [0.18, 0.10, -0.06]  // outer reverses for visual interest
-  const TILE_SCALES = [0.55, 0.72, 0.85]   // inner smaller, outer larger
-
-  const matsRef       = useRef<(THREE.MeshBasicMaterial | null)[]>([])
-  const borderMatsRef = useRef<(THREE.MeshBasicMaterial | null)[]>([])
+  const TILE_SCALES = [0.90, 1.05, 1.18]   // inner smaller, outer larger
 
   // Place + orient group at the projects station
   useEffect(() => {
@@ -723,8 +803,8 @@ function ProjectTiles({
     const proximity = Math.max(0, 1 - dist / 0.13)
     const opacity   = Math.pow(proximity, 1.4)
 
-    matsRef.current.forEach((m) => { if (m) m.opacity = opacity })
-    borderMatsRef.current.forEach((m) => { if (m) m.opacity = opacity * 0.85 })
+    const cardOpacity = opacity.toFixed(3)
+    cardRefs.current.forEach((el) => { if (el) el.style.opacity = cardOpacity })
     ringMatsRef.current.forEach((m) => { if (m) m.opacity = opacity * 0.18 })
     if (sunRef.current)     sunRef.current.opacity     = opacity
     if (sunGlowRef.current) sunGlowRef.current.opacity = opacity * 0.55
@@ -842,19 +922,18 @@ function ProjectTiles({
             const x = Math.cos(angle) * radius
             const y = Math.sin(angle) * radius
             const scl = TILE_SCALES[ringIdx]
-            // Hover lerp acts on local Z (we read baseZ from userData and
-            // add the lerp delta). Label position + fontSize are compensated
-            // by `/ scl` so they read at consistent world-space size + offset
-            // across all three rings.
-            const TILE_BASE_W = 1.05
-            const TILE_BASE_H = 0.66
+            // Hitbox size scales with the visible card area (set via
+            // distanceFactor in the Html below — ~2.3 world units wide).
+            const HIT_W = 2.3 * scl
+            const HIT_H = 1.7 * scl
 
             // Split the project title at the em-dash so we can render the
             // primary name big + the sub-description small under it.
-            //   "Konnect.im — Video Conferencing" → name="Konnect.im", sub="VIDEO CONFERENCING"
             const dashIdx = p.title.indexOf(' — ')
             const name    = (dashIdx > 0 ? p.title.slice(0, dashIdx)   : p.title).trim()
             const sub     = (dashIdx > 0 ? p.title.slice(dashIdx + 3)  : p.tagline ?? '').trim()
+            const tags    = (p.tech ?? []).slice(0, 2)
+            const number  = String(i + 1).padStart(2, '0')
 
             return (
               <group
@@ -865,10 +944,8 @@ function ProjectTiles({
                   router.push(`/projects/${p.id}`)
                 }}
               >
-                {/* Static invisible hitbox — bigger than the visible tile so
-                    a small cursor drift doesn't drop the hover. Lives on the
-                    outer (un-animated) group, so the visible card can lerp
-                    forward without the cursor losing the target. */}
+                {/* Static invisible hitbox — slightly bigger than the visible
+                    card so a small cursor drift doesn't drop the hover. */}
                 <mesh
                   position={[0, 0, 0]}
                   onPointerOver={(e) => {
@@ -882,75 +959,94 @@ function ProjectTiles({
                     if (typeof document !== 'undefined') document.body.style.cursor = ''
                   }}
                 >
-                  <planeGeometry args={[TILE_BASE_W * 1.6 * scl, TILE_BASE_H * 2.2 * scl]} />
+                  <planeGeometry args={[HIT_W * 1.05, HIT_H * 1.10]} />
                   <meshBasicMaterial transparent opacity={0} depthWrite={false} />
                 </mesh>
 
-                {/* Animated inner group — useFrame lerps THIS for the
-                    fly-to-camera effect. Static hitbox above is unaffected. */}
+                {/* Animated inner group — useFrame lerps THIS for fly-to-
+                    camera. Hitbox above stays static. */}
                 <group userData={{ animTile: true }}>
-                {/* Per-ring scale on inner group so the outer group's local Z
-                    (used for hover lerp) stays in world units. */}
-                <group scale={scl}>
-                  {/* Soft back halo — coloured glow behind the thumbnail */}
-                  <mesh position={[0, 0, -0.02]}>
-                    <planeGeometry args={[TILE_BASE_W * 1.45, TILE_BASE_H * 1.55]} />
-                    <meshBasicMaterial
-                      ref={(m) => { borderMatsRef.current[i] = m }}
-                      color={p.color}
-                      transparent
-                      opacity={0}
-                      depthWrite={false}
-                      toneMapped={false}
-                      blending={THREE.AdditiveBlending}
-                    />
-                  </mesh>
-                  {/* Project thumbnail */}
-                  <mesh>
-                    <planeGeometry args={[TILE_BASE_W, TILE_BASE_H]} />
-                    <meshBasicMaterial
-                      ref={(m) => { matsRef.current[i] = m }}
-                      map={textures[i]}
-                      transparent
-                      opacity={0}
-                      toneMapped={false}
-                    />
-                  </mesh>
-                </group>
+                  <group scale={scl}>
+                    <Html
+                      transform
+                      pointerEvents="none"
+                      distanceFactor={2.6}
+                      center
+                    >
+                      <div
+                        ref={(el) => { cardRefs.current[i] = el }}
+                        style={{
+                          opacity: 0,
+                          transition: 'opacity 120ms linear',
+                          width: 230,
+                          padding: '18px 18px 16px',
+                          borderRadius: 14,
+                          border: `1.4px solid ${p.color}`,
+                          background: `linear-gradient(140deg, rgba(8,10,14,0.55) 0%, rgba(8,10,14,0.78) 100%)`,
+                          backdropFilter: 'blur(6px)',
+                          WebkitBackdropFilter: 'blur(6px)',
+                          boxShadow: `inset 0 0 26px ${hexAlpha(p.color, 0.13)}, 0 0 26px ${hexAlpha(p.color, 0.22)}`,
+                          fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
+                          color: '#F5F5F7',
+                          userSelect: 'none',
+                        }}
+                      >
+                        {/* Top row: icon + number */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 36 }}>
+                          <div style={{
+                            width: 46, height: 46, borderRadius: '50%',
+                            border: `1.4px solid ${p.color}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: p.color,
+                            boxShadow: `0 0 16px ${hexAlpha(p.color, 0.35)}, inset 0 0 10px ${hexAlpha(p.color, 0.18)}`,
+                          }}>
+                            {iconFor(p)}
+                          </div>
+                          <div style={{ textAlign: 'right', lineHeight: 1 }}>
+                            <div style={{
+                              fontFamily: 'var(--font-mono), ui-monospace, monospace',
+                              fontSize: 11, fontWeight: 700,
+                              letterSpacing: '0.12em', color: p.color,
+                            }}>{number}</div>
+                            <div style={{
+                              width: 5, height: 5, borderRadius: '50%',
+                              background: p.color, marginLeft: 'auto', marginTop: 6,
+                              boxShadow: `0 0 6px ${p.color}`,
+                            }} />
+                          </div>
+                        </div>
 
-                {/* Title block — outside scaled group so positions/sizes are
-                    world-uniform across all three rings. Tight gap right
-                    under the tile so name/tile read as one unit. */}
-                {/* Project name — display, white-cream, bold */}
-                <Text
-                  position={[0, -(TILE_BASE_H * 0.5 * scl) - 0.04, 0]}
-                  fontSize={0.10}
-                  color="#F5F5F7"
-                  anchorX="center"
-                  anchorY="top"
-                  letterSpacing={-0.005}
-                  maxWidth={1.7}
-                  outlineColor="#0A0A0A"
-                  outlineWidth={0.004}
-                >
-                  {name}
-                </Text>
-                {/* Sub-description — mono, brand color, small caps */}
-                {sub && (
-                  <Text
-                    position={[0, -(TILE_BASE_H * 0.5 * scl) - 0.17, 0]}
-                    fontSize={0.046}
-                    color={p.color}
-                    anchorX="center"
-                    anchorY="top"
-                    letterSpacing={0.22}
-                    maxWidth={1.8}
-                    outlineColor="#0A0A0A"
-                    outlineWidth={0.003}
-                  >
-                    {sub.toUpperCase()}
-                  </Text>
-                )}
+                        {/* Title + subtitle */}
+                        <div style={{
+                          fontWeight: 700, fontSize: 17,
+                          letterSpacing: '-0.01em', lineHeight: 1.15,
+                          marginBottom: 4,
+                        }}>{name}</div>
+                        <div style={{
+                          fontSize: 11.5, fontWeight: 400,
+                          color: 'rgba(245,245,247,0.62)',
+                          lineHeight: 1.35,
+                        }}>{sub}</div>
+
+                        {/* Tag pills */}
+                        {tags.length > 0 && (
+                          <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
+                            {tags.map((t) => (
+                              <span key={t} style={{
+                                fontFamily: 'var(--font-mono), ui-monospace, monospace',
+                                fontSize: 9.5, padding: '4px 9px',
+                                borderRadius: 5,
+                                border: `1px solid ${hexAlpha(p.color, 0.5)}`,
+                                color: '#F5F5F7',
+                                letterSpacing: '0.04em',
+                                background: hexAlpha(p.color, 0.05),
+                              }}>{t}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </Html>
+                  </group>
                 </group>
               </group>
             )
