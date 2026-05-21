@@ -145,11 +145,12 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
   }, [])
 
   // ── Inner + outer nebula materials ─────────────────────────────────────
-  // Dark-mode palette tuned per user's reference: deep navy → strong cyan glow.
+  // Dark-mode palette per user spec: deep teal-navy → rich teal → vibrant cyan
+  // (NOT blue — matches the website's existing teal/cyan accent system).
   const innerMat = useMemo(() => makeNebulaMaterial({
-    colorDeep:      isLight ? '#dde9ee' : '#050d26',
-    colorMid:       isLight ? '#aed3da' : '#1a4db3',
-    colorBright:    isLight ? '#1a8ea0' : '#00ccff',
+    colorDeep:      isLight ? '#dde9ee' : '#051426',
+    colorMid:       isLight ? '#aed3da' : '#0d5973',
+    colorBright:    isLight ? '#1a8ea0' : '#00d9f2',
     alpha:          isLight ? 0.78 : 1.00,
     brightStrength: isLight ? 0.55 : 1.10,
     uvScaleX:       4.0,
@@ -160,9 +161,9 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
   }), [isLight])
 
   const outerMat = useMemo(() => makeNebulaMaterial({
-    colorDeep:      isLight ? '#e9eff5' : '#030514',
-    colorMid:       isLight ? '#bcd9e2' : '#143380',
-    colorBright:    isLight ? '#4ea1ac' : '#33a6f2',
+    colorDeep:      isLight ? '#e9eff5' : '#030a1a',
+    colorMid:       isLight ? '#bcd9e2' : '#144059',
+    colorBright:    isLight ? '#4ea1ac' : '#1ab3d9',
     alpha:          isLight ? 0.55 : 0.92,
     brightStrength: isLight ? 0.40 : 0.85,
     uvScaleX:       2.4,
@@ -171,7 +172,7 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
     scrollB:        [-0.006,  0.011],
     pulseDepth:     0.10,
   }), [isLight])
-  void accent  // accent no longer used — explicit nebula palette per spec
+  void accent  // accent unused — explicit nebula palette per spec
 
   useEffect(() => () => { innerMat.dispose(); outerMat.dispose() }, [innerMat, outerMat])
 
@@ -202,7 +203,7 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
       uniforms: {
         uTime:    { value: 0 },
         uColor:   { value: new THREE.Color(isLight ? '#1a8ea0' : '#ffffff') },
-        uTintB:   { value: new THREE.Color(isLight ? '#3a7a85' : '#00ccff') },
+        uTintB:   { value: new THREE.Color(isLight ? '#3a7a85' : '#5EEAD4') },
         uOpacity: { value: isLight ? 0.7 : 1.0 },
         uPxScale: { value: 420 },
       },
