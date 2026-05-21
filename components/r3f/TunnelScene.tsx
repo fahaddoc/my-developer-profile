@@ -256,6 +256,7 @@ function Tunnel({
     () => new THREE.TubeGeometry(curve, Math.max(120, ringCount), 3.18, 24, false),
     [curve, ringCount],
   )
+  useEffect(() => () => skinGeometry.dispose(), [skinGeometry])
 
   // Static dotted constellation rings — geometry built ONCE in useMemo and
   // never touched again per frame. No shader animation, no buffer mutations,
@@ -303,6 +304,11 @@ function Tunnel({
     lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pairs), 3))
     return { dotsGeometry: dg, lineGeometry: lg }
   }, [curve, ringCount])
+
+  useEffect(() => () => {
+    dotsGeometry.dispose()
+    lineGeometry.dispose()
+  }, [dotsGeometry, lineGeometry])
 
   const dotTexture = useMemo(() => getSparkleTexture(), [])
 
@@ -535,6 +541,7 @@ function Particles({
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     return geo
   }, [curve, count])
+  useEffect(() => () => geometry.dispose(), [geometry])
 
   const texture = useMemo(() => getSparkleTexture(), [])
 

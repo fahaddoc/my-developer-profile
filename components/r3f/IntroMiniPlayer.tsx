@@ -6,14 +6,12 @@
 // Plays as long as the shared sound state is true, regardless of scroll
 // position. Clicking the close × stops playback (sets sound OFF).
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { hexAlpha, useSound } from '@/components/r3f/TunnelScene'
 
 interface IntroMiniPlayerProps {
   accent: string
 }
-
-const PARTICLE_COUNT = 10
 
 export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
   const [sound, setSound] = useSound()
@@ -34,17 +32,6 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
       v.currentTime = 0
     }
   }, [sound])
-
-  const particles = useMemo(
-    () =>
-      Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
-        leftPct: (i * 41) % 100,
-        delay:   (i * 0.53) % 4,
-        dur:     4 + ((i * 0.61) % 3),
-        size:    1.2 + ((i * 0.31) % 1.4),
-      })),
-    [],
-  )
 
   return (
     <div
@@ -79,37 +66,24 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
           overflow: 'hidden',
         }}
       >
-        {/* Video — recolored to cyan tone via filter */}
-        <div
-          aria-hidden="true"
+        {/* Video — cyan tone via static filter (no animated glitch wrapper) */}
+        <video
+          ref={videoRef}
+          poster="/videos/shah-intro-poster.png"
+          playsInline
+          preload="metadata"
           style={{
-            position: 'absolute', inset: 0,
-            animation: sound ? 'impx-glitch 8s steps(1, end) infinite' : 'none',
+            width: '100%', height: '100%',
+            objectFit: 'cover', display: 'block',
+            filter: `hue-rotate(160deg) saturate(1.5) brightness(1.05) contrast(1.08)`,
           }}
         >
-          <video
-            ref={videoRef}
-            poster="/videos/shah-intro-poster.png"
-            playsInline
-            preload="metadata"
-            style={{
-              width: '100%', height: '100%',
-              objectFit: 'cover', display: 'block',
-              filter: `
-                hue-rotate(160deg)
-                saturate(1.5)
-                brightness(1.05)
-                contrast(1.08)
-              `,
-            }}
-          >
-            <source src="/videos/shah-intro.webm" type="video/webm" />
-            <source src="/videos/shah-intro.mov"  type='video/mp4; codecs="hvc1"' />
-            <source src="/videos/shah-intro.mp4"  type="video/mp4" />
-          </video>
-        </div>
+          <source src="/videos/shah-intro.webm" type="video/webm" />
+          <source src="/videos/shah-intro.mov"  type='video/mp4; codecs="hvc1"' />
+          <source src="/videos/shah-intro.mp4"  type="video/mp4" />
+        </video>
 
-        {/* Cyan wash — pulls the whole frame toward the accent palette */}
+        {/* Static cyan wash + scanlines — no animation = no per-frame compositor work */}
         <div
           aria-hidden="true"
           style={{
@@ -119,60 +93,22 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
             pointerEvents: 'none',
           }}
         />
-
-        {/* Scanlines drifting down */}
         <div
           aria-hidden="true"
           style={{
             position: 'absolute', inset: 0,
             backgroundImage: `repeating-linear-gradient(
               to bottom,
-              ${hexAlpha(accent, 0.18)} 0px,
-              ${hexAlpha(accent, 0.18)} 1px,
+              ${hexAlpha(accent, 0.16)} 0px,
+              ${hexAlpha(accent, 0.16)} 1px,
               transparent 1px,
               transparent 3px
             )`,
             mixBlendMode: 'overlay',
-            opacity: 0.55,
-            animation: 'impx-scan 6s linear infinite',
+            opacity: 0.45,
             pointerEvents: 'none',
           }}
         />
-
-        {/* Highlight sweep — single bright band crawls top→bottom */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute', inset: 0,
-            background: `linear-gradient(to bottom, transparent 40%, ${hexAlpha(accent, 0.22)} 50%, transparent 60%)`,
-            mixBlendMode: 'screen',
-            animation: 'impx-sweep 5.5s linear infinite',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* Particles rising past the video */}
-        <div
-          aria-hidden="true"
-          style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}
-        >
-          {particles.map((p, i) => (
-            <span
-              key={i}
-              style={{
-                position: 'absolute',
-                left: `${p.leftPct}%`,
-                bottom: -6,
-                width: p.size, height: p.size,
-                borderRadius: '50%',
-                background: accent,
-                boxShadow: `0 0 4px ${accent}`,
-                opacity: 0,
-                animation: `impx-rise ${p.dur}s ${p.delay}s linear infinite`,
-              }}
-            />
-          ))}
-        </div>
       </div>
 
       {/* Corner brackets — sit outside the clipper so they punch out of card */}
@@ -248,28 +184,6 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
         @keyframes introMiniPulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50%      { opacity: 0.45; transform: scale(0.85); }
-        }
-        @keyframes impx-scan {
-          0%   { background-position: 0 0; }
-          100% { background-position: 0 60px; }
-        }
-        @keyframes impx-sweep {
-          0%   { transform: translateY(-100%); }
-          100% { transform: translateY(100%); }
-        }
-        @keyframes impx-rise {
-          0%   { transform: translateY(0)    scale(1);   opacity: 0; }
-          15%  { opacity: 0.8; }
-          85%  { opacity: 0.4; }
-          100% { transform: translateY(-360px) scale(0.6); opacity: 0; }
-        }
-        @keyframes impx-glitch {
-          0%, 91%, 100% { transform: translate(0, 0) skewX(0deg); }
-          92%           { transform: translate(-2px, 0) skewX(-1.2deg); }
-          93%           { transform: translate(2px, 0)  skewX( 1.2deg); }
-          94%           { transform: translate(0, 1px)  skewX(0deg); }
-          95%, 98%      { transform: translate(0, 0)    skewX(0deg); }
-          99%           { transform: translate(1px, -1px) skewX(0.6deg); }
         }
       `}</style>
     </div>
