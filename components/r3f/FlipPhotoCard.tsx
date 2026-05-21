@@ -1,15 +1,16 @@
 'use client'
 
-// FlipPhotoCard — holographic projection of the Shah Fahad sticker silhouette.
-// Layered effects (back to front):
+// FlipPhotoCard — holographic projection of Shah Fahad with multi-dimensional
+// hexagonal masking. Layered effects (back to front):
 //   1. Light cone from below + projector ring (base/floor)
-//   2. Outer rotating HUD frame + corner brackets
-//   3. Portrait image with cyan recolor filter
-//   4. Two RGB-shifted ghost copies for chromatic aberration
-//   5. Scanlines overlay drifting downward
-//   6. Floating particles rising through the column
-//   7. Subtle random glitch (skew + clip) every few seconds
-//   8. Hint chip + sound state toggle (preserved from original)
+//   2. Outer corner brackets (HUD chrome)
+//   3. Base portrait (very faint, ghost layer for continuity)
+//   4. Three hex-clipped "tunnel windows", each with a different treatment:
+//      • Hex A — natural cyan-tinted portrait (top-left)
+//      • Hex B — wireframe / edge-detect look (bottom-right)
+//      • Hex C — RGB-split glitch (centre, smallest, on top)
+//   5. Scanlines overlay
+//   6. Hint chip + sound state toggle
 //
 // Click toggles `soundStore` which the IntroMiniPlayer reads to start/stop
 // the intro video in the HUD top-right.
@@ -21,6 +22,15 @@ interface FlipPhotoCardProps {
   /** Card width in px (defaults to 220) */
   width?: number
 }
+
+// Hex polygon clip-paths — 6 vertices in CSS percentage coordinates relative
+// to the image element. Three different positions/sizes so they reveal
+// different parts of the figure.
+const HEX_A = 'polygon(34% 4%, 64% 18%, 64% 46%, 34% 60%, 4% 46%, 4% 18%)'   // top-left, large
+const HEX_B = 'polygon(66% 40%, 96% 54%, 96% 82%, 66% 96%, 36% 82%, 36% 54%)' // bottom-right, large
+const HEX_C = 'polygon(50% 28%, 72% 40%, 72% 64%, 50% 76%, 28% 64%, 28% 40%)' // centre, smaller
+
+const PORTRAIT_SRC = '/images/shah-fahad-sticker.png'
 
 export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
   const [sound, setSound] = useSound()
@@ -72,7 +82,6 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
         <ellipse cx="100" cy="30" rx="92" ry="14" fill="none" stroke={accent} strokeWidth="1"  strokeOpacity="0.55" />
         <ellipse cx="100" cy="30" rx="72" ry="11" fill="none" stroke={accent} strokeWidth="0.7" strokeOpacity="0.35" />
         <ellipse cx="100" cy="30" rx="48" ry="7.5" fill="none" stroke={accent} strokeWidth="0.6" strokeOpacity="0.22" />
-        {/* tick marks around outer ring */}
         {Array.from({ length: 12 }).map((_, i) => {
           const ang = (i / 12) * Math.PI * 2
           const x1 = 100 + Math.cos(ang) * 92
@@ -107,27 +116,99 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
         )
       })}
 
-      {/* ─── 3. Portrait with cyan hologram filter (no RGB ghosts) ──────── */}
+      {/* ─── Base ghost portrait — very low opacity continuity layer ───── */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/images/shah-fahad-sticker.png"
+        src={PORTRAIT_SRC}
         alt="Shah Fahad portrait"
         style={{
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
           objectFit: 'contain', objectPosition: 'bottom',
-          filter: `
-            hue-rotate(160deg)
-            saturate(1.4)
-            brightness(1.15)
-            contrast(1.05)
-            drop-shadow(0 0 10px ${hexAlpha(accent, 0.8)})
-            drop-shadow(0 0 22px ${hexAlpha(accent, 0.45)})
-          `,
-          opacity: 0.92,
+          filter: `hue-rotate(170deg) saturate(1.2) brightness(1.05) contrast(1.05) drop-shadow(0 0 12px ${hexAlpha(accent, 0.45)})`,
+          opacity: 0.28,
           pointerEvents: 'none',
         }}
       />
+
+      {/* ─── Hex A — natural cyan-tinted portrait (top-left) ─────────────── */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={PORTRAIT_SRC}
+        alt=""
+        aria-hidden="true"
+        style={{
+          position: 'absolute', inset: 0,
+          width: '100%', height: '100%',
+          objectFit: 'contain', objectPosition: 'bottom',
+          clipPath: HEX_A,
+          WebkitClipPath: HEX_A,
+          filter: `hue-rotate(170deg) saturate(1.6) brightness(1.18) contrast(1.08) drop-shadow(0 0 8px ${hexAlpha(accent, 0.7)})`,
+          transform: 'translate(-2px, -1px)',
+          opacity: 0.95,
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* ─── Hex B — wireframe / edge-detect look (bottom-right) ─────────── */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={PORTRAIT_SRC}
+        alt=""
+        aria-hidden="true"
+        style={{
+          position: 'absolute', inset: 0,
+          width: '100%', height: '100%',
+          objectFit: 'contain', objectPosition: 'bottom',
+          clipPath: HEX_B,
+          WebkitClipPath: HEX_B,
+          filter: `grayscale(1) invert(1) contrast(2.1) brightness(0.85) hue-rotate(170deg) saturate(2.5)`,
+          mixBlendMode: 'screen',
+          transform: 'translate(2px, 1px)',
+          opacity: 0.85,
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* ─── Hex C — RGB-split glitch (centre, on top) ───────────────────── */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={PORTRAIT_SRC}
+        alt=""
+        aria-hidden="true"
+        style={{
+          position: 'absolute', inset: 0,
+          width: '100%', height: '100%',
+          objectFit: 'contain', objectPosition: 'bottom',
+          clipPath: HEX_C,
+          WebkitClipPath: HEX_C,
+          filter: `hue-rotate(180deg) saturate(2) brightness(1.1) contrast(1.2) drop-shadow(2px 0 0 rgba(255,40,90,0.55)) drop-shadow(-2px 0 0 rgba(0,200,255,0.55))`,
+          transform: 'translate(0, 2px)',
+          opacity: 0.95,
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Thin accent outline along each hex — gives the "window into another
+          tunnel" framing. SVG overlay covering the full card. */}
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        style={{
+          position: 'absolute', inset: 0,
+          width: '100%', height: '100%',
+          pointerEvents: 'none',
+          opacity: 0.85,
+        }}
+      >
+        <polygon points="34,4 64,18 64,46 34,60 4,46 4,18"
+          fill="none" stroke={accent} strokeOpacity="0.6" strokeWidth="0.4" />
+        <polygon points="66,40 96,54 96,82 66,96 36,82 36,54"
+          fill="none" stroke={accent} strokeOpacity="0.45" strokeWidth="0.4" />
+        <polygon points="50,28 72,40 72,64 50,76 28,64 28,40"
+          fill="none" stroke="#C6F8EE" strokeOpacity="0.7" strokeWidth="0.35" />
+      </svg>
 
       {/* Scanlines — static, no animation */}
       <div
@@ -136,18 +217,18 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
           position: 'absolute', inset: 0,
           backgroundImage: `repeating-linear-gradient(
             to bottom,
-            ${hexAlpha(accent, 0.16)} 0px,
-            ${hexAlpha(accent, 0.16)} 1px,
+            ${hexAlpha(accent, 0.14)} 0px,
+            ${hexAlpha(accent, 0.14)} 1px,
             transparent 1px,
             transparent 3px
           )`,
           mixBlendMode: 'overlay',
-          opacity: 0.5,
+          opacity: 0.45,
           pointerEvents: 'none',
         }}
       />
 
-      {/* ─── Hint chip — preserved from original ────────────────────────── */}
+      {/* ─── Hint chip ─────────────────────────────────────────────────── */}
       <div
         aria-hidden="true"
         style={{

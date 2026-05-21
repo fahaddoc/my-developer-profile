@@ -1089,18 +1089,18 @@ function HeroPortrait3D({
 
   return (
     <group ref={groupRef}>
-      {/* Offset downstream so camera approaches the card head-on instead of
-          passing through it (same z=-4 trick as the solar system). */}
-      <group position={[0, 0, -4]}>
+      {/* Offset to the right + downstream so camera approaches the card
+          head-on, with the figure sitting on the right side of the view. */}
+      <group position={[2.4, 0, -4]}>
         <Html
           transform
           position={[0, 0, 0]}
-          distanceFactor={4.2}
+          distanceFactor={3.4}
           pointerEvents="auto"
           center
         >
           <div ref={wrapRef} style={{ opacity: 0, transition: 'opacity 140ms linear' }}>
-            <FlipPhotoCard accent={accent} width={260} />
+            <FlipPhotoCard accent={accent} width={380} />
           </div>
         </Html>
       </group>
