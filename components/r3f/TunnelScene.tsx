@@ -314,14 +314,15 @@ function Tunnel({
 
   return (
     <>
-      {/* Constellation dots */}
+      {/* Constellation dots — kept subtle so the nebula reads as the backdrop
+          and the tunnel rings don't form a busy lattice everywhere. */}
       <points geometry={dotsGeometry}>
         <pointsMaterial
-          size={0.16}
+          size={0.14}
           color={dotColor}
           sizeAttenuation
           transparent
-          opacity={0.95}
+          opacity={0.45}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
           toneMapped={false}
@@ -330,12 +331,12 @@ function Tunnel({
         />
       </points>
 
-      {/* Thin connector lines around each ring */}
+      {/* Connector lines — almost invisible, just a hint of structure */}
       <lineSegments geometry={lineGeometry}>
         <lineBasicMaterial
           color={dotColor}
           transparent
-          opacity={0.32}
+          opacity={0.12}
           depthWrite={false}
           toneMapped={false}
         />
@@ -357,10 +358,11 @@ function Station({
 }) {
   const { t, label } = station
 
-  const groupRef     = useRef<THREE.Group>(null)
-  const ringMatRef   = useRef<THREE.MeshBasicMaterial>(null)
-  const dotMatRef    = useRef<THREE.MeshBasicMaterial>(null)
-  const textMatRef   = useRef<THREE.Material | null>(null)
+  const groupRef        = useRef<THREE.Group>(null)
+  const ringMatRef      = useRef<THREE.MeshBasicMaterial>(null)
+  const ringInnerMatRef = useRef<THREE.MeshBasicMaterial>(null)
+  const dotMatsRef      = useRef<(THREE.MeshBasicMaterial | null)[]>([])
+  const textMatRef      = useRef<THREE.Material | null>(null)
 
   // Place + orient the group once on mount.
   // We want the station to FACE the approaching camera. Camera travels along
@@ -378,15 +380,20 @@ function Station({
     groupRef.current.lookAt(pos.clone().sub(tangent))
   }, [curve, t])
 
-  // Proximity scrubbing — ring + dot + label fade with camera approach
+  // Proximity scrubbing — ring + dot + label fade with camera approach.
+  // Tightened window (0.10 → 0.06) so off-screen stations don't bleed
+  // into the current section's view.
   useFrame(() => {
     const dist      = Math.abs(scrollRef.current - t)
-    const proximity = Math.max(0, 1 - dist / 0.10)
-    const ringOp    = 0.18 + proximity * 0.82
-    const textOp    = 0.25 + proximity * 0.75
+    const proximity = Math.max(0, 1 - dist / 0.06)
+    const ringOp    = proximity * 0.85
+    const innerOp   = proximity * 0.32
+    const dotOp     = proximity * 0.85
+    const textOp    = proximity * 0.95
 
-    if (ringMatRef.current) ringMatRef.current.opacity = ringOp
-    if (dotMatRef.current)  dotMatRef.current.opacity  = ringOp
+    if (ringMatRef.current)      ringMatRef.current.opacity      = ringOp
+    if (ringInnerMatRef.current) ringInnerMatRef.current.opacity = innerOp
+    dotMatsRef.current.forEach((m) => { if (m) m.opacity = dotOp })
     if (textMatRef.current) (textMatRef.current as THREE.MeshBasicMaterial).opacity = textOp
 
     if (groupRef.current) {
@@ -405,7 +412,7 @@ function Station({
           ref={ringMatRef}
           color={station.color}
           transparent
-          opacity={0.4}
+          opacity={0}
           toneMapped={false}
         />
       </mesh>
@@ -414,9 +421,10 @@ function Station({
       <mesh>
         <torusGeometry args={[2.95, 0.035, 8, 96]} />
         <meshBasicMaterial
+          ref={ringInnerMatRef}
           color="#C6F8EE"
           transparent
-          opacity={0.25}
+          opacity={0}
           toneMapped={false}
         />
       </mesh>
@@ -429,10 +437,10 @@ function Station({
         >
           <sphereGeometry args={[0.12, 12, 12]} />
           <meshBasicMaterial
-            ref={i === 0 ? dotMatRef : undefined}
+            ref={(m) => { dotMatsRef.current[i] = m }}
             color="#E5FFF8"
             transparent
-            opacity={0.7}
+            opacity={0}
             toneMapped={false}
           />
         </mesh>
