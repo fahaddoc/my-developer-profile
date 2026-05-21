@@ -1295,6 +1295,9 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
           gl.domElement.addEventListener('webglcontextlost', handler)
         }}
       >
+        {/* Scene clear color — WebGL would otherwise paint its default
+            black/dark over the themed wrap div on every frame. */}
+        <color attach="background" args={[bgColor]} />
         <fog attach="fog" args={[fogColor, 8, 60]} />
 
         <ambientLight intensity={ambientI} />
