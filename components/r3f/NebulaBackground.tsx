@@ -145,12 +145,12 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
   }, [])
 
   // ── Inner + outer nebula materials ─────────────────────────────────────
-  // Dark-mode palette per user spec: deep teal-navy → rich teal → vibrant cyan
-  // (NOT blue — matches the website's existing teal/cyan accent system).
+  // Dark-mode palette per user spec — teal/cyan family (matches the website's
+  // existing accent system).
   const innerMat = useMemo(() => makeNebulaMaterial({
-    colorDeep:      isLight ? '#dde9ee' : '#051426',
-    colorMid:       isLight ? '#aed3da' : '#0d5973',
-    colorBright:    isLight ? '#1a8ea0' : '#00d9f2',
+    colorDeep:      isLight ? '#dde9ee' : '#05122e',  // vec3(0.02, 0.07, 0.18)
+    colorMid:       isLight ? '#aed3da' : '#14527a',  // vec3(0.08, 0.32, 0.48)
+    colorBright:    isLight ? '#1a8ea0' : '#0dd9eb',  // vec3(0.05, 0.85, 0.92)
     alpha:          isLight ? 0.78 : 1.00,
     brightStrength: isLight ? 0.55 : 1.10,
     uvScaleX:       4.0,
@@ -161,9 +161,9 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
   }), [isLight])
 
   const outerMat = useMemo(() => makeNebulaMaterial({
-    colorDeep:      isLight ? '#e9eff5' : '#030a1a',
-    colorMid:       isLight ? '#bcd9e2' : '#144059',
-    colorBright:    isLight ? '#4ea1ac' : '#1ab3d9',
+    colorDeep:      isLight ? '#e9eff5' : '#030a1e',  // vec3(0.01, 0.04, 0.12)
+    colorMid:       isLight ? '#bcd9e2' : '#0f3861',  // vec3(0.06, 0.22, 0.38)
+    colorBright:    isLight ? '#4ea1ac' : '#26a6cc',  // vec3(0.15, 0.65, 0.80)
     alpha:          isLight ? 0.55 : 0.92,
     brightStrength: isLight ? 0.40 : 0.85,
     uvScaleX:       2.4,
