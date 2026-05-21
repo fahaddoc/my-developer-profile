@@ -254,88 +254,62 @@ function Tunnel({
   ringCount: number
 }) {
   const skinGeometry = useMemo(
-    () => new THREE.TubeGeometry(curve, Math.max(240, ringCount), 3.18, 36, false),
+    () => new THREE.TubeGeometry(curve, Math.max(120, ringCount), 3.18, 24, false),
     [curve, ringCount],
   )
 
-  // Hyperspace warp — elongated star lines blasting along the curve toward
-  // the camera. Each star has its own t (position along curve), radius,
-  // angle, speed and tail length. Positions are recomputed each frame using
-  // pre-sampled Frenet frames + curve points so the streaks bend with the
-  // tunnel instead of running on a straight z-axis.
-  const STAR_COUNT    = 280
-  const FRAME_SAMPLES = 220
+  // Static dotted constellation rings — geometry built ONCE in useMemo and
+  // never touched again per frame. No shader animation, no buffer mutations,
+  // no requestAnimationFrame work beyond what R3F already does. This is the
+  // cheapest tunnel decoration we've tried.
+  const DOTS_PER_RING = 14
+  const RING_RADIUS   = 3.2
 
-  const sampledPoints = useMemo(() => {
-    const pts: THREE.Vector3[] = []
-    for (let i = 0; i <= FRAME_SAMPLES; i++) {
-      const out = new THREE.Vector3()
-      curve.getPointAt(i / FRAME_SAMPLES, out)
-      pts.push(out)
+  const { dotsGeometry, lineGeometry } = useMemo(() => {
+    const frames = curve.computeFrenetFrames(ringCount, false)
+    const dots   = new Float32Array((ringCount + 1) * DOTS_PER_RING * 3)
+    const pairs: number[] = []
+    const pos    = new THREE.Vector3()
+
+    for (let r = 0; r <= ringCount; r++) {
+      const t        = r / ringCount
+      const normal   = frames.normals[r]   || frames.normals[0]
+      const binormal = frames.binormals[r] || frames.binormals[0]
+      curve.getPointAt(t, pos)
+
+      const ringStart = r * DOTS_PER_RING
+      for (let d = 0; d < DOTS_PER_RING; d++) {
+        const angle = (d / DOTS_PER_RING) * Math.PI * 2
+        const cos   = Math.cos(angle) * RING_RADIUS
+        const sin   = Math.sin(angle) * RING_RADIUS
+        const idx   = (ringStart + d) * 3
+        dots[idx]     = pos.x + normal.x * cos + binormal.x * sin
+        dots[idx + 1] = pos.y + normal.y * cos + binormal.y * sin
+        dots[idx + 2] = pos.z + normal.z * cos + binormal.z * sin
+      }
+      // Connect adjacent dots inside each ring with thin lines.
+      for (let d = 0; d < DOTS_PER_RING; d++) {
+        const a = (ringStart + d) * 3
+        const b = (ringStart + ((d + 1) % DOTS_PER_RING)) * 3
+        pairs.push(
+          dots[a], dots[a + 1], dots[a + 2],
+          dots[b], dots[b + 1], dots[b + 2],
+        )
+      }
     }
-    return pts
-  }, [curve])
-  const sampledFrames = useMemo(
-    () => curve.computeFrenetFrames(FRAME_SAMPLES, false),
-    [curve],
-  )
 
-  const stars = useMemo(() => {
-    const rng = (i: number, n: number) => {
-      const s = Math.sin(i * 12.9898 + n * 7.31) * 43758.5453
-      return s - Math.floor(s)
-    }
-    return Array.from({ length: STAR_COUNT }, (_, i) => ({
-      t:      rng(i, 0),                              // along-curve param (0 = near camera, 1 = far end)
-      angle:  rng(i, 1) * Math.PI * 2,
-      radius: 3.05 * (0.08 + rng(i, 2) * 0.92),
-      speed:  0.14 + rng(i, 3) * 0.30,                // t-units per second
-      tailT:  0.006 + rng(i, 4) * 0.022,              // tail length in t-units
-    }))
-  }, [])
+    const dg = new THREE.BufferGeometry()
+    dg.setAttribute('position', new THREE.BufferAttribute(dots, 3))
+    const lg = new THREE.BufferGeometry()
+    lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pairs), 3))
+    return { dotsGeometry: dg, lineGeometry: lg }
+  }, [curve, ringCount])
 
-  const positions = useMemo(() => new Float32Array(STAR_COUNT * 2 * 3), [])
-  const geomRef   = useRef<THREE.BufferGeometry>(null)
-
-  useFrame((_, dt) => {
-    const buf = positions
-    for (let i = 0; i < STAR_COUNT; i++) {
-      const s = stars[i]
-      // Move toward camera. t=0 is near end; star resets to far end when it
-      // passes the camera so the stream is continuous.
-      s.t -= dt * s.speed
-      if (s.t < 0) s.t = 1
-
-      const headSample = Math.min(FRAME_SAMPLES, Math.max(0, Math.floor(s.t * FRAME_SAMPLES)))
-      const tailT      = Math.min(1, s.t + s.tailT)
-      const tailSample = Math.min(FRAME_SAMPLES, Math.max(0, Math.floor(tailT * FRAME_SAMPLES)))
-
-      const ph = sampledPoints[headSample]
-      const nh = sampledFrames.normals[headSample]
-      const bh = sampledFrames.binormals[headSample]
-      const pt = sampledPoints[tailSample]
-      const nt = sampledFrames.normals[tailSample]
-      const bt = sampledFrames.binormals[tailSample]
-
-      const cos = Math.cos(s.angle) * s.radius
-      const sin = Math.sin(s.angle) * s.radius
-
-      const i6 = i * 6
-      buf[i6 + 0] = ph.x + nh.x * cos + bh.x * sin
-      buf[i6 + 1] = ph.y + nh.y * cos + bh.y * sin
-      buf[i6 + 2] = ph.z + nh.z * cos + bh.z * sin
-      buf[i6 + 3] = pt.x + nt.x * cos + bt.x * sin
-      buf[i6 + 4] = pt.y + nt.y * cos + bt.y * sin
-      buf[i6 + 5] = pt.z + nt.z * cos + bt.z * sin
-    }
-    if (geomRef.current) {
-      geomRef.current.attributes.position.needsUpdate = true
-    }
-  })
+  const dotTexture = useMemo(() => getSparkleTexture(), [])
 
   return (
     <>
-      {/* Inner skin — keeps the tunnel reading as a void behind the warp */}
+      {/* Inner skin — dark void backdrop */}
       <mesh geometry={skinGeometry}>
         <meshBasicMaterial
           color="#0A0A12"
@@ -345,15 +319,28 @@ function Tunnel({
         />
       </mesh>
 
-      {/* Warp streaks — line segments per star (head + tail) */}
-      <lineSegments>
-        <bufferGeometry ref={geomRef}>
-          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-        </bufferGeometry>
-        <lineBasicMaterial
-          color="#C6F8EE"
+      {/* Constellation dots */}
+      <points geometry={dotsGeometry}>
+        <pointsMaterial
+          size={0.16}
+          color="#5EEAD4"
+          sizeAttenuation
           transparent
           opacity={0.95}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+          map={dotTexture ?? undefined}
+          alphaTest={0.02}
+        />
+      </points>
+
+      {/* Thin connector lines around each ring */}
+      <lineSegments geometry={lineGeometry}>
+        <lineBasicMaterial
+          color="#5EEAD4"
+          transparent
+          opacity={0.32}
           depthWrite={false}
           toneMapped={false}
         />

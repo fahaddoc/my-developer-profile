@@ -26,9 +26,9 @@ export const PRESETS: Record<QualityLevel, QualityPreset> = {
   // Even on low we keep the canvas alive (just minimal effects + no bloom).
   // Previously `canvas:false` meant the entire tunnel disappeared which
   // surprised users who toggled to LOW expecting reduced quality, not loss.
-  low:  { canvas: true,  bloom: false, bloomIntensity: 0,    particleCount: 120, tubeSegments: 50,  tileBob: false },
-  mid:  { canvas: true,  bloom: true,  bloomIntensity: 0.5,  particleCount: 380, tubeSegments: 110, tileBob: true  },
-  high: { canvas: true,  bloom: true,  bloomIntensity: 0.95, particleCount: 540, tubeSegments: 200, tileBob: true  },
+  low:  { canvas: true,  bloom: false, bloomIntensity: 0,    particleCount: 80,  tubeSegments: 50,  tileBob: false },
+  mid:  { canvas: true,  bloom: false, bloomIntensity: 0,    particleCount: 160, tubeSegments: 90,  tileBob: true  },
+  high: { canvas: true,  bloom: true,  bloomIntensity: 0.55, particleCount: 240, tubeSegments: 130, tileBob: true  },
 }
 
 /** Map raw detect-gpu tier (0..3) to a QualityLevel. */
