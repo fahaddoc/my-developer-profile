@@ -32,23 +32,20 @@ interface Particle {
   wobble: number
 }
 
-// Short, structured intro — fewer words at larger font = much more readable
-// once the particles settle into the text shape.
+// Short, bold, uppercase intro — matches the LET'S STAY IN TOUCH typography
+// used at the end of the tunnel. Punchy and readable when reformed in
+// particles.
 const DEFAULT_INTRO = [
-  "HI, I'M SHAH FAHAD",
-  "Senior Software Engineer · Karachi",
+  "SHAH FAHAD",
+  "SR. ENGINEER",
   "",
-  "6+ years building real-time",
-  "web & mobile applications",
+  "REACT · NEXT.JS",
+  "FLUTTER · WEBRTC",
   "",
-  "React · Next.js · TypeScript",
-  "Flutter · WebRTC · SignalR",
+  "6+ YRS · 25+ CLIENTS",
   "",
-  "4 companies · 9+ projects",
-  "25+ clients shipped",
-  "",
-  "Open to new opportunities",
-  "hello@shahfahad.dev",
+  "HELLO@",
+  "SHAHFAHAD.DEV",
 ].join('\n')
 
 export function ParticlePortrait({
@@ -57,7 +54,7 @@ export function ParticlePortrait({
   step = 3,
   accentTint = '#5EEAD4',
   intro = DEFAULT_INTRO,
-  fontPx = 13,
+  fontPx = 18,
 }: ParticlePortraitProps) {
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -122,7 +119,7 @@ export function ParticlePortrait({
       const maxW = width - 14
       const renderWith = (size: number) => {
         txtCtx.clearRect(0, 0, width, height)
-        txtCtx.font = `600 ${size}px ${family}`
+        txtCtx.font = `800 ${size}px ${family}`
         txtCtx.textBaseline = 'top'
         const paras = intro.split('\n')
         const lineHeight = Math.round(size * 1.35)
