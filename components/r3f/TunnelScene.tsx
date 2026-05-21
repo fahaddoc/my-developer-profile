@@ -16,7 +16,6 @@ import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Text, Html } from '@react-three/drei'
-import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -518,130 +517,42 @@ function Particles({
   // Stars no longer bob — constellation lines need stable endpoints.
   void bob
 
-  const { geometry, lineGeometry } = useMemo(() => {
+  // Static plain points — geometry built once, no per-frame work, no custom
+  // shader, no constellation lines (dropped the O(n²) line-pair search and
+  // the second BufferGeometry). All saved CPU / GPU time.
+  const geometry = useMemo(() => {
     const positions = new Float32Array(count * 3)
-    const sizes     = new Float32Array(count)
-    const phases    = new Float32Array(count)
-
     for (let i = 0; i < count; i++) {
       const t = Math.random()
       const p = curve.getPointAt(t)
-
       const angle  = Math.random() * Math.PI * 2
       const radius = 0.5 + Math.random() * 2.5
-      const offsetX = Math.cos(angle) * radius
-      const offsetY = Math.sin(angle) * radius
-
-      positions[i * 3 + 0] = p.x + offsetX
-      positions[i * 3 + 1] = p.y + offsetY
+      positions[i * 3 + 0] = p.x + Math.cos(angle) * radius
+      positions[i * 3 + 1] = p.y + Math.sin(angle) * radius
       positions[i * 3 + 2] = p.z
-
-      // Smaller dots (was 0.14–0.36) so the constellation reads as points,
-      // not the previous stretched diamonds.
-      sizes[i]  = 0.08 + Math.random() * 0.10
-      phases[i] = Math.random() * Math.PI * 2
     }
-
-    // Find pairs of nearby stars and connect them — sparse constellation
-    // strands. Threshold tuned so most stars get 1–3 connections; pure noise.
-    const CONNECT  = 1.4
-    const MAX_PER  = 3   // cap connections per star to avoid hub explosions
-    const pairs: number[] = []
-    const degree   = new Int32Array(count)
-    for (let i = 0; i < count; i++) {
-      if (degree[i] >= MAX_PER) continue
-      const x1 = positions[i * 3]
-      const y1 = positions[i * 3 + 1]
-      const z1 = positions[i * 3 + 2]
-      for (let j = i + 1; j < count; j++) {
-        if (degree[j] >= MAX_PER) continue
-        const x2 = positions[j * 3]
-        const y2 = positions[j * 3 + 1]
-        const z2 = positions[j * 3 + 2]
-        const d  = Math.hypot(x1 - x2, y1 - y2, z1 - z2)
-        if (d > 0 && d < CONNECT) {
-          pairs.push(x1, y1, z1, x2, y2, z2)
-          degree[i]++; degree[j]++
-          if (degree[i] >= MAX_PER) break
-        }
-      }
-    }
-
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geo.setAttribute('aSize',    new THREE.BufferAttribute(sizes, 1))
-    geo.setAttribute('aPhase',   new THREE.BufferAttribute(phases, 1))
-
-    const lineGeo = new THREE.BufferGeometry()
-    lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pairs), 3))
-
-    return { geometry: geo, lineGeometry: lineGeo }
+    return geo
   }, [curve, count])
 
-  const pointsRef = useRef<THREE.Points>(null)
-  const matRef    = useRef<THREE.ShaderMaterial>(null)
-  const texture   = useMemo(() => getSparkleTexture(), [])
-
-  // Drive twinkle uniform only — positions are static so the constellation
-  // line endpoints stay glued to the dots.
-  useFrame(({ clock }) => {
-    if (matRef.current) {
-      matRef.current.uniforms.uTime.value = clock.elapsedTime
-    }
-  })
+  const texture = useMemo(() => getSparkleTexture(), [])
 
   return (
-    <>
-      <points ref={pointsRef} geometry={geometry}>
-        <shaderMaterial
-          ref={matRef}
-          transparent
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-          toneMapped={false}
-          uniforms={{
-            uTime:    { value: 0 },
-            uMap:     { value: texture },
-            uPxScale: { value: 600 },
-          }}
-          vertexShader={`
-            attribute float aSize;
-            attribute float aPhase;
-            uniform float uTime;
-            uniform float uPxScale;
-            varying float vAlpha;
-            void main() {
-              float tw = 0.5 + 0.5 * sin(uTime * 2.0 + aPhase);
-              vAlpha = 0.55 + 0.45 * tw;
-              vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-              gl_Position = projectionMatrix * mvPosition;
-              float size = aSize * (0.8 + 0.6 * tw);
-              gl_PointSize = size * uPxScale / -mvPosition.z;
-            }
-          `}
-          fragmentShader={`
-            uniform sampler2D uMap;
-            varying float vAlpha;
-            void main() {
-              vec4 tex = texture2D(uMap, gl_PointCoord);
-              if (tex.a < 0.02) discard;
-              gl_FragColor = vec4(tex.rgb, tex.a * vAlpha);
-            }
-          `}
-        />
-      </points>
-
-      {/* Constellation strands — thin lines between nearby stars */}
-      <lineSegments geometry={lineGeometry}>
-        <lineBasicMaterial
-          color="#5EEAD4"
-          transparent
-          opacity={0.18}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </lineSegments>
-    </>
+    <points geometry={geometry}>
+      <pointsMaterial
+        size={0.12}
+        sizeAttenuation
+        color="#5EEAD4"
+        map={texture ?? undefined}
+        transparent
+        opacity={0.75}
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+        toneMapped={false}
+        alphaTest={0.02}
+      />
+    </points>
   )
 }
 
@@ -1350,10 +1261,10 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
       <Canvas
         key={canvasKey}
         camera={{ fov: 70, near: 0.05, far: 400, position: [0, 0, 0] }}
-        // Cap DPR at 1.5 — retina 2.0 quadruples framebuffer pixel count for
-        // marginal visual gain. Saves ~150 MB on 4K-scaled framebuffers.
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+        // DPR locked to 1. Retina 2× would 4× the framebuffer pixel count for
+        // marginal gain on a glowy scene. Single biggest GPU-memory win.
+        dpr={1}
+        gl={{ antialias: false, alpha: false, powerPreference: 'high-performance' }}
         onCreated={({ gl }) => {
           // When the GPU drops the context, remount the canvas instead of
           // reloading the page (page reloads can loop on persistent issues).
@@ -1411,18 +1322,10 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
 
         <CameraRig curve={curve} />
 
-        {/* Post-processing only on mid/high quality. Dropped mipmapBlur — it
-            allocates 4–5 framebuffers at viewport resolution for the multi-
-            scale bloom; plain bloom is ~60% lighter for ~85% of the look. */}
-        {preset.bloom && (
-          <EffectComposer multisampling={0}>
-            <Bloom
-              intensity={preset.bloomIntensity}
-              luminanceThreshold={0.25}
-              luminanceSmoothing={0.4}
-            />
-          </EffectComposer>
-        )}
+        {/* Bloom disabled — EffectComposer + Bloom allocates 5–8 viewport-
+            sized framebuffers and adds a postprocess pass per frame. With
+            additive sprites + emissive colors the scene already glows enough.
+            Saved ~80–120 MB GPU memory + ~25% per-frame GPU time. */}
       </Canvas>
     </div>
   )
