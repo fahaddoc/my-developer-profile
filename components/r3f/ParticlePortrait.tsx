@@ -32,21 +32,30 @@ interface Particle {
   wobble: number
 }
 
-// Short, bold, uppercase intro — matches the LET'S STAY IN TOUCH typography
-// used at the end of the tunnel. Punchy and readable when reformed in
-// particles.
-const DEFAULT_INTRO = [
-  "SHAH FAHAD",
-  "SR. ENGINEER",
-  "",
-  "REACT · NEXT.JS",
-  "FLUTTER · WEBRTC",
-  "",
-  "6+ YRS · 25+ CLIENTS",
-  "",
-  "HELLO@",
-  "SHAHFAHAD.DEV",
-].join('\n')
+// Full intro paragraph — the user's actual written script. Rendered in
+// Sora weight 800 (matches the LET'S STAY IN TOUCH bold). Auto-shrink picks
+// the largest font size that lets the whole para fit inside the canvas.
+const DEFAULT_INTRO =
+  "Hi, I'm Shah Fahad — a Senior Software Engineer based in Karachi, " +
+  "Pakistan, with over 6 years of experience building real-time web and " +
+  "mobile applications that scale. I specialize in React, Next.js, " +
+  "TypeScript, Flutter, and WebRTC — crafting high-performance products " +
+  "across fintech, healthcare, and live-communication domains. " +
+  "Currently at DigitalHire, I lead frontend development for a modern " +
+  "hiring platform — building reusable component libraries, complex " +
+  "application flows, and optimizing for exceptional user experience. " +
+  "Before that, at MILETAP, I built Konnect.im — an enterprise-grade " +
+  "real-time video conferencing platform with screen sharing, live chat, " +
+  "and participant management, powered by WebRTC and SignalR. Some of my " +
+  "proudest work includes Agent Shah — a playable 3D stealth shooter " +
+  "built entirely in Three.js where the agent is me. I've also built a " +
+  "WhatsApp ChatBot Simulator, a farmer loan management system called " +
+  "Reap Agro, an offline-first hospital OPD app in Flutter, and a " +
+  "service booking platform called Helpers. Across 4 companies, 9+ " +
+  "shipped projects, and 25+ clients — I've learned that great software " +
+  "isn't just about clean code. It's about products people actually use. " +
+  "I'm currently open to new opportunities — remote or on-site. Explore " +
+  "my work at shahfahad.dev or reach me at hello@shahfahad.dev."
 
 export function ParticlePortrait({
   src, width, height,
@@ -54,7 +63,7 @@ export function ParticlePortrait({
   step = 3,
   accentTint = '#5EEAD4',
   intro = DEFAULT_INTRO,
-  fontPx = 18,
+  fontPx = 14,
 }: ParticlePortraitProps) {
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
