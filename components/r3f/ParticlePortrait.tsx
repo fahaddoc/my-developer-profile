@@ -32,8 +32,24 @@ interface Particle {
   wobble: number
 }
 
-const DEFAULT_INTRO =
-  "Hi, I'm Shah Fahad — Senior Software Engineer based in Karachi, Pakistan with 6+ years building real-time web and mobile apps. Specializing in React, Next.js, TypeScript, Flutter, and WebRTC across fintech, healthcare, and live communication. Currently leading frontend at DigitalHire. Previously at MILETAP I built Konnect.im — an enterprise video conferencing platform with WebRTC + SignalR. Other proud work: Agent Shah (Three.js 3D stealth game), WhatsApp ChatBot Simulator, Reap Agro loan management, Helpers service booking, an offline-first Flutter OPD app. 4 companies. 9+ projects. 25+ clients shipped. Open to new opportunities — remote or on-site. shahfahad.dev · hello@shahfahad.dev"
+// Short, structured intro — fewer words at larger font = much more readable
+// once the particles settle into the text shape.
+const DEFAULT_INTRO = [
+  "HI, I'M SHAH FAHAD",
+  "Senior Software Engineer · Karachi",
+  "",
+  "6+ years building real-time",
+  "web & mobile applications",
+  "",
+  "React · Next.js · TypeScript",
+  "Flutter · WebRTC · SignalR",
+  "",
+  "4 companies · 9+ projects",
+  "25+ clients shipped",
+  "",
+  "Open to new opportunities",
+  "hello@shahfahad.dev",
+].join('\n')
 
 export function ParticlePortrait({
   src, width, height,
@@ -41,7 +57,7 @@ export function ParticlePortrait({
   step = 3,
   accentTint = '#5EEAD4',
   intro = DEFAULT_INTRO,
-  fontPx = 9,
+  fontPx = 13,
 }: ParticlePortraitProps) {
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -101,37 +117,44 @@ export function ParticlePortrait({
       const family = "'Sora', 'Inter', system-ui, sans-serif"
       txtCtx.fillStyle = 'white'
 
-      // Auto-shrink loop — start at fontPx, drop if doesn't fit
-      let used = fontPx
-      const maxW = width - 12
+      // Render with explicit line breaks. Each paragraph (line) wraps only
+      // when it overflows. Empty strings produce visual spacing.
+      const maxW = width - 14
       const renderWith = (size: number) => {
         txtCtx.clearRect(0, 0, width, height)
-        txtCtx.font = `500 ${size}px ${family}`
+        txtCtx.font = `600 ${size}px ${family}`
         txtCtx.textBaseline = 'top'
-        const words = intro.split(/\s+/)
-        const lineHeight = Math.round(size * 1.32)
-        let line = ''
+        const paras = intro.split('\n')
+        const lineHeight = Math.round(size * 1.35)
         const lines: string[] = []
-        for (const w of words) {
-          const cand = line ? line + ' ' + w : w
-          if (txtCtx.measureText(cand).width > maxW) {
-            if (line) lines.push(line)
-            line = w
-          } else {
-            line = cand
+        for (const para of paras) {
+          if (para === '') { lines.push(''); continue }
+          const words = para.split(/\s+/)
+          let line = ''
+          for (const w of words) {
+            const cand = line ? line + ' ' + w : w
+            if (txtCtx.measureText(cand).width > maxW) {
+              if (line) lines.push(line)
+              line = w
+            } else {
+              line = cand
+            }
           }
+          if (line) lines.push(line)
         }
-        if (line) lines.push(line)
         const totalH = lines.length * lineHeight
-        let yPos = (height - totalH) / 2
+        let yPos = Math.max(6, (height - totalH) / 2)
         for (const l of lines) {
-          const lineW = txtCtx.measureText(l).width
-          txtCtx.fillText(l, (width - lineW) / 2, yPos)
+          if (l) {
+            const lineW = txtCtx.measureText(l).width
+            txtCtx.fillText(l, (width - lineW) / 2, yPos)
+          }
           yPos += lineHeight
         }
-        return totalH <= height - 8
+        return totalH <= height - 10
       }
-      while (used > 5 && !renderWith(used)) used -= 1
+      let used = fontPx
+      while (used > 6 && !renderWith(used)) used -= 1
       const td = txtCtx.getImageData(0, 0, width, height).data
 
       const textPositions: Array<{ x: number; y: number }> = []
@@ -220,13 +243,30 @@ export function ParticlePortrait({
         const dx = (p.x + wx) - tgX
         const dy = (p.y + wy) - tgY
         const drift = Math.min(1, Math.sqrt(dx * dx + dy * dy) / 26)
-        const r = Math.round(p.r * (1 - drift) + tint.r * drift)
-        const g = Math.round(p.g * (1 - drift) + tint.g * drift)
-        const b = Math.round(p.b * (1 - drift) + tint.b * drift)
-        const a = (p.a / 255) * Math.max(0.4, 1 - drift * 0.35)
+
+        // Color: in hover mode, particles render in CLEAN cream-white settling
+        // to accent as they near their text target — so the words read
+        // crisply, not as a muddy mix of original portrait colors.
+        // In idle mode, particles use their original portrait pixel color
+        // and shift toward accent only when far from home (transition).
+        let r: number, g: number, b: number
+        if (hover) {
+          // Far from target → accent. Near target → cream-white (legible).
+          const cream = { r: 240, g: 252, b: 248 }
+          r = Math.round(tint.r * drift + cream.r * (1 - drift))
+          g = Math.round(tint.g * drift + cream.g * (1 - drift))
+          b = Math.round(tint.b * drift + cream.b * (1 - drift))
+        } else {
+          r = Math.round(p.r * (1 - drift) + tint.r * drift)
+          g = Math.round(p.g * (1 - drift) + tint.g * drift)
+          b = Math.round(p.b * (1 - drift) + tint.b * drift)
+        }
+        const a = (hover ? 1 : (p.a / 255)) * Math.max(0.55, 1 - drift * 0.3)
 
         ctx.fillStyle = `rgba(${r},${g},${b},${a})`
-        ctx.fillRect(p.x + wx, p.y + wy, 1.4, 1.4)
+        // Slightly larger rect when settled into text shape — boosts readability
+        const settled = drift < 0.25 ? 2 : 1.4
+        ctx.fillRect(p.x + wx, p.y + wy, settled, settled)
       }
 
       rafRef.current = requestAnimationFrame(tick)
