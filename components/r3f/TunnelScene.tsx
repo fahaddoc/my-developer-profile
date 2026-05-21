@@ -1274,6 +1274,27 @@ function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ProximityGate — only mounts its children when the camera is within
+// `threshold` of `stationT`. Heavy nodes (drei <Html>, large geometries) cost
+// memory + DOM even when fully transparent, so unmounting them when the user
+// is at the other end of the tunnel keeps the page light.
+// ─────────────────────────────────────────────────────────────────────────────
+function ProximityGate({
+  stationT, threshold = 0.18, children,
+}: {
+  stationT: number
+  threshold?: number
+  children: React.ReactNode
+}) {
+  const [near, setNear] = useState(false)
+  useFrame(() => {
+    const isNear = Math.abs(scrollRef.current - stationT) < threshold
+    if (isNear !== near) setNear(isNear)
+  })
+  return near ? <>{children}</> : null
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Public component — Canvas + scroll wiring + tunnel + stations
 // ─────────────────────────────────────────────────────────────────────────────
 export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset } = {}) {
@@ -1342,6 +1363,9 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
       <Canvas
         key={canvasKey}
         camera={{ fov: 70, near: 0.05, far: 400, position: [0, 0, 0] }}
+        // Cap DPR at 1.5 — retina 2.0 quadruples framebuffer pixel count for
+        // marginal visual gain. Saves ~150 MB on 4K-scaled framebuffers.
+        dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         onCreated={({ gl }) => {
           // When the GPU drops the context, remount the canvas instead of
@@ -1369,37 +1393,46 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
           <Station key={s.id} curve={curve} station={s} />
         ))}
 
-        <Suspense fallback={null}>
-          <ProjectTiles
+        {/* ProjectTiles renders 9 drei <Html> cards = 9 DOM nodes in CSS3D.
+            Only mount when the camera is near the projects station. */}
+        <ProximityGate stationT={STATIONS.find((s) => s.id === 'projects')!.t} threshold={0.20}>
+          <Suspense fallback={null}>
+            <ProjectTiles
+              curve={curve}
+              stationT={STATIONS.find((s) => s.id === 'projects')!.t}
+              bob={preset.tileBob}
+            />
+          </Suspense>
+        </ProximityGate>
+
+        {/* Hero portrait card — heavy with the hologram layers, gate by proximity */}
+        <ProximityGate stationT={STATIONS.find((s) => s.id === 'hero')!.t} threshold={0.18}>
+          <HeroPortrait3D
             curve={curve}
-            stationT={STATIONS.find((s) => s.id === 'projects')!.t}
-            bob={preset.tileBob}
+            stationT={STATIONS.find((s) => s.id === 'hero')!.t}
+            accent={STATIONS.find((s) => s.id === 'hero')!.color}
           />
-        </Suspense>
+        </ProximityGate>
 
-        {/* Flip photo/video card at the INTRO station centre */}
-        <HeroPortrait3D
-          curve={curve}
-          stationT={STATIONS.find((s) => s.id === 'hero')!.t}
-          accent={STATIONS.find((s) => s.id === 'hero')!.color}
-        />
-
-        {/* Socials sign-off at the end of the tunnel */}
-        <SocialsEnd3D
-          curve={curve}
-          accent={STATIONS.find((s) => s.id === 'contact')!.color}
-        />
+        {/* Socials sign-off — far end, only mount when camera is approaching */}
+        <ProximityGate stationT={0.96} threshold={0.16}>
+          <SocialsEnd3D
+            curve={curve}
+            accent={STATIONS.find((s) => s.id === 'contact')!.color}
+          />
+        </ProximityGate>
 
         <CameraRig curve={curve} />
 
-        {/* Post-processing only on mid/high quality */}
+        {/* Post-processing only on mid/high quality. Dropped mipmapBlur — it
+            allocates 4–5 framebuffers at viewport resolution for the multi-
+            scale bloom; plain bloom is ~60% lighter for ~85% of the look. */}
         {preset.bloom && (
           <EffectComposer multisampling={0}>
             <Bloom
               intensity={preset.bloomIntensity}
               luminanceThreshold={0.25}
               luminanceSmoothing={0.4}
-              mipmapBlur
             />
           </EffectComposer>
         )}
