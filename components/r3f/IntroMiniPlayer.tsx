@@ -1,16 +1,19 @@
 'use client'
 
-// IntroMiniPlayer — fixed picture-in-picture for the intro video.
+// IntroMiniPlayer — fixed picture-in-picture for the intro video, presented
+// as a holographic projection that matches the FlipPhotoCard treatment.
 // Docks to the top-right of the viewport just below the SOUND toggle.
 // Plays as long as the shared sound state is true, regardless of scroll
 // position. Clicking the close × stops playback (sets sound OFF).
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { hexAlpha, useSound } from '@/components/r3f/TunnelScene'
 
 interface IntroMiniPlayerProps {
   accent: string
 }
+
+const PARTICLE_COUNT = 10
 
 export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
   const [sound, setSound] = useSound()
@@ -23,7 +26,6 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
     if (sound) {
       v.muted = false
       v.play().catch(() => {
-        // Browser blocked unmuted autoplay — fall back to muted playback
         v.muted = true
         v.play().catch(() => { /* still blocked, poster stays */ })
       })
@@ -32,6 +34,17 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
       v.currentTime = 0
     }
   }, [sound])
+
+  const particles = useMemo(
+    () =>
+      Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
+        leftPct: (i * 41) % 100,
+        delay:   (i * 0.53) % 4,
+        dur:     4 + ((i * 0.61) % 3),
+        size:    1.2 + ((i * 0.31) % 1.4),
+      })),
+    [],
+  )
 
   return (
     <div
@@ -45,11 +58,10 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
         width:      220,
         aspectRatio: '4 / 5',
         borderRadius: 8,
-        overflow:   'hidden',
-        background: 'rgba(8,6,2,0.85)',
-        border:     `1px solid ${hexAlpha(accent, sound ? 0.6 : 0.2)}`,
+        background: 'rgba(6,10,14,0.85)',
+        border:     `1px solid ${hexAlpha(accent, sound ? 0.7 : 0.25)}`,
         boxShadow:  sound
-          ? `0 0 26px ${hexAlpha(accent, 0.45)}, 0 12px 32px rgba(0,0,0,0.6)`
+          ? `0 0 30px ${hexAlpha(accent, 0.5)}, 0 0 60px ${hexAlpha(accent, 0.2)}, 0 12px 32px rgba(0,0,0,0.6)`
           : `0 8px 20px rgba(0,0,0,0.45)`,
         opacity:       sound ? 1 : 0,
         transform:     sound ? 'translateY(0) scale(1)' : 'translateY(-8px) scale(0.96)',
@@ -57,22 +69,135 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
         transition: 'opacity 280ms ease-out, transform 280ms cubic-bezier(0.22,1,0.36,1), border-color 240ms, box-shadow 240ms',
       }}
     >
-      <video
-        ref={videoRef}
-        poster="/videos/shah-intro-poster.png"
-        playsInline
-        preload="metadata"
+      {/* Inner clipper — holds video + overlays. Outer keeps brackets/HUD
+          ring sharp without being clipped. */}
+      <div
         style={{
-          width:    '100%',
-          height:   '100%',
-          objectFit: 'cover',
-          display:   'block',
+          position: 'absolute',
+          inset: 0,
+          borderRadius: 8,
+          overflow: 'hidden',
         }}
       >
-        <source src="/videos/shah-intro.webm" type="video/webm" />
-        <source src="/videos/shah-intro.mov"  type='video/mp4; codecs="hvc1"' />
-        <source src="/videos/shah-intro.mp4"  type="video/mp4" />
-      </video>
+        {/* Video — recolored to cyan tone via filter */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute', inset: 0,
+            animation: sound ? 'impx-glitch 8s steps(1, end) infinite' : 'none',
+          }}
+        >
+          <video
+            ref={videoRef}
+            poster="/videos/shah-intro-poster.png"
+            playsInline
+            preload="metadata"
+            style={{
+              width: '100%', height: '100%',
+              objectFit: 'cover', display: 'block',
+              filter: `
+                hue-rotate(160deg)
+                saturate(1.5)
+                brightness(1.05)
+                contrast(1.08)
+              `,
+            }}
+          >
+            <source src="/videos/shah-intro.webm" type="video/webm" />
+            <source src="/videos/shah-intro.mov"  type='video/mp4; codecs="hvc1"' />
+            <source src="/videos/shah-intro.mp4"  type="video/mp4" />
+          </video>
+        </div>
+
+        {/* Cyan wash — pulls the whole frame toward the accent palette */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute', inset: 0,
+            background: `linear-gradient(180deg, ${hexAlpha(accent, 0.10)} 0%, ${hexAlpha(accent, 0.04)} 50%, ${hexAlpha(accent, 0.18)} 100%)`,
+            mixBlendMode: 'screen',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Scanlines drifting down */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: `repeating-linear-gradient(
+              to bottom,
+              ${hexAlpha(accent, 0.18)} 0px,
+              ${hexAlpha(accent, 0.18)} 1px,
+              transparent 1px,
+              transparent 3px
+            )`,
+            mixBlendMode: 'overlay',
+            opacity: 0.55,
+            animation: 'impx-scan 6s linear infinite',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Highlight sweep — single bright band crawls top→bottom */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute', inset: 0,
+            background: `linear-gradient(to bottom, transparent 40%, ${hexAlpha(accent, 0.22)} 50%, transparent 60%)`,
+            mixBlendMode: 'screen',
+            animation: 'impx-sweep 5.5s linear infinite',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Particles rising past the video */}
+        <div
+          aria-hidden="true"
+          style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}
+        >
+          {particles.map((p, i) => (
+            <span
+              key={i}
+              style={{
+                position: 'absolute',
+                left: `${p.leftPct}%`,
+                bottom: -6,
+                width: p.size, height: p.size,
+                borderRadius: '50%',
+                background: accent,
+                boxShadow: `0 0 4px ${accent}`,
+                opacity: 0,
+                animation: `impx-rise ${p.dur}s ${p.delay}s linear infinite`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Corner brackets — sit outside the clipper so they punch out of card */}
+      {(['tl', 'tr', 'bl', 'br'] as const).map((corner) => {
+        const isTop  = corner.startsWith('t')
+        const isLeft = corner.endsWith('l')
+        return (
+          <div
+            key={corner}
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              [isTop  ? 'top'  : 'bottom']: -1,
+              [isLeft ? 'left' : 'right']:  -1,
+              width: 12, height: 12,
+              borderTop:    isTop  ? `1.5px solid ${accent}` : undefined,
+              borderBottom: !isTop ? `1.5px solid ${accent}` : undefined,
+              borderLeft:   isLeft ? `1.5px solid ${accent}` : undefined,
+              borderRight: !isLeft ? `1.5px solid ${accent}` : undefined,
+              pointerEvents: 'none',
+              boxShadow: `0 0 6px ${hexAlpha(accent, 0.6)}`,
+            }}
+          />
+        )
+      })}
 
       {/* Live LED + label */}
       <div
@@ -80,10 +205,13 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
           position: 'absolute', top: 8, left: 8,
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '3px 8px', borderRadius: 999,
-          background: 'rgba(0,0,0,0.55)',
+          background: 'rgba(6,10,14,0.7)',
+          backdropFilter: 'blur(4px)',
+          border: `1px solid ${hexAlpha(accent, 0.45)}`,
           fontFamily: 'var(--font-mono), monospace',
           fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase',
           color: accent,
+          boxShadow: `0 0 8px ${hexAlpha(accent, 0.3)}`,
         }}
       >
         <span style={{
@@ -91,7 +219,7 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
           background: accent, boxShadow: `0 0 6px ${accent}`,
           animation: 'introMiniPulse 1.4s ease-in-out infinite',
         }} />
-        intro · live
+        intro · holo
       </div>
 
       {/* Close × */}
@@ -102,13 +230,15 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
         style={{
           position: 'absolute', top: 6, right: 6,
           width: 22, height: 22, borderRadius: '50%',
-          background: 'rgba(0,0,0,0.6)',
-          border: `1px solid ${hexAlpha(accent, 0.45)}`,
+          background: 'rgba(6,10,14,0.7)',
+          backdropFilter: 'blur(4px)',
+          border: `1px solid ${hexAlpha(accent, 0.55)}`,
           color: accent,
           fontFamily: 'var(--font-mono), monospace',
           fontSize: 11, lineHeight: 1,
           cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: `0 0 8px ${hexAlpha(accent, 0.35)}`,
         }}
       >
         ×
@@ -118,6 +248,28 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
         @keyframes introMiniPulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50%      { opacity: 0.45; transform: scale(0.85); }
+        }
+        @keyframes impx-scan {
+          0%   { background-position: 0 0; }
+          100% { background-position: 0 60px; }
+        }
+        @keyframes impx-sweep {
+          0%   { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
+        }
+        @keyframes impx-rise {
+          0%   { transform: translateY(0)    scale(1);   opacity: 0; }
+          15%  { opacity: 0.8; }
+          85%  { opacity: 0.4; }
+          100% { transform: translateY(-360px) scale(0.6); opacity: 0; }
+        }
+        @keyframes impx-glitch {
+          0%, 91%, 100% { transform: translate(0, 0) skewX(0deg); }
+          92%           { transform: translate(-2px, 0) skewX(-1.2deg); }
+          93%           { transform: translate(2px, 0)  skewX( 1.2deg); }
+          94%           { transform: translate(0, 1px)  skewX(0deg); }
+          95%, 98%      { transform: translate(0, 0)    skewX(0deg); }
+          99%           { transform: translate(1px, -1px) skewX(0.6deg); }
         }
       `}</style>
     </div>
