@@ -92,42 +92,46 @@ function WarpSpeed() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. EQUALIZER — vertical bars wrapping the tunnel, dancing to fake audio
+// 2. EQUALIZER — radial bars wrapping the tunnel, dancing to fake audio
 // ─────────────────────────────────────────────────────────────────────────────
 function Equalizer() {
   const BARS = 56
-  const groupRef = useRef<THREE.Group>(null)
+  const barRefs = useRef<(THREE.Mesh | null)[]>([])
   const phases = useMemo(
     () => Array.from({ length: BARS }, (_, i) => i * 0.31),
     [],
   )
   useFrame(({ clock }) => {
-    if (!groupRef.current) return
     const t = clock.elapsedTime
-    groupRef.current.children.forEach((c, i) => {
-      const m = c as THREE.Mesh
-      // Multiple sine harmonics → mock spectrum bouncing
+    for (let i = 0; i < BARS; i++) {
+      const m = barRefs.current[i]
+      if (!m) continue
       const v =
-        0.5 + 0.5 * Math.sin(t * 2.5 + phases[i]) * 0.55 +
+        0.5 +
+        0.55 * Math.sin(t * 2.5 + phases[i]) +
         0.25 * Math.sin(t * 1.7 + phases[i] * 1.7) +
         0.15 * Math.sin(t * 4.1 + phases[i] * 0.6)
-      const h = 0.2 + Math.max(0, v) * 1.6
-      m.scale.set(1, h, 1)
+      const h = 0.15 + Math.max(0, v) * 1.6
+      m.scale.set(h, 1, 1)
       const mat = m.material as THREE.MeshBasicMaterial
       mat.opacity = 0.5 + Math.max(0, v) * 0.5
-    })
+    }
   })
   return (
-    <group ref={groupRef} position={[0, 0, -TUBE_LENGTH / 2]}>
+    <group position={[0, 0, -TUBE_LENGTH / 2]}>
       {Array.from({ length: BARS }).map((_, i) => {
         const angle = (i / BARS) * Math.PI * 2
-        const x = Math.cos(angle) * TUBE_RADIUS * 0.92
-        const y = Math.sin(angle) * TUBE_RADIUS * 0.92
-        // Slim plane facing inward, anchored at bottom so scale.y grows upward
+        const wallX = Math.cos(angle) * TUBE_RADIUS
+        const wallY = Math.sin(angle) * TUBE_RADIUS
+        // Mesh sits at wall, geometry anchored at its outer edge so scaling
+        // grows the bar radially INWARD instead of from the centre out.
         return (
-          <group key={i} position={[x, y, 0]} rotation={[0, 0, angle + Math.PI / 2]}>
-            <mesh position={[0, 0, 0]}>
-              <boxGeometry args={[0.16, 1, 0.06]} />
+          <group key={i} position={[wallX, wallY, 0]} rotation={[0, 0, angle]}>
+            <mesh
+              ref={(m) => { barRefs.current[i] = m }}
+              position={[-0.5, 0, 0]}
+            >
+              <boxGeometry args={[1, 0.09, 0.09]} />
               <meshBasicMaterial color={ACCENT} transparent opacity={0.7} toneMapped={false} />
             </mesh>
           </group>
