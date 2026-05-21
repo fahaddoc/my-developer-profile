@@ -1270,10 +1270,7 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         // project tiles can fire. HUD chrome sits on top in higher z-index and
         // still receives clicks because it sets pointerEvents:auto on itself.
         pointerEvents: 'auto',
-        // Wrap is transparent now — the page's CircuitBackground (z-index 0)
-        // sits behind the Canvas, and the Canvas itself renders with alpha
-        // so the circuit traces are visible in the "void" between geometry.
-        background: 'transparent',
+        background: bgColor,
         transition: 'background 220ms',
       }}
     >
@@ -1283,7 +1280,7 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         // DPR locked to 1. Retina 2× would 4× the framebuffer pixel count for
         // marginal gain on a glowy scene. Single biggest GPU-memory win.
         dpr={1}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         onCreated={({ gl }) => {
           // When the GPU drops the context, remount the canvas instead of
           // reloading the page (page reloads can loop on persistent issues).
@@ -1298,10 +1295,9 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
           gl.domElement.addEventListener('webglcontextlost', handler)
         }}
       >
-        {/* No <color attach="background"> — Canvas runs with alpha:true so
-            the CircuitBackground SVG behind it shows through the empty space
-            between geometry. Fog still uses the theme's bg color so distant
-            objects fade into the page bg correctly. */}
+        {/* Scene clear color — WebGL would otherwise paint black over the
+            themed wrap div on every frame. */}
+        <color attach="background" args={[bgColor]} />
         <fog attach="fog" args={[fogColor, 8, 60]} />
 
         <ambientLight intensity={ambientI} />
