@@ -772,9 +772,9 @@ function ProjectTiles({
 
   // Per-orbital-ring radii (in world units inside the tunnel; tunnel r=3.2)
   // Spread wider than the old layout so the 9 cards don't collide.
-  const RING_RADII  = [1.55, 2.50, 3.40]
-  const RING_SPEEDS = [0.12, 0.07, -0.04]  // outer reverses for visual interest
-  const TILE_SCALES = [0.85, 0.95, 1.05]   // inner smaller, outer larger
+  const RING_RADII  = [1.70, 2.70, 3.65]
+  const RING_SPEEDS = [0, 0, 0]            // rotation disabled — too chaotic with 9 cards
+  const TILE_SCALES = [0.95, 1.00, 1.05]   // inner slightly smaller, outer slightly larger
 
   // Independent per-tile Y bob phases — gives each card its own gentle float
   // without all 9 moving in lockstep.
@@ -856,36 +856,15 @@ function ProjectTiles({
     }
     lastScrollRef.current = scrollRef.current
 
-    // Hover lerp on the inner animTile group. Hover detection now lives on
-    // the Html card itself (DOM mouse events), so the on-screen hover area
-    // always matches the visible card — even at the larger zoomed-in scale.
+    // Hover effect is now CSS-only (transform scale on the hovered card
+    // below). We only keep the animTile traversal for billboarding so each
+    // card faces the camera. No 3D position/scale lerp = no overlap mess.
     if (groupRef.current) {
-      camera.getWorldDirection(tmpDir)
-      const STICK_DIST = 4.0
-
-      let tileIdx = 0
       groupRef.current.traverse((obj) => {
         if (!obj.userData?.animTile) return
-        const isHover = hoveredRef.current === tileIdx
-
-        if (isHover && obj.parent) {
-          tmpWorld.copy(camera.position).addScaledVector(tmpDir, STICK_DIST)
-          tmpLocal.copy(tmpWorld)
-          obj.parent.worldToLocal(tmpLocal)
-          obj.position.lerp(tmpLocal, 0.16)
-        } else {
-          // rest position relative to outer group is the origin
-          obj.position.lerp(REST_ORIGIN, 0.14)
-        }
-
-        const target = isHover ? 1.55 : 1
-        const cur    = scaleRef.current[tileIdx] ?? 1
-        const next   = cur + (target - cur) * 0.16
-        scaleRef.current[tileIdx] = next
-        obj.scale.setScalar(next)
-
+        obj.position.lerp(REST_ORIGIN, 0.18)
+        obj.scale.setScalar(1)
         obj.lookAt(camera.position)
-        tileIdx++
       })
     }
   })
@@ -975,17 +954,24 @@ function ProjectTiles({
                     <Html
                       transform
                       pointerEvents="auto"
-                      distanceFactor={2.8}
+                      distanceFactor={5.0}
                       center
+                      zIndexRange={[100, 0]}
                     >
                       <div
                         ref={(el) => { cardRefs.current[i] = el }}
-                        onMouseEnter={() => {
+                        onMouseEnter={(e) => {
                           hoveredRef.current = i
+                          e.currentTarget.style.transform = 'scale(1.18)'
+                          e.currentTarget.style.zIndex = '50'
+                          e.currentTarget.style.boxShadow = `inset 0 0 30px ${hexAlpha(p.color, 0.22)}, 0 0 36px ${hexAlpha(p.color, 0.5)}`
                           if (typeof document !== 'undefined') document.body.style.cursor = 'pointer'
                         }}
-                        onMouseLeave={() => {
+                        onMouseLeave={(e) => {
                           if (hoveredRef.current === i) hoveredRef.current = -1
+                          e.currentTarget.style.transform = 'scale(1)'
+                          e.currentTarget.style.zIndex = ''
+                          e.currentTarget.style.boxShadow = `inset 0 0 24px ${hexAlpha(p.color, 0.13)}, 0 0 22px ${hexAlpha(p.color, 0.22)}`
                           if (typeof document !== 'undefined') document.body.style.cursor = ''
                         }}
                         onClick={(e) => {
@@ -995,15 +981,16 @@ function ProjectTiles({
                         style={{
                           opacity: 0,
                           pointerEvents: 'none',
-                          transition: 'opacity 120ms linear, border-color 200ms, box-shadow 200ms',
-                          width: 210,
-                          padding: '16px 16px 14px',
-                          borderRadius: 14,
-                          border: `1.4px solid ${p.color}`,
+                          transformOrigin: 'center',
+                          transition: 'opacity 120ms linear, transform 220ms ease-out, box-shadow 220ms ease-out',
+                          width: 160,
+                          padding: '12px 12px 11px',
+                          borderRadius: 12,
+                          border: `1.2px solid ${p.color}`,
                           background: `linear-gradient(140deg, rgba(8,10,14,0.55) 0%, rgba(8,10,14,0.78) 100%)`,
                           backdropFilter: 'blur(6px)',
                           WebkitBackdropFilter: 'blur(6px)',
-                          boxShadow: `inset 0 0 26px ${hexAlpha(p.color, 0.13)}, 0 0 26px ${hexAlpha(p.color, 0.22)}`,
+                          boxShadow: `inset 0 0 24px ${hexAlpha(p.color, 0.13)}, 0 0 22px ${hexAlpha(p.color, 0.22)}`,
                           fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
                           color: '#F5F5F7',
                           userSelect: 'none',
@@ -1011,50 +998,51 @@ function ProjectTiles({
                         }}
                       >
                         {/* Top row: icon + number */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 36 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
                           <div style={{
-                            width: 46, height: 46, borderRadius: '50%',
-                            border: `1.4px solid ${p.color}`,
+                            width: 34, height: 34, borderRadius: '50%',
+                            border: `1.2px solid ${p.color}`,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             color: p.color,
-                            boxShadow: `0 0 16px ${hexAlpha(p.color, 0.35)}, inset 0 0 10px ${hexAlpha(p.color, 0.18)}`,
+                            boxShadow: `0 0 12px ${hexAlpha(p.color, 0.3)}, inset 0 0 8px ${hexAlpha(p.color, 0.15)}`,
                           }}>
-                            {iconFor(p)}
+                            <span style={{ transform: 'scale(0.75)', display: 'inline-flex' }}>{iconFor(p)}</span>
                           </div>
                           <div style={{ textAlign: 'right', lineHeight: 1 }}>
                             <div style={{
                               fontFamily: 'var(--font-mono), ui-monospace, monospace',
-                              fontSize: 11, fontWeight: 700,
-                              letterSpacing: '0.12em', color: p.color,
+                              fontSize: 9, fontWeight: 700,
+                              letterSpacing: '0.14em', color: p.color,
                             }}>{number}</div>
                             <div style={{
-                              width: 5, height: 5, borderRadius: '50%',
-                              background: p.color, marginLeft: 'auto', marginTop: 6,
-                              boxShadow: `0 0 6px ${p.color}`,
+                              width: 4, height: 4, borderRadius: '50%',
+                              background: p.color, marginLeft: 'auto', marginTop: 4,
+                              boxShadow: `0 0 5px ${p.color}`,
                             }} />
                           </div>
                         </div>
 
                         {/* Title + subtitle */}
                         <div style={{
-                          fontWeight: 700, fontSize: 17,
-                          letterSpacing: '-0.01em', lineHeight: 1.15,
-                          marginBottom: 4,
+                          fontWeight: 700, fontSize: 13,
+                          letterSpacing: '-0.01em', lineHeight: 1.18,
+                          marginBottom: 3,
                         }}>{name}</div>
                         <div style={{
-                          fontSize: 11.5, fontWeight: 400,
+                          fontSize: 9.5, fontWeight: 400,
                           color: 'rgba(245,245,247,0.62)',
-                          lineHeight: 1.35,
+                          lineHeight: 1.32,
+                          minHeight: 12,
                         }}>{sub}</div>
 
                         {/* Tag pills */}
                         {tags.length > 0 && (
-                          <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
                             {tags.map((t) => (
                               <span key={t} style={{
                                 fontFamily: 'var(--font-mono), ui-monospace, monospace',
-                                fontSize: 9.5, padding: '4px 9px',
-                                borderRadius: 5,
+                                fontSize: 8, padding: '3px 6px',
+                                borderRadius: 4,
                                 border: `1px solid ${hexAlpha(p.color, 0.5)}`,
                                 color: '#F5F5F7',
                                 letterSpacing: '0.04em',
