@@ -763,7 +763,6 @@ function ProjectTiles({
   // that was ~36 MB of GPU texture memory for nothing.)
 
   const groupRef = useRef<THREE.Group>(null)
-  const ringMatsRef = useRef<(THREE.MeshBasicMaterial | null)[]>([])
   const cardRefs  = useRef<(HTMLDivElement | null)[]>([])
   const router    = useRouter()
 
@@ -823,7 +822,6 @@ function ProjectTiles({
       el.style.opacity       = cardOpacity
       el.style.pointerEvents = interactiveOn ? 'auto' : 'none'
     })
-    ringMatsRef.current.forEach((m) => { if (m) m.opacity = opacity * 0.18 })
 
     // Pause orbital rings while a tile is hovered so it doesn't drift away
     const anyHover = hoveredRef.current !== -1
@@ -879,19 +877,8 @@ function ProjectTiles({
       {/* Central sun + glow halo removed — the PROJECTS station planet
           (rendered by the Station/Planet component) is the focal sphere now. */}
 
-      {/* ─── Faint orbital path rings (visual anchors) ──────────────────── */}
-      {RING_RADII.map((r, i) => (
-        <mesh key={`path-${i}`} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[r, 0.005, 4, 96]} />
-          <meshBasicMaterial
-            ref={(m) => { ringMatsRef.current[i] = m }}
-            color="#5EEAD4"
-            transparent
-            opacity={0}
-            toneMapped={false}
-          />
-        </mesh>
-      ))}
+      {/* Orbital path torus rings dropped — they read as thin lines on the
+          nebula. Tiles still orbit but without visible guide tracks. */}
 
       {/* ─── 3 orbital rings, 3 tiles each ─────────────────────────────── */}
       {[0, 1, 2].map((ringIdx) => (
