@@ -253,80 +253,109 @@ function Tunnel({
   curve:     THREE.CatmullRomCurve3
   ringCount: number
 }) {
-  // Higher tubular segments on the plasma skin so the noise reads smoothly
-  // along the bends. ringCount feeds in from the quality preset.
   const skinGeometry = useMemo(
     () => new THREE.TubeGeometry(curve, Math.max(240, ringCount), 3.18, 36, false),
     [curve, ringCount],
   )
 
-  // Plasma field shader — animated fbm noise painted on the interior of the
-  // tube. Replaces the previous helix/ring designs. Two materials stacked:
-  //   1. Dark occluder underneath (so the tunnel still reads as a void)
-  //   2. Additive plasma layer on top (the actual light)
-  const plasmaMat = useMemo(() => new THREE.ShaderMaterial({
+  // Code rain — vertical streams of cyan glyph-dots falling along the tunnel
+  // length, dripping from the far end toward the camera. Each column has its
+  // own angle around the circumference and its own falling phase/speed.
+  const COLUMNS = 36
+  const ROWS    = 44
+  const WALL_R  = 3.05    // tuck the drops just inside the dark skin
+
+  const { positions, colIds, rowIds } = useMemo(() => {
+    const total     = COLUMNS * ROWS
+    const positions = new Float32Array(total * 3)
+    const colIds    = new Float32Array(total)
+    const rowIds    = new Float32Array(total)
+    const frames    = curve.computeFrenetFrames(ROWS - 1, false)
+    const pos       = new THREE.Vector3()
+
+    for (let r = 0; r < ROWS; r++) {
+      // r=0 is the far end of the tunnel (drops spawn there),
+      // r=ROWS-1 is the near end (drops die there). Map to curve t = 1 → 0.
+      const t = 1 - r / (ROWS - 1)
+      const normal   = frames.normals[r]   || frames.normals[frames.normals.length - 1]
+      const binormal = frames.binormals[r] || frames.binormals[frames.binormals.length - 1]
+      curve.getPointAt(t, pos)
+
+      for (let c = 0; c < COLUMNS; c++) {
+        const angle = (c / COLUMNS) * Math.PI * 2
+        const ca    = Math.cos(angle) * WALL_R
+        const sa    = Math.sin(angle) * WALL_R
+        const i     = (c * ROWS + r) * 3
+        positions[i + 0] = pos.x + normal.x * ca + binormal.x * sa
+        positions[i + 1] = pos.y + normal.y * ca + binormal.y * sa
+        positions[i + 2] = pos.z + normal.z * ca + binormal.z * sa
+        colIds[c * ROWS + r] = c
+        rowIds[c * ROWS + r] = r
+      }
+    }
+    return { positions, colIds, rowIds }
+  }, [curve])
+
+  const sparkleTex = useMemo(() => getSparkleTexture(), [])
+
+  const rainMat = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
-      uTime:   { value: 0 },
-      uColor:  { value: new THREE.Color('#5EEAD4') },
-      uColorB: { value: new THREE.Color('#1e293b') },
+      uTime:    { value: 0 },
+      uMap:     { value: sparkleTex },
+      uColor:   { value: new THREE.Color('#5EEAD4') },
+      uHeadCol: { value: new THREE.Color('#C6F8EE') },
+      uRows:    { value: ROWS },
     },
     vertexShader: /* glsl */ `
-      varying vec2 vUv;
+      attribute float aCol;
+      attribute float aRow;
+      uniform float uTime;
+      uniform float uRows;
+      varying float vAlpha;
+      varying float vLead;
       void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        // Per-column speed + offset (deterministic pseudo-random by column id)
+        float seed  = fract(sin(aCol * 12.9898) * 43758.5453);
+        float speed = 0.8 + seed * 1.8;
+        float headRow = mod(uTime * speed * 5.5 + aCol * 1.7, uRows + 8.0);
+        float dist = headRow - aRow;
+        // Brightness: peak at head, decay upward (drops below head are dim).
+        float a = exp(-abs(dist) * 0.5);
+        if (dist < 0.0) a = 0.0;
+        vAlpha = a * 0.95;
+        // Head marker — narrow window around dist≈0 paints in cream color
+        vLead  = step(dist, 0.6) * step(-0.6, dist);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = 26.0 * (1.0 / -mv.z) * (1.0 + vLead * 0.9);
+        gl_Position  = projectionMatrix * mv;
       }
     `,
     fragmentShader: /* glsl */ `
-      uniform float uTime;
-      uniform vec3  uColor;
-      uniform vec3  uColorB;
-      varying vec2 vUv;
-
-      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float noise(vec2 p) {
-        vec2 i = floor(p), f = fract(p);
-        float a = hash(i);
-        float b = hash(i + vec2(1.0, 0.0));
-        float c = hash(i + vec2(0.0, 1.0));
-        float d = hash(i + vec2(1.0, 1.0));
-        vec2 u = f * f * (3.0 - 2.0 * f);
-        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-      }
-      float fbm(vec2 p) {
-        float v = 0.0; float amp = 0.55;
-        for (int i = 0; i < 5; i++) {
-          v += amp * noise(p);
-          p *= 2.05; amp *= 0.5;
-        }
-        return v;
-      }
-
+      uniform sampler2D uMap;
+      uniform vec3 uColor;
+      uniform vec3 uHeadCol;
+      varying float vAlpha;
+      varying float vLead;
       void main() {
-        // u wraps the circumference, v runs the tunnel length. Scale v much
-        // higher so the noise cells aren't stretched along the long axis.
-        vec2 uv = vec2(vUv.x * 8.0, vUv.y * 32.0);
-        float n = fbm(uv + vec2(uTime * 0.18, uTime * 0.32));
-        n = pow(n, 1.5);
-        vec3 col = mix(uColorB, uColor, n);
-        float a = 0.06 + n * 0.58;
-        gl_FragColor = vec4(col, a);
+        vec4 tex = texture2D(uMap, gl_PointCoord);
+        vec3 col = mix(uColor, uHeadCol, vLead);
+        gl_FragColor = vec4(col, tex.a * vAlpha);
+        if (gl_FragColor.a < 0.02) discard;
       }
     `,
     transparent: true,
-    side:        THREE.BackSide,
     depthWrite:  false,
     blending:    THREE.AdditiveBlending,
     toneMapped:  false,
-  }), [])
+  }), [sparkleTex])
 
   useFrame(({ clock }) => {
-    plasmaMat.uniforms.uTime.value = clock.elapsedTime
+    rainMat.uniforms.uTime.value = clock.elapsedTime
   })
 
   return (
     <>
-      {/* Dark occluder — keeps the tunnel reading as a void behind the plasma */}
+      {/* Inner skin — keeps the tunnel reading as a void */}
       <mesh geometry={skinGeometry}>
         <meshBasicMaterial
           color="#0A0A12"
@@ -336,8 +365,14 @@ function Tunnel({
         />
       </mesh>
 
-      {/* Plasma overlay — additive shader on the same tube interior */}
-      <mesh geometry={skinGeometry} material={plasmaMat} />
+      {/* Falling code points */}
+      <points material={rainMat}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+          <bufferAttribute attach="attributes-aCol"     args={[colIds, 1]} />
+          <bufferAttribute attach="attributes-aRow"     args={[rowIds, 1]} />
+        </bufferGeometry>
+      </points>
     </>
   )
 }
