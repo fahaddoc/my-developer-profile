@@ -1,6 +1,6 @@
-// app/tunnel-lights/page.tsx — sandbox for tunnel lighting concepts (round 2).
-// Each card is a fundamentally different visual style, not refinements of the
-// dotted constellation. Not wired into the production scene.
+// app/tunnel-lights/page.tsx — sandbox for tunnel lighting concepts.
+// Round 3: fresh aesthetics — wireframe tube, plasma field, sonar vortex,
+// floating debris, code rain, aurora tendrils.
 
 'use client'
 
@@ -10,20 +10,20 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
 type Variant =
-  | 'neon-tubes'
-  | 'vertical-strips'
-  | 'flow-bands'
-  | 'helix'
-  | 'laser-pulses'
-  | 'hex-panels'
+  | 'wireframe-tube'
+  | 'plasma-field'
+  | 'sonar-vortex'
+  | 'floating-debris'
+  | 'code-rain'
+  | 'aurora-tendrils'
 
 const VARIANTS: Array<{ id: Variant; title: string; blurb: string }> = [
-  { id: 'neon-tubes',      title: '1 · Solid neon rings',  blurb: 'Thick glowing toroidal tubes, additive blend, heavy bloom. Classic Tron corridor.' },
-  { id: 'vertical-strips', title: '2 · Strip lighting',    blurb: 'Long thin glowing strips running the length of the tunnel, like a subway corridor.' },
-  { id: 'flow-bands',      title: '3 · Pulsing flow',      blurb: 'Bright horizontal bands rush past the camera in a continuous data-stream loop.' },
-  { id: 'helix',           title: '4 · Helix spiral',      blurb: 'A single continuous light strand spirals down the inner wall of the tunnel.' },
-  { id: 'laser-pulses',    title: '5 · Laser pulses',      blurb: 'Discrete bright rings burst from the far end and rush toward the viewer.' },
-  { id: 'hex-panels',      title: '6 · Hex grid panels',   blurb: 'Tunnel wall is a hexagonal lattice, individual cells flicker and glow.' },
+  { id: 'wireframe-tube',  title: '1 · Wireframe tube',     blurb: 'Tunnel rendered as a faceted glowing wireframe lattice. Pulses softly.' },
+  { id: 'plasma-field',    title: '2 · Plasma field',       blurb: 'Animated noise-shader plasma swirling on the interior of the tube. Organic.' },
+  { id: 'sonar-vortex',    title: '3 · Sonar vortex',       blurb: 'Concentric rings emanate from the far end and expand toward the viewer — wormhole feel.' },
+  { id: 'floating-debris', title: '4 · Floating debris',    blurb: 'Wireframe octahedrons drifting in zero-G inside the tunnel. Space junk.' },
+  { id: 'code-rain',       title: '5 · Code rain',          blurb: 'Vertical streams of falling cyan glyphs dripping down the tunnel walls.' },
+  { id: 'aurora-tendrils', title: '6 · Aurora tendrils',    blurb: 'Long flowing ribbon strands snake through the tunnel like northern lights.' },
 ]
 
 const TUBE_LENGTH = 60
@@ -31,247 +31,50 @@ const TUBE_RADIUS = 3.2
 const ACCENT      = '#5EEAD4'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. NEON RINGS — TorusGeometry instanced at intervals
+// 1. WIREFRAME TUBE — TubeGeometry with wireframe material, pulse
 // ─────────────────────────────────────────────────────────────────────────────
-function NeonTubes() {
-  const groupRef = useRef<THREE.Group>(null)
-  const RINGS = 22
-  const positions = useMemo(
-    () => Array.from({ length: RINGS }, (_, i) => -(i / (RINGS - 1)) * TUBE_LENGTH),
-    [],
-  )
+function WireframeTube() {
+  const matRef = useRef<THREE.MeshBasicMaterial>(null)
+  const geom = useMemo(() => {
+    const path = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 0, -TUBE_LENGTH / 2),
+      new THREE.Vector3(0, 0, -TUBE_LENGTH),
+    ])
+    return new THREE.TubeGeometry(path, 48, TUBE_RADIUS, 14, false)
+  }, [])
   useFrame(({ clock }) => {
-    if (!groupRef.current) return
-    const t = clock.elapsedTime
-    groupRef.current.children.forEach((c, i) => {
-      const mat = (c as THREE.Mesh).material as THREE.MeshBasicMaterial
-      const pulse = 0.6 + 0.4 * Math.sin(t * 0.8 + i * 0.4)
-      mat.opacity = 0.55 * pulse + 0.25
-    })
+    if (matRef.current) {
+      matRef.current.opacity = 0.55 + 0.25 * Math.sin(clock.elapsedTime * 1.2)
+    }
   })
   return (
-    <group ref={groupRef}>
-      {positions.map((z, i) => (
-        <mesh key={i} position={[0, 0, z]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[TUBE_RADIUS, 0.045, 12, 96]} />
-          <meshBasicMaterial color={ACCENT} transparent opacity={0.7} toneMapped={false} />
-        </mesh>
-      ))}
-    </group>
+    <mesh geometry={geom}>
+      <meshBasicMaterial
+        ref={matRef}
+        color={ACCENT}
+        wireframe
+        transparent
+        opacity={0.7}
+        toneMapped={false}
+      />
+    </mesh>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. VERTICAL STRIPS — long thin glowing rectangles along the tunnel length
+// 2. PLASMA FIELD — simplex-ish noise shader on cylinder interior
 // ─────────────────────────────────────────────────────────────────────────────
-function VerticalStrips() {
-  const STRIP_COUNT = 12
-  const groupRef = useRef<THREE.Group>(null)
-  useFrame(({ clock }) => {
-    if (!groupRef.current) return
-    const t = clock.elapsedTime
-    groupRef.current.children.forEach((c, i) => {
-      const mat = (c as THREE.Mesh).material as THREE.MeshBasicMaterial
-      const pulse = 0.5 + 0.5 * Math.sin(t * 1.1 + i * 0.6)
-      mat.opacity = 0.35 + 0.45 * pulse
-    })
-  })
-  return (
-    <group ref={groupRef}>
-      {Array.from({ length: STRIP_COUNT }).map((_, i) => {
-        const angle = (i / STRIP_COUNT) * Math.PI * 2
-        const x = Math.cos(angle) * TUBE_RADIUS
-        const y = Math.sin(angle) * TUBE_RADIUS
-        return (
-          <mesh
-            key={i}
-            position={[x, y, -TUBE_LENGTH / 2]}
-            rotation={[0, 0, angle + Math.PI / 2]}
-          >
-            {/* thin tall plane facing inward */}
-            <planeGeometry args={[0.08, TUBE_LENGTH]} />
-            <meshBasicMaterial
-              color={ACCENT}
-              transparent
-              opacity={0.6}
-              toneMapped={false}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        )
-      })}
-    </group>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. FLOW BANDS — tube-interior shader, horizontal bands streaming toward camera
-// ─────────────────────────────────────────────────────────────────────────────
-function FlowBands() {
-  const matRef = useRef<THREE.ShaderMaterial>(null)
+function PlasmaField() {
   const geom = useMemo(
     () => new THREE.CylinderGeometry(TUBE_RADIUS, TUBE_RADIUS, TUBE_LENGTH, 64, 1, true),
     [],
   )
   const mat = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
-      uTime:  { value: 0 },
-      uColor: { value: new THREE.Color(ACCENT) },
-    },
-    vertexShader: /* glsl */ `
-      varying float vY;
-      void main() {
-        vY = position.y;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: /* glsl */ `
-      uniform float uTime;
-      uniform vec3  uColor;
-      varying float vY;
-      void main() {
-        float v = vY + uTime * 6.0;
-        // Repeating bands every 4 units
-        float band = 0.5 + 0.5 * sin(v * 1.6);
-        float pulse = pow(band, 12.0);  // sharper bands
-        float a = 0.04 + pulse * 0.7;
-        gl_FragColor = vec4(uColor, a);
-      }
-    `,
-    transparent: true,
-    side: THREE.BackSide,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    toneMapped: false,
-  }), [])
-  useFrame(({ clock }) => {
-    mat.uniforms.uTime.value = clock.elapsedTime
-  })
-  return (
-    <mesh
-      geometry={geom}
-      material={mat}
-      rotation={[Math.PI / 2, 0, 0]}
-      position={[0, 0, -TUBE_LENGTH / 2]}
-      ref={(m) => { if (m) (matRef as { current: THREE.ShaderMaterial | null }).current = mat }}
-    />
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 4. HELIX — single continuous spiral line on the tunnel wall
-// ─────────────────────────────────────────────────────────────────────────────
-function Helix() {
-  const TURNS = 14
-  const SEGMENTS = 600
-
-  // Two helices for a double-strand look (mirrored)
-  const helixA = useMemo(() => {
-    const points: THREE.Vector3[] = []
-    for (let i = 0; i <= SEGMENTS; i++) {
-      const t = i / SEGMENTS
-      const angle = t * TURNS * Math.PI * 2
-      points.push(new THREE.Vector3(
-        Math.cos(angle) * TUBE_RADIUS,
-        Math.sin(angle) * TUBE_RADIUS,
-        -t * TUBE_LENGTH,
-      ))
-    }
-    const g = new THREE.BufferGeometry().setFromPoints(points)
-    return g
-  }, [])
-
-  const helixB = useMemo(() => {
-    const points: THREE.Vector3[] = []
-    for (let i = 0; i <= SEGMENTS; i++) {
-      const t = i / SEGMENTS
-      const angle = t * TURNS * Math.PI * 2 + Math.PI
-      points.push(new THREE.Vector3(
-        Math.cos(angle) * TUBE_RADIUS,
-        Math.sin(angle) * TUBE_RADIUS,
-        -t * TUBE_LENGTH,
-      ))
-    }
-    return new THREE.BufferGeometry().setFromPoints(points)
-  }, [])
-
-  const groupRef = useRef<THREE.Group>(null)
-  useFrame((_, dt) => {
-    if (!groupRef.current) return
-    groupRef.current.rotation.z += dt * 0.25
-  })
-
-  return (
-    <group ref={groupRef}>
-      <line>
-        <primitive object={helixA} attach="geometry" />
-        <lineBasicMaterial color={ACCENT} transparent opacity={0.85} toneMapped={false} />
-      </line>
-      <line>
-        <primitive object={helixB} attach="geometry" />
-        <lineBasicMaterial color="#C6F8EE" transparent opacity={0.55} toneMapped={false} />
-      </line>
-    </group>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 5. LASER PULSES — rings spawn at the far end and rush toward the camera
-// ─────────────────────────────────────────────────────────────────────────────
-function LaserPulses() {
-  const PULSE_COUNT = 6
-  const groupRef = useRef<THREE.Group>(null)
-  const phaseRef = useRef<number[]>(
-    Array.from({ length: PULSE_COUNT }, (_, i) => i / PULSE_COUNT),
-  )
-  useFrame((_, dt) => {
-    if (!groupRef.current) return
-    groupRef.current.children.forEach((c, i) => {
-      const m = c as THREE.Mesh
-      let phase = phaseRef.current[i] + dt * 0.5
-      if (phase > 1) phase -= 1
-      phaseRef.current[i] = phase
-      const z = -TUBE_LENGTH + phase * (TUBE_LENGTH + 4)
-      m.position.z = z
-      const mat = m.material as THREE.MeshBasicMaterial
-      // Fade in/out at both ends
-      const fade = Math.sin(phase * Math.PI)
-      mat.opacity = 0.95 * fade
-      // Slight scale change for depth illusion
-      m.scale.setScalar(1 + (1 - phase) * 0.05)
-    })
-  })
-  return (
-    <group ref={groupRef}>
-      {Array.from({ length: PULSE_COUNT }).map((_, i) => (
-        <mesh key={i} position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[TUBE_RADIUS, 0.06, 8, 96]} />
-          <meshBasicMaterial color="#C6F8EE" transparent opacity={0.9} toneMapped={false} />
-        </mesh>
-      ))}
-      {/* Static dim outline rings for context */}
-      {[-50, -35, -20, -8].map((z, i) => (
-        <mesh key={`ctx-${i}`} position={[0, 0, z]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[TUBE_RADIUS, 0.015, 6, 64]} />
-          <meshBasicMaterial color={ACCENT} transparent opacity={0.18} toneMapped={false} />
-        </mesh>
-      ))}
-    </group>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 6. HEX PANELS — procedural hex shader on tunnel interior
-// ─────────────────────────────────────────────────────────────────────────────
-function HexPanels() {
-  const geom = useMemo(
-    () => new THREE.CylinderGeometry(TUBE_RADIUS, TUBE_RADIUS, TUBE_LENGTH, 64, 1, true),
-    [],
-  )
-  const mat = useMemo(() => new THREE.ShaderMaterial({
-    uniforms: {
-      uTime:  { value: 0 },
-      uColor: { value: new THREE.Color(ACCENT) },
+      uTime:   { value: 0 },
+      uColor:  { value: new THREE.Color(ACCENT) },
+      uColorB: { value: new THREE.Color('#1e293b') },
     },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
@@ -283,32 +86,36 @@ function HexPanels() {
     fragmentShader: /* glsl */ `
       uniform float uTime;
       uniform vec3  uColor;
+      uniform vec3  uColorB;
       varying vec2 vUv;
 
-      // Hex grid SDF: returns distance to nearest hex centre + cell id
-      vec3 hex(vec2 p) {
-        p.x *= 1.1547;       // 2/sqrt(3) — flat-top hex
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        // Offset on odd rows
-        if (mod(i.y, 2.0) > 0.5) f.x = fract(p.x + 0.5);
-        float d = length(f - vec2(0.5));
-        return vec3(d, i.x, i.y);
+      // Cheap value noise + fbm
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        float a = hash(i);
+        float b = hash(i + vec2(1.0, 0.0));
+        float c = hash(i + vec2(0.0, 1.0));
+        float d = hash(i + vec2(1.0, 1.0));
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+      }
+      float fbm(vec2 p) {
+        float v = 0.0; float amp = 0.55;
+        for (int i = 0; i < 5; i++) {
+          v += amp * noise(p);
+          p *= 2.05; amp *= 0.5;
+        }
+        return v;
       }
 
       void main() {
-        vec2 uv = vec2(vUv.x * 28.0, vUv.y * 12.0);
-        vec3 h  = hex(uv);
-        float d = h.x;
-        float cellId = h.y * 31.7 + h.z * 17.3;
-        float rand   = fract(sin(cellId) * 43758.5453);
-        // Flicker each cell at its own phase
-        float pulse = 0.4 + 0.6 * sin(uTime * 1.3 + rand * 6.28);
-        float edge  = smoothstep(0.48, 0.5, d);   // inverted: 1 inside cell, 0 at border
-        float fill  = (1.0 - edge) * pulse * (0.2 + rand * 0.8);
-        float border = smoothstep(0.46, 0.49, d) * (1.0 - smoothstep(0.5, 0.52, d));
-        float a = fill * 0.4 + border * 0.5;
-        gl_FragColor = vec4(uColor, a);
+        vec2 uv = vec2(vUv.x * 6.0, vUv.y * 3.0);
+        float n = fbm(uv + vec2(uTime * 0.18, uTime * 0.32));
+        n = pow(n, 1.5);
+        vec3 col = mix(uColorB, uColor, n);
+        float a = 0.05 + n * 0.55;
+        gl_FragColor = vec4(col, a);
       }
     `,
     transparent: true,
@@ -317,9 +124,7 @@ function HexPanels() {
     blending: THREE.AdditiveBlending,
     toneMapped: false,
   }), [])
-  useFrame(({ clock }) => {
-    mat.uniforms.uTime.value = clock.elapsedTime
-  })
+  useFrame(({ clock }) => { mat.uniforms.uTime.value = clock.elapsedTime })
   return (
     <mesh
       geometry={geom}
@@ -327,6 +132,250 @@ function HexPanels() {
       rotation={[Math.PI / 2, 0, 0]}
       position={[0, 0, -TUBE_LENGTH / 2]}
     />
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. SONAR VORTEX — concentric expanding rings from far end
+// ─────────────────────────────────────────────────────────────────────────────
+function SonarVortex() {
+  const RING_COUNT = 14
+  const groupRef = useRef<THREE.Group>(null)
+  const phaseRef = useRef<number[]>(
+    Array.from({ length: RING_COUNT }, (_, i) => i / RING_COUNT),
+  )
+  useFrame((_, dt) => {
+    if (!groupRef.current) return
+    groupRef.current.children.forEach((c, i) => {
+      const m = c as THREE.Mesh
+      let phase = phaseRef.current[i] + dt * 0.18
+      if (phase > 1) phase -= 1
+      phaseRef.current[i] = phase
+      // Z grows from -TUBE_LENGTH (far) toward 0 (near)
+      m.position.z = -TUBE_LENGTH + phase * TUBE_LENGTH
+      // Radius grows from small to full as ring approaches
+      const r = TUBE_RADIUS * (0.25 + phase * 0.95)
+      m.scale.set(r / TUBE_RADIUS, r / TUBE_RADIUS, 1)
+      const mat = m.material as THREE.MeshBasicMaterial
+      mat.opacity = 0.85 * Math.sin(phase * Math.PI)
+    })
+  })
+  return (
+    <group ref={groupRef}>
+      {Array.from({ length: RING_COUNT }).map((_, i) => (
+        <mesh key={i} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[TUBE_RADIUS, 0.04, 8, 96]} />
+          <meshBasicMaterial color={ACCENT} transparent opacity={0.9} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. FLOATING DEBRIS — wireframe octahedrons drifting inside the tunnel
+// ─────────────────────────────────────────────────────────────────────────────
+function FloatingDebris() {
+  const COUNT = 40
+  const groupRef = useRef<THREE.Group>(null)
+  const items = useMemo(() => Array.from({ length: COUNT }, (_, i) => {
+    const r = Math.sin(i * 12.9898) * 43758.5453
+    const rand = (k: number) => {
+      const s = Math.sin(i * 12.9898 + k * 7.31) * 43758.5453
+      return s - Math.floor(s)
+    }
+    return {
+      x: (rand(1) - 0.5) * 2 * (TUBE_RADIUS * 0.85),
+      y: (rand(2) - 0.5) * 2 * (TUBE_RADIUS * 0.85),
+      z: -rand(3) * TUBE_LENGTH,
+      size: 0.12 + rand(4) * 0.22,
+      rotSpeed: 0.3 + rand(5) * 0.7,
+      driftSpeed: 0.4 + rand(6) * 0.6,
+      seed: r,
+    }
+  }), [])
+  useFrame((_, dt) => {
+    if (!groupRef.current) return
+    groupRef.current.children.forEach((c, i) => {
+      const it = items[i]
+      const m = c as THREE.Mesh
+      m.rotation.x += dt * it.rotSpeed
+      m.rotation.y += dt * it.rotSpeed * 0.7
+      // Drift toward camera, wrap when reaching it
+      m.position.z += dt * it.driftSpeed
+      if (m.position.z > 2) m.position.z = -TUBE_LENGTH
+    })
+  })
+  return (
+    <group ref={groupRef}>
+      {items.map((it, i) => (
+        <mesh key={i} position={[it.x, it.y, it.z]}>
+          <octahedronGeometry args={[it.size, 0]} />
+          <meshBasicMaterial color={ACCENT} wireframe transparent opacity={0.6} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. CODE RAIN — vertical streams of falling dots on the tunnel wall
+// ─────────────────────────────────────────────────────────────────────────────
+function CodeRain() {
+  // Build columns: at each angle around the tube, drop a vertical strand of
+  // points along z. Animate alpha per row so it reads as falling drops.
+  const COLUMNS = 32
+  const ROWS = 24
+  const matRef = useRef<THREE.ShaderMaterial>(null)
+  const sparkle = useMemo(() => {
+    const c = document.createElement('canvas')
+    c.width = 32; c.height = 32
+    const ctx = c.getContext('2d')!
+    const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16)
+    g.addColorStop(0, 'rgba(255,255,255,1)')
+    g.addColorStop(0.5, 'rgba(94,234,212,0.6)')
+    g.addColorStop(1, 'rgba(94,234,212,0)')
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, 32, 32)
+    return new THREE.CanvasTexture(c)
+  }, [])
+
+  const { positions, columnIds, rowIds } = useMemo(() => {
+    const total = COLUMNS * ROWS
+    const positions = new Float32Array(total * 3)
+    const columnIds = new Float32Array(total)
+    const rowIds    = new Float32Array(total)
+    for (let c = 0; c < COLUMNS; c++) {
+      const angle = (c / COLUMNS) * Math.PI * 2
+      const x = Math.cos(angle) * (TUBE_RADIUS * 0.95)
+      const y = Math.sin(angle) * (TUBE_RADIUS * 0.95)
+      for (let r = 0; r < ROWS; r++) {
+        const z = -(r / (ROWS - 1)) * TUBE_LENGTH
+        const i = (c * ROWS + r) * 3
+        positions[i + 0] = x
+        positions[i + 1] = y
+        positions[i + 2] = z
+        columnIds[c * ROWS + r] = c
+        rowIds[c * ROWS + r] = r
+      }
+    }
+    return { positions, columnIds, rowIds }
+  }, [])
+
+  const mat = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:  { value: 0 },
+      uMap:   { value: sparkle },
+      uColor: { value: new THREE.Color(ACCENT) },
+      uRows:  { value: ROWS },
+    },
+    vertexShader: /* glsl */ `
+      attribute float aCol;
+      attribute float aRow;
+      uniform float uTime;
+      uniform float uRows;
+      varying float vAlpha;
+      varying float vLead;
+      void main() {
+        // Each column has its own falling phase
+        float speed = 1.0 + fract(sin(aCol * 12.9898) * 43758.5453) * 1.5;
+        float headRow = mod(uTime * speed * 4.0 + aCol * 1.3, uRows + 6.0);
+        float dist = headRow - aRow;
+        // Brightness: bright at head, fades upward (negative dist = above head)
+        float a = exp(-abs(dist) * 0.55);
+        if (dist < 0.0) a = 0.0;
+        vAlpha = a;
+        vLead  = step(dist, 0.5) * step(-0.5, dist);  // 1 if this is the head
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = 14.0 * (1.0 / -mv.z) * (1.0 + vLead * 0.8);
+        gl_Position  = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D uMap;
+      uniform vec3 uColor;
+      varying float vAlpha;
+      varying float vLead;
+      void main() {
+        vec4 tex = texture2D(uMap, gl_PointCoord);
+        vec3 col = mix(uColor, vec3(0.78, 1.0, 0.95), vLead);
+        gl_FragColor = vec4(col, tex.a * vAlpha);
+        if (gl_FragColor.a < 0.02) discard;
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending:   THREE.AdditiveBlending,
+    toneMapped: false,
+  }), [sparkle])
+  useFrame(({ clock }) => { mat.uniforms.uTime.value = clock.elapsedTime })
+
+  return (
+    <points material={mat} ref={(p) => { if (p) matRef.current = mat }}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-aCol"     args={[columnIds, 1]} />
+        <bufferAttribute attach="attributes-aRow"     args={[rowIds, 1]} />
+      </bufferGeometry>
+    </points>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. AURORA TENDRILS — flowing wave ribbons through the tunnel
+// ─────────────────────────────────────────────────────────────────────────────
+function AuroraTendrils() {
+  const TENDRILS = 5
+  const SEGMENTS = 220
+  const groupRef = useRef<THREE.Group>(null)
+  const geoms = useMemo(
+    () => Array.from({ length: TENDRILS }, () => new THREE.BufferGeometry()),
+    [],
+  )
+  const seeds = useMemo(
+    () => Array.from({ length: TENDRILS }, (_, i) => ({
+      phaseA: i * 1.3,
+      phaseB: i * 2.1 + 0.7,
+      ampA: 1.4 + i * 0.18,
+      ampB: 0.8 + i * 0.22,
+      offset: (i / TENDRILS - 0.5) * 1.5,
+    })),
+    [],
+  )
+
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime
+    geoms.forEach((g, idx) => {
+      const s = seeds[idx]
+      const pts = new Float32Array(SEGMENTS * 3)
+      for (let i = 0; i < SEGMENTS; i++) {
+        const u = i / (SEGMENTS - 1)
+        const z = -u * TUBE_LENGTH
+        const x = Math.sin(u * 9.0 + t * 0.6 + s.phaseA) * s.ampA + s.offset
+        const y = Math.cos(u * 7.0 + t * 0.55 + s.phaseB) * s.ampB
+        pts[i * 3 + 0] = x
+        pts[i * 3 + 1] = y
+        pts[i * 3 + 2] = z
+      }
+      g.setAttribute('position', new THREE.BufferAttribute(pts, 3))
+      g.attributes.position.needsUpdate = true
+    })
+  })
+
+  return (
+    <group ref={groupRef}>
+      {geoms.map((g, i) => (
+        <line key={i}>
+          <primitive object={g} attach="geometry" />
+          <lineBasicMaterial
+            color={i % 2 === 0 ? ACCENT : '#C6F8EE'}
+            transparent
+            opacity={0.75 - i * 0.08}
+            toneMapped={false}
+          />
+        </line>
+      ))}
+    </group>
   )
 }
 
@@ -341,12 +390,12 @@ function VariantCanvas({ variant }: { variant: Variant }) {
       <fog attach="fog" args={['#05050A', 8, 55]} />
       <ambientLight intensity={0.3} />
       <pointLight position={[0, 0, -5]} intensity={1.2} color={ACCENT} />
-      {variant === 'neon-tubes'      && <NeonTubes />}
-      {variant === 'vertical-strips' && <VerticalStrips />}
-      {variant === 'flow-bands'      && <FlowBands />}
-      {variant === 'helix'           && <Helix />}
-      {variant === 'laser-pulses'    && <LaserPulses />}
-      {variant === 'hex-panels'      && <HexPanels />}
+      {variant === 'wireframe-tube'  && <WireframeTube  />}
+      {variant === 'plasma-field'    && <PlasmaField    />}
+      {variant === 'sonar-vortex'    && <SonarVortex    />}
+      {variant === 'floating-debris' && <FloatingDebris />}
+      {variant === 'code-rain'       && <CodeRain       />}
+      {variant === 'aurora-tendrils' && <AuroraTendrils />}
       <EffectComposer multisampling={0}>
         <Bloom
           intensity={1.1}
@@ -378,7 +427,7 @@ export default function TunnelLightsPage() {
             color: ACCENT, marginBottom: 6,
             textShadow: `0 0 10px ${ACCENT}66`,
           }}>
-            SANDBOX · /tunnel-lights · round 2
+            SANDBOX · /tunnel-lights · round 3
           </div>
           <h1 style={{
             fontSize: 36, fontWeight: 800, margin: 0, letterSpacing: '-0.02em',
@@ -389,9 +438,9 @@ export default function TunnelLightsPage() {
             fontSize: 14, color: 'rgba(245,245,247,0.6)',
             margin: '8px 0 0', maxWidth: 720,
           }}>
-            Fundamentally different visual styles for the tunnel — not refinements
-            of the current dotted constellation. Tell me which one(s) feel right
-            and I&apos;ll wire the winner into the main scene.
+            Fresh visual aesthetics — wireframe geometry, organic plasma, sonar
+            wormhole, drifting debris, code rain, aurora ribbons. Pick one (or
+            mix) and I&apos;ll integrate it.
           </p>
         </div>
 
