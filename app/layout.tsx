@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from 'next'
 import { Sora, Inter, JetBrains_Mono } from 'next/font/google'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { SmoothScroll } from '@/components/providers/SmoothScroll'
+import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { personSchema, websiteSchema } from '@/lib/seo/jsonld'
 import { SITE_URL, SITE_NAME, AUTHOR, KEYWORDS, SOCIALS } from '@/lib/seo/site'
@@ -98,21 +99,32 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a0f',
-  colorScheme: 'dark',
   width: 'device-width',
   initialScale: 1,
+  // `colorScheme` + `themeColor` are now set per-theme via the inline script
+  // that sets data-theme on <html> before paint.
 }
+
+// Inline script that runs BEFORE React hydrates. Reads localStorage (or
+// prefers-color-scheme) and sets data-theme on <html> so the CSS variables
+// apply on the very first paint — no flash of dark theme when the user has
+// selected light, or vice versa.
+const NO_FLASH_SCRIPT = `(function(){try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
   return (
     <html lang="en" className={`${sora.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
+      </head>
       <body className="bg-bg-base text-text-primary font-body antialiased">
         <JsonLd data={personSchema()} />
         <JsonLd data={websiteSchema()} />
-        <SmoothScroll>{children}</SmoothScroll>
+        <ThemeProvider>
+          <SmoothScroll>{children}</SmoothScroll>
+        </ThemeProvider>
         {gaId ? <GoogleAnalytics gaId={gaId} /> : null}
       </body>
     </html>

@@ -464,7 +464,7 @@ export function About() {
                             transition-colors duration-200 overflow-hidden
                             ${isActive
                               ? `${path.border} ${path.bg} ${path.textCol}`
-                              : 'border-white/10 text-text-muted hover:border-white/20 hover:text-text-secondary'
+                              : 'border-text-primary/10 text-text-muted hover:border-text-primary/20 hover:text-text-secondary'
                             }
                           `}
                         >

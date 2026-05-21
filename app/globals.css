@@ -3,22 +3,63 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* injected by next/font via layout.tsx */
-  /* --font-display, --font-body, --font-mono */
+/* ─── Theme tokens ───────────────────────────────────────────────────────────
+   Every theme-relevant value is a CSS variable so flipping
+   <html data-theme="light"> swaps the whole palette in one shot. RGB triplets
+   are space-separated so Tailwind's `rgb(var(--x) / <alpha-value>)` syntax
+   works (lets us write classes like bg-bg-base/40). */
 
-  --clr-violet: #a855f7;
-  --clr-cyan: #22d3ee;
-  --clr-emerald: #10b981;
+:root,
+:root[data-theme='dark'] {
+  --bg-base:       10  10  10;
+  --bg-surface:    13  13  20;
+  --bg-elevated:   17  17  32;
 
-  --glow-violet: rgba(168, 85, 247, 0.35);
-  --glow-violet-sm: rgba(168, 85, 247, 0.15);
-  --glow-cyan: rgba(34, 211, 238, 0.3);
-  --glow-cyan-sm: rgba(34, 211, 238, 0.12);
-  --glow-emerald: rgba(16, 185, 129, 0.3);
+  --accent-violet: 168 85  247;
+  --accent-cyan:   34  211 238;
+  --accent-green:  34  197 94;
+  --accent-emerald:16  185 129;
 
-  --border-subtle: rgba(168, 85, 247, 0.12);
-  --border-hover: rgba(168, 85, 247, 0.4);
+  --text-primary:  241 245 249;
+  --text-secondary:148 163 184;
+  --text-muted:    71  85  105;
+
+  /* Overlays — dot grid + scanlines */
+  --grid-dot-rgb:    168 85 247;
+  --grid-dot-alpha:  0.07;
+  --scanline-rgb:    0 0 0;
+  --scanline-alpha:  0.03;
+
+  /* Selection */
+  --selection-bg:   168 85 247;
+  --selection-fg:   241 245 249;
+
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg-base:       248 250 252;
+  --bg-surface:    255 255 255;
+  --bg-elevated:   241 245 249;
+
+  --accent-violet: 124 58  237;
+  --accent-cyan:   8   145 178;
+  --accent-green:  22  163 74;
+  --accent-emerald:5   150 105;
+
+  --text-primary:  15  23  42;
+  --text-secondary:71  85  105;
+  --text-muted:    100 116 139;
+
+  --grid-dot-rgb:    100 116 139;
+  --grid-dot-alpha:  0.12;
+  --scanline-rgb:    100 116 139;
+  --scanline-alpha:  0.02;
+
+  --selection-bg:   124 58 237;
+  --selection-fg:   255 255 255;
+
+  color-scheme: light;
 }
 
 * {
@@ -30,7 +71,6 @@
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
-  /* hide scrollbar — all browsers */
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
@@ -40,24 +80,27 @@ html::-webkit-scrollbar {
 }
 
 body {
-  background-color: #0a0a0a;
-  color: #f1f5f9;
+  background-color: rgb(var(--bg-base));
+  color: rgb(var(--text-primary));
   font-family: var(--font-body), system-ui, sans-serif;
   overflow-x: hidden;
+  transition: background-color 200ms, color 200ms;
 }
 
-/* dot grid — subtle tech feel, barely visible on dark bg */
+/* dot grid — subtle tech feel, swaps per theme */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: radial-gradient(rgba(168, 85, 247, 0.07) 1px, transparent 1px);
+  background-image: radial-gradient(
+    rgb(var(--grid-dot-rgb) / var(--grid-dot-alpha)) 1px,
+    transparent 1px
+  );
   background-size: 32px 32px;
   pointer-events: none;
   z-index: 0;
 }
 
-/* scanline overlay — gives that slight CRT depth, very subtle */
 body::after {
   content: '';
   position: fixed;
@@ -66,14 +109,13 @@ body::after {
     0deg,
     transparent,
     transparent 2px,
-    rgba(0, 0, 0, 0.03) 2px,
-    rgba(0, 0, 0, 0.03) 4px
+    rgb(var(--scanline-rgb) / var(--scanline-alpha)) 2px,
+    rgb(var(--scanline-rgb) / var(--scanline-alpha)) 4px
   );
   pointer-events: none;
   z-index: 0;
 }
 
-/* make sure actual content sits above the overlays */
 #__next,
 main,
 header,
@@ -82,58 +124,43 @@ footer {
   z-index: 1;
 }
 
-
 ::selection {
-  background: rgba(168, 85, 247, 0.3);
-  color: #f1f5f9;
+  background: rgb(var(--selection-bg) / 0.3);
+  color: rgb(var(--selection-fg));
 }
 
 @layer utilities {
-  /* violet glow helpers */
   .glow-violet {
-    box-shadow: 0 0 40px var(--glow-violet), 0 0 80px rgba(168, 85, 247, 0.1);
+    box-shadow: 0 0 40px rgb(var(--accent-violet) / 0.35), 0 0 80px rgb(var(--accent-violet) / 0.1);
   }
-
   .glow-violet-sm {
-    box-shadow: 0 0 20px var(--glow-violet-sm);
+    box-shadow: 0 0 20px rgb(var(--accent-violet) / 0.15);
   }
-
-  /* cyan glow — used on real-time / tech elements */
   .glow-cyan {
-    box-shadow: 0 0 40px var(--glow-cyan), 0 0 80px rgba(34, 211, 238, 0.08);
+    box-shadow: 0 0 40px rgb(var(--accent-cyan) / 0.3), 0 0 80px rgb(var(--accent-cyan) / 0.08);
   }
-
   .glow-cyan-sm {
-    box-shadow: 0 0 16px var(--glow-cyan-sm);
+    box-shadow: 0 0 16px rgb(var(--accent-cyan) / 0.12);
   }
-
-  /* emerald — skills section */
   .glow-emerald-sm {
-    box-shadow: 0 0 16px var(--glow-emerald);
+    box-shadow: 0 0 16px rgb(var(--accent-emerald) / 0.3);
   }
-
-  /* neon text glow */
   .text-glow-violet {
-    text-shadow: 0 0 20px rgba(168, 85, 247, 0.7), 0 0 40px rgba(168, 85, 247, 0.3);
+    text-shadow: 0 0 20px rgb(var(--accent-violet) / 0.7), 0 0 40px rgb(var(--accent-violet) / 0.3);
   }
-
   .text-glow-cyan {
-    text-shadow: 0 0 20px rgba(34, 211, 238, 0.7), 0 0 40px rgba(34, 211, 238, 0.3);
+    text-shadow: 0 0 20px rgb(var(--accent-cyan) / 0.7), 0 0 40px rgb(var(--accent-cyan) / 0.3);
   }
-
   .border-subtle {
-    border-color: var(--border-subtle);
+    border-color: rgb(var(--accent-violet) / 0.12);
   }
-
-  /* neon border on hover cards */
   .neon-card {
-    border: 1px solid rgba(168, 85, 247, 0.12);
+    border: 1px solid rgb(var(--accent-violet) / 0.12);
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
   }
-
   .neon-card:hover {
-    border-color: rgba(168, 85, 247, 0.45);
-    box-shadow: 0 0 30px rgba(168, 85, 247, 0.12), inset 0 0 30px rgba(168, 85, 247, 0.03);
+    border-color: rgb(var(--accent-violet) / 0.45);
+    box-shadow: 0 0 30px rgb(var(--accent-violet) / 0.12), inset 0 0 30px rgb(var(--accent-violet) / 0.03);
   }
 }
 
@@ -191,7 +218,6 @@ footer {
   animation: photo-glitch 9s linear infinite;
 }
 
-/* Scan-line that sweeps top→bottom over the photo */
 @keyframes scan-sweep {
   0%   { transform: translateY(-100%); opacity: 0; }
   10%  { opacity: 0.9; }

@@ -563,7 +563,7 @@ export function Skills() {
                     onClick={handleReset}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="font-mono text-xs text-text-muted border border-white/10 px-3 py-1.5 rounded-lg hover:border-accent-green/40 hover:text-accent-green transition-colors duration-200"
+                    className="font-mono text-xs text-text-muted border border-text-primary/10 px-3 py-1.5 rounded-lg hover:border-accent-green/40 hover:text-accent-green transition-colors duration-200"
                   >
                     Rebuild Circuit
                   </motion.button>
@@ -573,7 +573,7 @@ export function Skills() {
 
             {/* canvas container */}
             <div
-              className="relative rounded-2xl border border-white/[0.06] overflow-hidden"
+              className="relative rounded-2xl border border-text-primary/[0.06] overflow-hidden"
               style={{ height: '420px' }}
             >
               {/* ambient emerald glow behind canvas */}
