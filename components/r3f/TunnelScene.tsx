@@ -265,59 +265,16 @@ function Tunnel({
   const DOTS_PER_RING = 14
   const RING_RADIUS   = 3.2
 
-  const dotsGeometry = useMemo(() => {
-    const frames = curve.computeFrenetFrames(ringCount, false)
-    const dots   = new Float32Array((ringCount + 1) * DOTS_PER_RING * 3)
-    const pos    = new THREE.Vector3()
-
-    for (let r = 0; r <= ringCount; r++) {
-      const t        = r / ringCount
-      const normal   = frames.normals[r]   || frames.normals[0]
-      const binormal = frames.binormals[r] || frames.binormals[0]
-      curve.getPointAt(t, pos)
-
-      const ringStart = r * DOTS_PER_RING
-      for (let d = 0; d < DOTS_PER_RING; d++) {
-        const angle = (d / DOTS_PER_RING) * Math.PI * 2
-        const cos   = Math.cos(angle) * RING_RADIUS
-        const sin   = Math.sin(angle) * RING_RADIUS
-        const idx   = (ringStart + d) * 3
-        dots[idx]     = pos.x + normal.x * cos + binormal.x * sin
-        dots[idx + 1] = pos.y + normal.y * cos + binormal.y * sin
-        dots[idx + 2] = pos.z + normal.z * cos + binormal.z * sin
-      }
-    }
-
-    const dg = new THREE.BufferGeometry()
-    dg.setAttribute('position', new THREE.BufferAttribute(dots, 3))
-    return dg
-  }, [curve, ringCount])
-
-  useEffect(() => () => dotsGeometry.dispose(), [dotsGeometry])
-
-  const dotTexture = useMemo(() => getSparkleTexture(), [])
-
-  return (
-    <>
-      {/* Constellation dots — tiny faint sparkles along the curve. Connector
-          lines dropped entirely so the tunnel doesn't read as a lattice
-          between stations; nebula carries the visual now. */}
-      <points geometry={dotsGeometry}>
-        <pointsMaterial
-          size={0.10}
-          color={dotColor}
-          sizeAttenuation
-          transparent
-          opacity={0.22}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-          toneMapped={false}
-          map={dotTexture ?? undefined}
-          alphaTest={0.02}
-        />
-      </points>
-    </>
-  )
+  // All tunnel ring decorations dropped — connector lines AND constellation
+  // dots. Both formed a visible tube structure across sections that competed
+  // with the nebula. Now the tunnel is purely a camera path; Station rings
+  // (proximity-faded) + Nebula + ProjectTiles carry the visuals.
+  void curve
+  void ringCount
+  void dotColor
+  void DOTS_PER_RING
+  void RING_RADIUS
+  return null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
