@@ -45,7 +45,7 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
         width:      220,
         aspectRatio: '4 / 5',
         borderRadius: 8,
-        background: 'rgba(6,10,14,0.85)',
+        background: 'rgb(var(--bg-surface) / 0.85)',
         border:     `1px solid ${hexAlpha(accent, sound ? 0.7 : 0.25)}`,
         boxShadow:  sound
           ? `0 0 30px ${hexAlpha(accent, 0.5)}, 0 0 60px ${hexAlpha(accent, 0.2)}, 0 12px 32px rgba(0,0,0,0.6)`
@@ -141,7 +141,7 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
           position: 'absolute', top: 8, left: 8,
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '3px 8px', borderRadius: 999,
-          background: 'rgba(6,10,14,0.7)',
+          background: 'rgb(var(--bg-surface) / 0.7)',
           backdropFilter: 'blur(4px)',
           border: `1px solid ${hexAlpha(accent, 0.45)}`,
           fontFamily: 'var(--font-mono), monospace',
@@ -166,7 +166,7 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
         style={{
           position: 'absolute', top: 6, right: 6,
           width: 22, height: 22, borderRadius: '50%',
-          background: 'rgba(6,10,14,0.7)',
+          background: 'rgb(var(--bg-surface) / 0.7)',
           backdropFilter: 'blur(4px)',
           border: `1px solid ${hexAlpha(accent, 0.55)}`,
           color: accent,

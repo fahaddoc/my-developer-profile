@@ -884,12 +884,12 @@ function ProjectTiles({
                           padding: '12px 12px 11px',
                           borderRadius: 12,
                           border: `1.2px solid ${p.color}`,
-                          background: `linear-gradient(140deg, rgba(8,10,14,0.55) 0%, rgba(8,10,14,0.78) 100%)`,
+                          background: `linear-gradient(140deg, rgb(var(--bg-surface) / 0.55) 0%, rgb(var(--bg-surface) / 0.82) 100%)`,
                           backdropFilter: 'blur(6px)',
                           WebkitBackdropFilter: 'blur(6px)',
                           boxShadow: `inset 0 0 24px ${hexAlpha(p.color, 0.13)}, 0 0 22px ${hexAlpha(p.color, 0.22)}`,
                           fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
-                          color: '#F5F5F7',
+                          color: 'rgb(var(--text-primary))',
                           userSelect: 'none',
                           cursor: 'pointer',
                         }}
@@ -927,7 +927,7 @@ function ProjectTiles({
                         }}>{name}</div>
                         <div style={{
                           fontSize: 9.5, fontWeight: 400,
-                          color: 'rgba(245,245,247,0.62)',
+                          color: 'rgb(var(--text-primary) / 0.62)',
                           lineHeight: 1.32,
                           minHeight: 12,
                         }}>{sub}</div>
@@ -941,7 +941,7 @@ function ProjectTiles({
                                 fontSize: 8, padding: '3px 6px',
                                 borderRadius: 4,
                                 border: `1px solid ${hexAlpha(p.color, 0.5)}`,
-                                color: '#F5F5F7',
+                                color: 'rgb(var(--text-primary))',
                                 letterSpacing: '0.04em',
                                 background: hexAlpha(p.color, 0.05),
                               }}>{t}</span>
@@ -1091,7 +1091,7 @@ function SocialsEnd3D({
             <div style={{
               fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
               fontSize: 36, fontWeight: 800, letterSpacing: '-0.02em',
-              color: '#F5F5F7', marginBottom: 28, lineHeight: 1.05,
+              color: 'rgb(var(--text-primary))', marginBottom: 28, lineHeight: 1.05,
             }}>
               LET&apos;S STAY<br />IN <span style={{ color: accent, textShadow: `0 0 18px ${hexAlpha(accent, 0.5)}` }}>TOUCH</span>
             </div>
@@ -1108,7 +1108,7 @@ function SocialsEnd3D({
             </div>
             <div style={{
               fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase',
-              color: 'rgba(245,245,247,0.45)',
+              color: 'rgb(var(--text-primary) / 0.45)',
             }}>
               KEEP SCROLLING TO LOOP ↻
             </div>
