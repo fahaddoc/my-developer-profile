@@ -27,6 +27,7 @@ import { profilePageSchema, projectsItemListSchema } from '@/lib/seo/jsonld'
 import { useQualityLevel } from '@/components/r3f/useQualityLevel'
 import { QualityToggle } from '@/components/r3f/QualityToggle'
 import { TunnelAnchors, useTunnelLoop } from '@/components/r3f/TunnelScrollRails'
+import { useTheme } from '@/components/providers/ThemeProvider'
 import { PRESETS, type QualityLevel } from '@/lib/quality'
 
 const TunnelScene = dynamic(
@@ -41,6 +42,7 @@ const TunnelHUD = dynamic(
 export default function Page() {
   const [eligible, setEligible] = useState<boolean | null>(null)
   const quality = useQualityLevel()
+  const { theme } = useTheme()
 
   // matchMedia check for hover-capable desktop. Re-evaluates on viewport change.
   useEffect(() => {
@@ -60,6 +62,11 @@ export default function Page() {
   // SSR/initial render uses ClassicMode so HTML/SEO still ships.
   const stillResolving = eligible === null || (eligible && quality.loading)
 
+  // Light theme = ClassicMode (DOM portfolio shows full light/dark palette).
+  // Dark theme = TunnelMode (sci-fi sticks to its native palette).
+  // This way the theme toggle has a visible effect on the front page.
+  const showTunnel = theme === 'dark' && eligible && quality.level && PRESETS[quality.level].canvas
+
   return (
     <>
       <JsonLd data={profilePageSchema()} />
@@ -67,10 +74,8 @@ export default function Page() {
 
       {stillResolving ? (
         <BootSpinner />
-      ) : eligible && quality.level && PRESETS[quality.level].canvas ? (
-        // Tunnel mode owns its own nav inside the HUD chrome — classic
-        // Navbar would duplicate the top bar
-        <TunnelMode level={quality.level} onLevelChange={quality.setOverride} reportLowFps={quality.reportLowFps} />
+      ) : showTunnel ? (
+        <TunnelMode level={quality.level!} onLevelChange={quality.setOverride} reportLowFps={quality.reportLowFps} />
       ) : (
         <ClassicMode />
       )}
