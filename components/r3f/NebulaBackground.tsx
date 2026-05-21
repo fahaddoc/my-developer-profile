@@ -192,7 +192,7 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
   useEffect(() => () => { innerMat.dispose(); outerMat.dispose() }, [innerMat, outerMat])
 
   // ── Star field with per-star size + twinkle phase ──────────────────────
-  const STAR_COUNT = 220
+  const STAR_COUNT = 360
   const { starGeom, starMat } = useMemo(() => {
     const positions = fibonacciSphere(STAR_COUNT, 46)
     // Add subtle radial jitter so they don't sit on a perfect sphere
@@ -204,9 +204,10 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
       positions[i * 3 + 0] *= jitter
       positions[i * 3 + 1] *= jitter
       positions[i * 3 + 2] *= jitter
-      // Lognormal-ish: most stars small, a few stand out
+      // Higher floor + flatter curve — every star is visible at all times,
+      // a small subset still stands out as bright "hero" stars.
       const u = rng()
-      sizes[i]  = 0.28 + Math.pow(u, 2.4) * 1.6
+      sizes[i]  = 0.55 + Math.pow(u, 1.6) * 1.5
       phases[i] = rng() * Math.PI * 2
     }
     const g = new THREE.BufferGeometry()
@@ -220,7 +221,7 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
         uColor:   { value: new THREE.Color(isLight ? '#1a8ea0' : '#ffffff') },
         uTintB:   { value: new THREE.Color(isLight ? '#3a7a85' : '#5EEAD4') },
         uOpacity: { value: isLight ? 0.7 : 1.0 },
-        uPxScale: { value: 420 },
+        uPxScale: { value: 520 },
       },
       vertexShader: /* glsl */ `
         attribute float aSize;
@@ -230,11 +231,14 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
         varying float vTwinkle;
         varying float vTint;
         void main() {
+          // Higher twinkle floor + tighter size variation so every star is
+          // continuously visible. Twinkle now modulates BRIGHTNESS only, not
+          // size — keeps stars from "shrinking out" mid-pulse.
           float tw = 0.5 + 0.5 * sin(uTime * 1.4 + aPhase * 6.283);
-          vTwinkle = 0.55 + 0.45 * tw;
-          vTint = step(0.78, fract(aPhase * 0.317)); // ~22% of stars tinted accent
+          vTwinkle = 0.75 + 0.25 * tw;
+          vTint = step(0.78, fract(aPhase * 0.317)); // ~22% tinted accent
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = aSize * uPxScale * (0.7 + 0.5 * tw) / -mv.z;
+          gl_PointSize = aSize * uPxScale / -mv.z;
           gl_Position  = projectionMatrix * mv;
         }
       `,
