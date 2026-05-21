@@ -240,30 +240,28 @@ export function ParticlePortrait({
         const tgX = hover ? p.tx : p.px
         const tgY = hover ? p.ty : p.py
 
-        // Magnetic spring toward target with high damping for organic settle
-        p.vx += (tgX - p.x) * 0.025
-        p.vy += (tgY - p.y) * 0.025
-        p.vx *= 0.91
-        p.vy *= 0.91
+        // Tight spring + strong damping so particles SETTLE precisely on the
+        // text pixel — no oscillation, no blur. The explosion impulse from
+        // burst() still gives the dramatic outward fly-out before they pull
+        // into shape.
+        p.vx += (tgX - p.x) * 0.18
+        p.vy += (tgY - p.y) * 0.18
+        p.vx *= 0.72
+        p.vy *= 0.72
         p.x  += p.vx
         p.y  += p.vy
 
-        // Sub-pixel idle wobble for living dust
-        const wx = Math.sin(wobT * 1.1 + p.wobble) * 0.22
-        const wy = Math.cos(wobT * 0.85 + p.wobble) * 0.22
+        // Wobble only in IDLE (portrait) mode — text must stay crisp
+        const wx = hover ? 0 : Math.sin(wobT * 1.1 + p.wobble) * 0.18
+        const wy = hover ? 0 : Math.cos(wobT * 0.85 + p.wobble) * 0.18
 
         const dx = (p.x + wx) - tgX
         const dy = (p.y + wy) - tgY
-        const drift = Math.min(1, Math.sqrt(dx * dx + dy * dy) / 26)
+        const drift = Math.min(1, Math.sqrt(dx * dx + dy * dy) / 22)
 
-        // Color: in hover mode, particles render in CLEAN cream-white settling
-        // to accent as they near their text target — so the words read
-        // crisply, not as a muddy mix of original portrait colors.
-        // In idle mode, particles use their original portrait pixel color
-        // and shift toward accent only when far from home (transition).
         let r: number, g: number, b: number
         if (hover) {
-          // Far from target → accent. Near target → cream-white (legible).
+          // En-route → accent. Settled → cream-white (crisp legible).
           const cream = { r: 240, g: 252, b: 248 }
           r = Math.round(tint.r * drift + cream.r * (1 - drift))
           g = Math.round(tint.g * drift + cream.g * (1 - drift))
@@ -276,10 +274,8 @@ export function ParticlePortrait({
         const a = (hover ? 1 : (p.a / 255)) * Math.max(0.55, 1 - drift * 0.3)
 
         ctx.fillStyle = `rgba(${r},${g},${b},${a})`
-        // Bigger rect when settled into text shape — boosts readability at
-        // the canvas's now-larger native resolution.
-        const settled = hover && drift < 0.3 ? 2.8 : 2.0
-        ctx.fillRect(p.x + wx, p.y + wy, settled, settled)
+        // Single 1.4px rect — tight, no overlap, crisp letterforms.
+        ctx.fillRect(p.x + wx, p.y + wy, 1.4, 1.4)
       }
 
       rafRef.current = requestAnimationFrame(tick)
