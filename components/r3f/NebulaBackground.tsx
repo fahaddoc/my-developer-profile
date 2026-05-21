@@ -245,7 +245,6 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
   useEffect(() => () => { starGeom.dispose(); starMat.dispose() }, [starGeom, starMat])
 
   // ── Shooting star — fires at random intervals ──────────────────────────
-  const shootingRef    = useRef<THREE.Line>(null)
   const shootingState  = useRef({
     active: false,
     start: new THREE.Vector3(),
@@ -254,13 +253,25 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
     ttl:   1.4,
     next:  4 + Math.random() * 6,   // first one fires 4-10s after mount
   })
-  const shootingGeom = useMemo(() => {
+  // Build the Line object outside JSX — sidesteps TSX's `<line>` ambiguity
+  // with SVGLineElement.
+  const shootingLine = useMemo(() => {
     const g = new THREE.BufferGeometry()
-    // 2 vertices: head + tail. Updated per frame.
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3))
-    return g
-  }, [])
-  useEffect(() => () => shootingGeom.dispose(), [shootingGeom])
+    const m = new THREE.LineBasicMaterial({
+      color: new THREE.Color(isLight ? '#3e8a92' : '#ffffff'),
+      transparent: true,
+      opacity: 0,
+      toneMapped: false,
+      depthWrite: false,
+    })
+    return new THREE.Line(g, m)
+  }, [isLight])
+  const shootingGeom = shootingLine.geometry as THREE.BufferGeometry
+  useEffect(() => () => {
+    shootingLine.geometry.dispose()
+    ;(shootingLine.material as THREE.Material).dispose()
+  }, [shootingLine])
 
   // ── Per-frame ──────────────────────────────────────────────────────────
   useFrame(({ camera, clock }, dt) => {
@@ -307,7 +318,7 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
       const t = Math.min(1, s.age / s.ttl)
       if (t >= 1) {
         s.active = false
-      } else if (shootingRef.current) {
+      } else {
         const head = s.start.clone().addScaledVector(s.dir, t)
         const tailT = Math.max(0, t - 0.18)
         const tail = s.start.clone().addScaledVector(s.dir, tailT)
@@ -315,8 +326,7 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
         posAttr.setXYZ(0, head.x, head.y, head.z)
         posAttr.setXYZ(1, tail.x, tail.y, tail.z)
         posAttr.needsUpdate = true
-        const mat = shootingRef.current.material as THREE.LineBasicMaterial
-        // Fade in/out at the ends of the streak
+        const mat = shootingLine.material as THREE.LineBasicMaterial
         mat.opacity = Math.sin(t * Math.PI) * (isLight ? 0.65 : 0.95)
       }
     }
@@ -336,17 +346,8 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
       {/* Stars */}
       <points geometry={starGeom} material={starMat} />
 
-      {/* Shooting star */}
-      <line ref={shootingRef}>
-        <primitive object={shootingGeom} attach="geometry" />
-        <lineBasicMaterial
-          color={isLight ? '#3e8a92' : '#ffffff'}
-          transparent
-          opacity={0}
-          toneMapped={false}
-          depthWrite={false}
-        />
-      </line>
+      {/* Shooting star — Line object built outside JSX, mounted via primitive */}
+      <primitive object={shootingLine} />
     </group>
   )
 }
