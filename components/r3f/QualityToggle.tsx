@@ -24,9 +24,9 @@ export function QualityToggle({ level, onChange }: QualityToggleProps) {
       aria-label={`Quality preset. Currently ${labels[level]}. Click to change.`}
       style={{
         position:    'fixed',
-        top:         72,
+        bottom:      24,
         right:       32,
-        zIndex:      55,
+        zIndex:      52,
         background:  'transparent',
         color:       'rgba(245,245,247,0.45)',
         border:      'none',

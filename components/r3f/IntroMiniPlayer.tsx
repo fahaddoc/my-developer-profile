@@ -54,7 +54,7 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
         position:   'fixed',
         top:        58,
         right:      32,
-        zIndex:     55,
+        zIndex:     58,
         width:      220,
         aspectRatio: '4 / 5',
         borderRadius: 8,
