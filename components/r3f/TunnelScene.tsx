@@ -313,13 +313,9 @@ function Station({
   }, [curve, t])
 
   // Proximity scrubbing — ring + dot + label fade with camera approach.
-  // Tight window with a small dead-zone fade so off-station rings are
-  // completely invisible at any meaningful distance.
   useFrame(() => {
     const dist      = Math.abs(scrollRef.current - t)
-    const raw       = Math.max(0, 1 - dist / 0.05)
-    // Cubic ease — long tail at 0, sharp ramp into peak
-    const proximity = raw * raw * raw
+    const proximity = Math.max(0, 1 - dist / 0.06)
     const ringOp    = proximity * 0.85
     const innerOp   = proximity * 0.32
     const dotOp     = proximity * 0.85
