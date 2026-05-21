@@ -252,11 +252,9 @@ function Tunnel({
   curve:     THREE.CatmullRomCurve3
   ringCount: number
 }) {
-  const skinGeometry = useMemo(
-    () => new THREE.TubeGeometry(curve, Math.max(120, ringCount), 3.18, 24, false),
-    [curve, ringCount],
-  )
-  useEffect(() => () => skinGeometry.dispose(), [skinGeometry])
+  // (Previously we drew a dark TubeGeometry inner skin for occlusion. With
+  // fog + canvas background color the void reads fine — saved ~6k vertices
+  // and a draw call per frame.)
 
   // Static dotted constellation rings — geometry built ONCE in useMemo and
   // never touched again per frame. No shader animation, no buffer mutations,
@@ -314,16 +312,6 @@ function Tunnel({
 
   return (
     <>
-      {/* Inner skin — dark void backdrop */}
-      <mesh geometry={skinGeometry}>
-        <meshBasicMaterial
-          color="#0A0A12"
-          side={THREE.BackSide}
-          transparent
-          opacity={0.92}
-        />
-      </mesh>
-
       {/* Constellation dots */}
       <points geometry={dotsGeometry}>
         <pointsMaterial
@@ -1292,7 +1280,6 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         <pointLight position={[0, 0, -5]} intensity={1.5} color="#5EEAD4" />
 
         <Tunnel curve={curve} ringCount={preset.tubeSegments} />
-        <Particles curve={curve} count={preset.particleCount} bob={preset.tileBob} />
 
         {STATIONS.map((s) => (
           <Station key={s.id} curve={curve} station={s} />
@@ -1316,14 +1303,6 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
             curve={curve}
             stationT={STATIONS.find((s) => s.id === 'hero')!.t}
             accent={STATIONS.find((s) => s.id === 'hero')!.color}
-          />
-        </ProximityGate>
-
-        {/* Socials sign-off — far end, only mount when camera is approaching */}
-        <ProximityGate stationT={0.96} threshold={0.16}>
-          <SocialsEnd3D
-            curve={curve}
-            accent={STATIONS.find((s) => s.id === 'contact')!.color}
           />
         </ProximityGate>
 
