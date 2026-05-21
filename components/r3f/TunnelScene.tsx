@@ -253,56 +253,80 @@ function Tunnel({
   curve:     THREE.CatmullRomCurve3
   ringCount: number
 }) {
+  // Higher tubular segments on the plasma skin so the noise reads smoothly
+  // along the bends. ringCount feeds in from the quality preset.
   const skinGeometry = useMemo(
-    () => new THREE.TubeGeometry(curve, 240, 3.18, 36, false),
-    [curve],
+    () => new THREE.TubeGeometry(curve, Math.max(240, ringCount), 3.18, 36, false),
+    [curve, ringCount],
   )
 
-  // Double helix — two continuous strands wrap the curve, offset by π.
-  // Replaces the dotted-ring constellation. Uses the curve's Frenet frame so
-  // the spiral follows the tunnel's bends instead of a straight z-axis.
-  const HELIX_RADIUS = 3.2
-  const TURNS        = 24                   // total revolutions across the whole tunnel
-  const SEGMENTS_PER_RING = 6               // samples per ring → smooth strand
-  const segments     = Math.max(800, ringCount * SEGMENTS_PER_RING)
+  // Plasma field shader — animated fbm noise painted on the interior of the
+  // tube. Replaces the previous helix/ring designs. Two materials stacked:
+  //   1. Dark occluder underneath (so the tunnel still reads as a void)
+  //   2. Additive plasma layer on top (the actual light)
+  const plasmaMat = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:   { value: 0 },
+      uColor:  { value: new THREE.Color('#5EEAD4') },
+      uColorB: { value: new THREE.Color('#1e293b') },
+    },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uTime;
+      uniform vec3  uColor;
+      uniform vec3  uColorB;
+      varying vec2 vUv;
 
-  const { strandA, strandB } = useMemo(() => {
-    const frames = curve.computeFrenetFrames(segments, false)
-    const a      = new Float32Array((segments + 1) * 3)
-    const b      = new Float32Array((segments + 1) * 3)
-    const pos    = new THREE.Vector3()
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        float a = hash(i);
+        float b = hash(i + vec2(1.0, 0.0));
+        float c = hash(i + vec2(0.0, 1.0));
+        float d = hash(i + vec2(1.0, 1.0));
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+      }
+      float fbm(vec2 p) {
+        float v = 0.0; float amp = 0.55;
+        for (int i = 0; i < 5; i++) {
+          v += amp * noise(p);
+          p *= 2.05; amp *= 0.5;
+        }
+        return v;
+      }
 
-    for (let s = 0; s <= segments; s++) {
-      const t        = s / segments
-      const normal   = frames.normals[s]   || frames.normals[frames.normals.length - 1]
-      const binormal = frames.binormals[s] || frames.binormals[frames.binormals.length - 1]
-      curve.getPointAt(t, pos)
+      void main() {
+        // u wraps the circumference, v runs the tunnel length. Scale v much
+        // higher so the noise cells aren't stretched along the long axis.
+        vec2 uv = vec2(vUv.x * 8.0, vUv.y * 32.0);
+        float n = fbm(uv + vec2(uTime * 0.18, uTime * 0.32));
+        n = pow(n, 1.5);
+        vec3 col = mix(uColorB, uColor, n);
+        float a = 0.06 + n * 0.58;
+        gl_FragColor = vec4(col, a);
+      }
+    `,
+    transparent: true,
+    side:        THREE.BackSide,
+    depthWrite:  false,
+    blending:    THREE.AdditiveBlending,
+    toneMapped:  false,
+  }), [])
 
-      const angle = t * TURNS * Math.PI * 2
-      const ca    = Math.cos(angle) * HELIX_RADIUS
-      const sa    = Math.sin(angle) * HELIX_RADIUS
-      a[s * 3 + 0] = pos.x + normal.x * ca + binormal.x * sa
-      a[s * 3 + 1] = pos.y + normal.y * ca + binormal.y * sa
-      a[s * 3 + 2] = pos.z + normal.z * ca + binormal.z * sa
-
-      // Strand B — same helix offset by π (180°)
-      const cb = Math.cos(angle + Math.PI) * HELIX_RADIUS
-      const sb = Math.sin(angle + Math.PI) * HELIX_RADIUS
-      b[s * 3 + 0] = pos.x + normal.x * cb + binormal.x * sb
-      b[s * 3 + 1] = pos.y + normal.y * cb + binormal.y * sb
-      b[s * 3 + 2] = pos.z + normal.z * cb + binormal.z * sb
-    }
-
-    const gA = new THREE.BufferGeometry()
-    gA.setAttribute('position', new THREE.BufferAttribute(a, 3))
-    const gB = new THREE.BufferGeometry()
-    gB.setAttribute('position', new THREE.BufferAttribute(b, 3))
-    return { strandA: gA, strandB: gB }
-  }, [curve, segments])
+  useFrame(({ clock }) => {
+    plasmaMat.uniforms.uTime.value = clock.elapsedTime
+  })
 
   return (
     <>
-      {/* Inner skin — occlusion + deep void */}
+      {/* Dark occluder — keeps the tunnel reading as a void behind the plasma */}
       <mesh geometry={skinGeometry}>
         <meshBasicMaterial
           color="#0A0A12"
@@ -312,28 +336,8 @@ function Tunnel({
         />
       </mesh>
 
-      {/* Helix strand A — primary accent teal */}
-      <line>
-        <primitive object={strandA} attach="geometry" />
-        <lineBasicMaterial
-          color="#5EEAD4"
-          transparent
-          opacity={0.85}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </line>
-      {/* Helix strand B — lighter cream, lower opacity for depth contrast */}
-      <line>
-        <primitive object={strandB} attach="geometry" />
-        <lineBasicMaterial
-          color="#C6F8EE"
-          transparent
-          opacity={0.55}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </line>
+      {/* Plasma overlay — additive shader on the same tube interior */}
+      <mesh geometry={skinGeometry} material={plasmaMat} />
     </>
   )
 }
