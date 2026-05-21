@@ -15,6 +15,7 @@ import {
 } from '@/components/r3f/TunnelScene'
 import { IntroMiniPlayer } from '@/components/r3f/IntroMiniPlayer'
 import { lenisInstance } from '@/components/providers/SmoothScroll'
+import { useTheme } from '@/components/providers/ThemeProvider'
 import { experience } from '@/data/projects'
 
 // Lenis hijacks native scroll, so el.scrollIntoView({behavior:'smooth'})
@@ -66,6 +67,8 @@ export function TunnelHUD() {
   const progress = useScrollProgress()
   const station  = nearestStation(progress)
   const [sound, setSound] = useSound()
+  const { theme, toggle: toggleTheme } = useTheme()
+  const isDark = theme === 'dark'
 
   const accent = station.color
 
@@ -125,7 +128,7 @@ export function TunnelHUD() {
         </div>
       </div>
 
-      {/* ─── top-right: SOUND toggle ──────────────────────────────────── */}
+      {/* ─── top-right: SOUND toggle + THEME toggle ───────────────────── */}
       <button
         type="button"
         onClick={() => setSound(!sound)}
@@ -143,6 +146,38 @@ export function TunnelHUD() {
       >
         <SoundIcon active={sound} color={accent} />
         SOUND {sound ? 'ON' : 'OFF'}
+      </button>
+
+      {/* THEME toggle — sits to the left of SOUND */}
+      <button
+        type="button"
+        onClick={toggleTheme}
+        aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+        title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+        style={{
+          position: 'fixed', top: 22, right: 168, zIndex: 50,
+          background: 'transparent', border: 'none', cursor: 'pointer',
+          color: 'rgba(245,245,247,0.55)',
+          fontFamily: 'var(--font-mono), ui-monospace, monospace',
+          fontSize: 11, letterSpacing: '0.25em', textTransform: 'uppercase',
+          display: 'flex', alignItems: 'center', gap: 10,
+          pointerEvents: 'auto', padding: 0,
+          transition: 'color 200ms',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = accent }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(245,245,247,0.55)' }}
+      >
+        {isDark ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+        )}
+        {isDark ? 'DARK' : 'LIGHT'}
       </button>
 
       {/* ─── left rail: vertical station step indicator ───────────────── */}
