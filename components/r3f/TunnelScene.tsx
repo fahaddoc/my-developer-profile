@@ -1056,6 +1056,7 @@ function SocialsEnd3D({
     textDecoration: 'none',
     transition: 'background 220ms, border-color 220ms, transform 220ms',
     boxShadow: `0 0 18px ${hexAlpha(accent, 0.18)}`,
+    pointerEvents: 'auto',
   }
 
   return (
@@ -1065,7 +1066,7 @@ function SocialsEnd3D({
           transform
           position={[0, 0, 0]}
           distanceFactor={3.6}
-          pointerEvents="auto"
+          pointerEvents="none"
           center
         >
           <div
@@ -1077,6 +1078,7 @@ function SocialsEnd3D({
               userSelect: 'none',
               fontFamily: 'var(--font-mono), ui-monospace, monospace',
               width: 380,
+              pointerEvents: 'none',
             }}
           >
             <div style={{

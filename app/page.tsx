@@ -147,32 +147,45 @@ function TunnelMode({
     return () => cancelAnimationFrame(rafId)
   }, [reportLowFps])
 
-  // Loop tunnel: when user is at scroll bottom and continues scrolling down,
-  // jump back to the start so the journey replays infinitely.
+  // Loop tunnel: at the bottom, the next downward wheel/touch input jumps
+  // back to the start so the journey replays. We poll via rAF instead of
+  // preventing wheel events so we never fight Lenis for the same input.
   useEffect(() => {
-    let cooldown = 0
-    const ATBOTTOM_PX = 2
-    const COOLDOWN_MS = 600
-
-    const lenisOf = () => (window as unknown as {
-      __lenis?: { scroll: number; limit: number; scrollTo: (y: number, opts?: { immediate?: boolean; force?: boolean; lock?: boolean }) => void }
-    }).__lenis
+    let cooldown      = 0
+    let lastWheelDown = 0
+    const COOLDOWN_MS = 700
+    const RECENT_MS   = 300
 
     const onWheel = (e: WheelEvent) => {
-      const lenis = lenisOf()
-      if (!lenis || lenis.limit <= 0) return
-      if (e.deltaY <= 0) return
-      const now = performance.now()
-      if (now - cooldown < COOLDOWN_MS) return
-      if (lenis.scroll >= lenis.limit - ATBOTTOM_PX) {
-        cooldown = now
-        e.preventDefault()
-        lenis.scrollTo(0, { immediate: true, force: true, lock: false })
-      }
+      if (e.deltaY > 0) lastWheelDown = performance.now()
     }
+    window.addEventListener('wheel', onWheel, { passive: true })
 
-    window.addEventListener('wheel', onWheel, { passive: false })
-    return () => window.removeEventListener('wheel', onWheel)
+    let rafId = 0
+    const tick = () => {
+      const lenis = (window as unknown as {
+        __lenis?: { scroll: number; limit: number; scrollTo: (y: number, opts?: { immediate?: boolean; force?: boolean; lock?: boolean }) => void }
+      }).__lenis
+
+      if (lenis && lenis.limit > 0) {
+        const now      = performance.now()
+        const atBottom = lenis.scroll >= lenis.limit - 1
+        const wheeled  = now - lastWheelDown < RECENT_MS
+        const ready    = now - cooldown > COOLDOWN_MS
+        if (atBottom && wheeled && ready) {
+          cooldown      = now
+          lastWheelDown = 0
+          lenis.scrollTo(0, { immediate: true, force: true, lock: false })
+        }
+      }
+      rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
+
+    return () => {
+      window.removeEventListener('wheel', onWheel)
+      cancelAnimationFrame(rafId)
+    }
   }, [])
 
   const preset = PRESETS[level]
