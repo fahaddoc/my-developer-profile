@@ -291,10 +291,8 @@ function Station({
   const { t, label } = station
 
   const groupRef        = useRef<THREE.Group>(null)
-  const ringMatRef      = useRef<THREE.MeshBasicMaterial>(null)
-  const ringInnerMatRef = useRef<THREE.MeshBasicMaterial>(null)
-  const dotMatsRef      = useRef<(THREE.MeshBasicMaterial | null)[]>([])
   const textMatRef      = useRef<THREE.Material | null>(null)
+  const planetOpacityRef = useRef(0)
 
   // Place + orient the group once on mount.
   // We want the station to FACE the approaching camera. Camera travels along
@@ -312,69 +310,25 @@ function Station({
     groupRef.current.lookAt(pos.clone().sub(tangent))
   }, [curve, t])
 
-  // Proximity scrubbing — ring + dot + label fade with camera approach.
+  // Proximity scrubbing — planet + label fade with camera approach.
   useFrame(() => {
     const dist      = Math.abs(scrollRef.current - t)
-    const proximity = Math.max(0, 1 - dist / 0.06)
-    const ringOp    = proximity * 0.85
-    const innerOp   = proximity * 0.32
-    const dotOp     = proximity * 0.85
-    const textOp    = proximity * 0.95
-
-    if (ringMatRef.current)      ringMatRef.current.opacity      = ringOp
-    if (ringInnerMatRef.current) ringInnerMatRef.current.opacity = innerOp
-    dotMatsRef.current.forEach((m) => { if (m) m.opacity = dotOp })
-    if (textMatRef.current) (textMatRef.current as THREE.MeshBasicMaterial).opacity = textOp
+    const proximity = Math.max(0, 1 - dist / 0.08)
+    planetOpacityRef.current = proximity
+    if (textMatRef.current) (textMatRef.current as THREE.MeshBasicMaterial).opacity = proximity * 0.95
 
     if (groupRef.current) {
-      const breath = 1 + proximity * 0.06
+      const breath = 1 + proximity * 0.04
       groupRef.current.scale.setScalar(breath)
     }
   })
 
   return (
     <group ref={groupRef}>
-      {/* Primary ring — sits just outside the main tunnel rings to read as
-          a thicker accent at the station */}
-      <mesh>
-        <torusGeometry args={[3.35, 0.09, 10, 120]} />
-        <meshBasicMaterial
-          ref={ringMatRef}
-          color={station.color}
-          transparent
-          opacity={0}
-          toneMapped={false}
-        />
-      </mesh>
-
-      {/* Secondary inner ring — smaller, dimmer, gives depth */}
-      <mesh>
-        <torusGeometry args={[2.95, 0.035, 8, 96]} />
-        <meshBasicMaterial
-          ref={ringInnerMatRef}
-          color="#C6F8EE"
-          transparent
-          opacity={0}
-          toneMapped={false}
-        />
-      </mesh>
-
-      {/* Four marker dots around the ring (3, 6, 9, 12 o'clock) */}
-      {[0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle, i) => (
-        <mesh
-          key={i}
-          position={[Math.cos(angle) * 3.35, Math.sin(angle) * 3.35, 0]}
-        >
-          <sphereGeometry args={[0.12, 12, 12]} />
-          <meshBasicMaterial
-            ref={(m) => { dotMatsRef.current[i] = m }}
-            color="#E5FFF8"
-            transparent
-            opacity={0}
-            toneMapped={false}
-          />
-        </mesh>
-      ))}
+      {/* Each station's "circle" is now a unique planet — water world,
+          rocky mars, gas giant w/ ring, ice neptune, dust pink. Configs in
+          the PLANETS map above. */}
+      <Planet stationId={station.id} opacityRef={planetOpacityRef} />
 
       {/* Floating label above the ring — sequence number stripped (just the
           short name, e.g. INTRO / ABOUT). Troika colorRanges paints the
@@ -405,6 +359,205 @@ function Station({
           Keeps the tunnel centre clear and prevents content from intersecting
           the rings as the camera passes through. */}
     </group>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Planet — sphere mesh with a parameterized shader. Each station gets its own
+// configured Planet (color + surface pattern). Replaces the dual torus rings
+// + marker dots that used to mark each station. Renders OFFSET from the curve
+// path so the camera flies past it rather than through it.
+// ─────────────────────────────────────────────────────────────────────────────
+interface PlanetConfig {
+  colorDeep:    string
+  colorMid:     string
+  colorBright:  string
+  bands:        number     // 0 = no horizontal bands, 1 = strong gas-giant bands
+  noiseScale:   number
+  rimStrength:  number
+  radius:       number
+  offset:       [number, number, number]   // local position in station group
+  spinSpeed:    number     // rad/sec on Y axis
+  ringTilt?:    number     // optional planetary ring tilt in radians (Saturn-style)
+}
+
+const PLANETS: Record<string, PlanetConfig> = {
+  hero: {       // aqua water world
+    colorDeep:   '#06334a',
+    colorMid:    '#0e89a3',
+    colorBright: '#a8f0f0',
+    bands:       0.10,
+    noiseScale:  3.5,
+    rimStrength: 0.8,
+    radius:      1.45,
+    offset:      [-1.7,  0.4, -2.3],
+    spinSpeed:   0.10,
+  },
+  about: {      // mars-like rocky
+    colorDeep:   '#3a1408',
+    colorMid:    '#c25a26',
+    colorBright: '#f0a468',
+    bands:       0.0,
+    noiseScale:  6.0,
+    rimStrength: 0.30,
+    radius:      1.35,
+    offset:      [ 1.8, -0.4, -1.9],
+    spinSpeed:   0.06,
+  },
+  projects: {   // violet gas giant w/ tilted ring
+    colorDeep:   '#28084a',
+    colorMid:    '#7a3fc8',
+    colorBright: '#e8caff',
+    bands:       0.85,
+    noiseScale:  3.0,
+    rimStrength: 0.55,
+    radius:      1.55,
+    offset:      [-1.6,  0.5, -2.5],
+    spinSpeed:   0.08,
+    ringTilt:    0.45,
+  },
+  experience: { // ice giant — neptune
+    colorDeep:   '#0a2240',
+    colorMid:    '#3a7fb8',
+    colorBright: '#d4ecff',
+    bands:       0.30,
+    noiseScale:  4.5,
+    rimStrength: 0.50,
+    radius:      1.40,
+    offset:      [ 1.7,  0.4, -2.1],
+    spinSpeed:   0.07,
+  },
+  contact: {    // magenta dusty world
+    colorDeep:   '#3a0822',
+    colorMid:    '#c5408a',
+    colorBright: '#ffc2dc',
+    bands:       0.0,
+    noiseScale:  5.0,
+    rimStrength: 0.65,
+    radius:      1.40,
+    offset:      [-1.6, -0.4, -2.2],
+    spinSpeed:   0.09,
+  },
+}
+
+function Planet({ stationId, opacityRef }: {
+  stationId: string
+  opacityRef: { current: number }
+}) {
+  const cfg = PLANETS[stationId] ?? PLANETS.hero
+  const meshRef = useRef<THREE.Mesh>(null)
+
+  const mat = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:        { value: 0 },
+      uOpacity:     { value: 0 },
+      uColorDeep:   { value: new THREE.Color(cfg.colorDeep)   },
+      uColorMid:    { value: new THREE.Color(cfg.colorMid)    },
+      uColorBright: { value: new THREE.Color(cfg.colorBright) },
+      uBands:       { value: cfg.bands },
+      uNoiseScale:  { value: cfg.noiseScale },
+      uRimStrength: { value: cfg.rimStrength },
+    },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      varying vec3 vNormalView;
+      void main() {
+        vUv = uv;
+        vNormalView = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uTime;
+      uniform float uOpacity;
+      uniform vec3  uColorDeep;
+      uniform vec3  uColorMid;
+      uniform vec3  uColorBright;
+      uniform float uBands;
+      uniform float uNoiseScale;
+      uniform float uRimStrength;
+      varying vec2 vUv;
+      varying vec3 vNormalView;
+
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        float a = hash(i);
+        float b = hash(i + vec2(1.0, 0.0));
+        float c = hash(i + vec2(0.0, 1.0));
+        float d = hash(i + vec2(1.0, 1.0));
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+      }
+      float fbm(vec2 p) {
+        float v = 0.0; float amp = 0.55;
+        for (int i = 0; i < 4; i++) { v += amp * noise(p); p *= 2.05; amp *= 0.5; }
+        return v;
+      }
+
+      void main() {
+        vec2 uv = vUv * uNoiseScale;
+        // Subtle horizontal scroll for life
+        uv.x += uTime * 0.01;
+        float surface = fbm(uv);
+        // Bands — sin of latitude (vUv.y) with noise distortion
+        float bandPattern = 0.5 + 0.5 * sin(vUv.y * 14.0 + surface * 3.5);
+        float pattern = mix(surface, bandPattern, uBands);
+
+        vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.25, 0.7, pattern));
+        col = mix(col, uColorBright, smoothstep(0.65, 0.92, pattern) * 0.55);
+
+        // Fresnel rim — soft glow at silhouette
+        float rim = pow(1.0 - max(0.0, vNormalView.z), 2.0);
+        col += uColorBright * rim * uRimStrength;
+
+        gl_FragColor = vec4(col, uOpacity);
+      }
+    `,
+    transparent: true,
+    toneMapped: false,
+  }), [cfg])
+
+  useEffect(() => () => mat.dispose(), [mat])
+
+  useFrame((_, dt) => {
+    mat.uniforms.uTime.value += dt
+    mat.uniforms.uOpacity.value = opacityRef.current
+    if (meshRef.current) meshRef.current.rotation.y += dt * cfg.spinSpeed
+  })
+
+  return (
+    <group position={cfg.offset}>
+      <mesh ref={meshRef} material={mat}>
+        <sphereGeometry args={[cfg.radius, 32, 24]} />
+      </mesh>
+      {/* Optional planetary ring (Saturn-like) */}
+      {cfg.ringTilt !== undefined && (
+        <mesh rotation={[Math.PI / 2 + cfg.ringTilt, 0, 0]}>
+          <ringGeometry args={[cfg.radius * 1.4, cfg.radius * 2.0, 64]} />
+          <PlanetRingMaterial color={cfg.colorBright} opacityRef={opacityRef} />
+        </mesh>
+      )}
+    </group>
+  )
+}
+
+// Tiny helper for Saturn-style ring (single material, fades with planet)
+function PlanetRingMaterial({ color, opacityRef }: { color: string; opacityRef: { current: number } }) {
+  const matRef = useRef<THREE.MeshBasicMaterial>(null)
+  useFrame(() => {
+    if (matRef.current) matRef.current.opacity = opacityRef.current * 0.55
+  })
+  return (
+    <meshBasicMaterial
+      ref={matRef}
+      color={color}
+      transparent
+      opacity={0}
+      side={THREE.DoubleSide}
+      depthWrite={false}
+      toneMapped={false}
+    />
   )
 }
 
