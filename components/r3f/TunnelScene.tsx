@@ -459,10 +459,14 @@ function Planet({ stationId, opacityRef }: {
       uRimStrength: { value: cfg.rimStrength },
     },
     vertexShader: /* glsl */ `
-      varying vec2 vUv;
+      varying vec3 vLocalPos;
+      varying vec3 vLocalNormal;
       varying vec3 vNormalView;
+      varying float vLatitude;
       void main() {
-        vUv = uv;
+        vLocalPos = position;
+        vLocalNormal = normalize(normal);
+        vLatitude = position.y;            // -radius..+radius, no seam
         vNormalView = normalize(normalMatrix * normal);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
@@ -476,8 +480,10 @@ function Planet({ stationId, opacityRef }: {
       uniform float uBands;
       uniform float uNoiseScale;
       uniform float uRimStrength;
-      varying vec2 vUv;
+      varying vec3 vLocalPos;
+      varying vec3 vLocalNormal;
       varying vec3 vNormalView;
+      varying float vLatitude;
 
       float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float noise(vec2 p) {
@@ -496,12 +502,20 @@ function Planet({ stationId, opacityRef }: {
       }
 
       void main() {
-        vec2 uv = vUv * uNoiseScale;
-        // Subtle horizontal scroll for life
-        uv.x += uTime * 0.01;
-        float surface = fbm(uv);
-        // Bands — sin of latitude (vUv.y) with noise distortion
-        float bandPattern = 0.5 + 0.5 * sin(vUv.y * 14.0 + surface * 3.5);
+        // Triplanar projection — sample fbm on the 3 cardinal planes of the
+        // local position and blend by normal direction. Avoids the seam that
+        // a flat vUv mapping creates at the longitude wraparound.
+        vec3 p = vLocalPos * uNoiseScale + vec3(uTime * 0.02, 0.0, uTime * 0.014);
+        float n1 = fbm(p.xy);
+        float n2 = fbm(p.yz * 1.2);
+        float n3 = fbm(p.xz * 1.4);
+        vec3 absN = pow(abs(vLocalNormal), vec3(2.0));
+        float total = absN.x + absN.y + absN.z + 1e-5;
+        float surface = (n1 * absN.z + n2 * absN.x + n3 * absN.y) / total;
+
+        // Bands — based on latitude (vLatitude), distorted by surface noise.
+        // Latitude is single-valued so no seam.
+        float bandPattern = 0.5 + 0.5 * sin(vLatitude * 7.0 + surface * 3.5);
         float pattern = mix(surface, bandPattern, uBands);
 
         vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.25, 0.7, pattern));
