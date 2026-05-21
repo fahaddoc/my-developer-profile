@@ -5,6 +5,7 @@ import { Sora, Inter, JetBrains_Mono } from 'next/font/google'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { SmoothScroll } from '@/components/providers/SmoothScroll'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
+import { CircuitBackground } from '@/components/visual/CircuitBackground'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { personSchema, websiteSchema } from '@/lib/seo/jsonld'
 import { SITE_URL, SITE_NAME, AUTHOR, KEYWORDS, SOCIALS } from '@/lib/seo/site'
@@ -123,6 +124,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <JsonLd data={personSchema()} />
         <JsonLd data={websiteSchema()} />
         <ThemeProvider>
+          <CircuitBackground />
           <SmoothScroll>{children}</SmoothScroll>
         </ThemeProvider>
         {gaId ? <GoogleAnalytics gaId={gaId} /> : null}

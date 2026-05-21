@@ -1280,7 +1280,7 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         // DPR locked to 1. Retina 2× would 4× the framebuffer pixel count for
         // marginal gain on a glowy scene. Single biggest GPU-memory win.
         dpr={1}
-        gl={{ antialias: false, alpha: false, powerPreference: 'high-performance' }}
+        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         onCreated={({ gl }) => {
           // When the GPU drops the context, remount the canvas instead of
           // reloading the page (page reloads can loop on persistent issues).

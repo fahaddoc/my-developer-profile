@@ -98,37 +98,10 @@ body {
   transition: background-color 200ms, color 200ms;
 }
 
-/* dot grid + scanline overlays — pushed behind everything via z-index: -1
-   so the tunnel canvas (z-index: 0) paints OVER them instead of underneath.
-   Previously they bled through onto 3D shapes, giving a striped/textured
-   look on solid-color geometry. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: radial-gradient(
-    rgb(var(--grid-dot-rgb) / var(--grid-dot-alpha)) 1px,
-    transparent 1px
-  );
-  background-size: 32px 32px;
-  pointer-events: none;
-  z-index: -1;
-}
-
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgb(var(--scanline-rgb) / var(--scanline-alpha)) 2px,
-    rgb(var(--scanline-rgb) / var(--scanline-alpha)) 4px
-  );
-  pointer-events: none;
-  z-index: -1;
-}
+/* Background pattern lives in components/visual/CircuitBackground.tsx
+   (mounted at z-index: -1 directly in layout.tsx). The dot-grid + scanline
+   pseudo-elements were dropped — they were either invisible or striping the
+   tunnel canvas. */
 
 #__next,
 main,
