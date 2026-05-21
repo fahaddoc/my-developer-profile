@@ -80,7 +80,7 @@ export function TunnelHUD() {
           position: 'fixed', top: 22, left: 32, zIndex: 50,
           display: 'flex', alignItems: 'center', gap: 18,
           fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          color: '#F5F5F7', fontSize: 11, letterSpacing: '0.25em',
+          color: 'rgb(var(--text-primary))', fontSize: 11, letterSpacing: '0.25em',
           textTransform: 'uppercase',
           pointerEvents: 'none',
         }}
@@ -94,8 +94,8 @@ export function TunnelHUD() {
           SF
         </span>
         <span style={{ fontWeight: 700 }}>SHAH FAHAD</span>
-        <span style={{ color: 'rgba(245,245,247,0.4)' }}>|</span>
-        <span style={{ color: 'rgba(245,245,247,0.55)' }}>PORTFOLIO</span>
+        <span style={{ color: 'rgb(var(--text-primary) / 0.4)' }}>|</span>
+        <span style={{ color: 'rgb(var(--text-primary) / 0.55)' }}>PORTFOLIO</span>
       </div>
 
       {/* ─── top-center: SCROLL TO EXPLORE + dashes ───────────────────── */}
@@ -105,7 +105,7 @@ export function TunnelHUD() {
           transform: 'translateX(-50%)',
           zIndex: 50, pointerEvents: 'none',
           fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          color: '#F5F5F7', fontSize: 11, letterSpacing: '0.25em',
+          color: 'rgb(var(--text-primary))', fontSize: 11, letterSpacing: '0.25em',
           textTransform: 'uppercase',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
         }}
@@ -137,7 +137,7 @@ export function TunnelHUD() {
         style={{
           position: 'fixed', top: 22, right: 32, zIndex: 50,
           background: 'transparent', border: 'none', cursor: 'pointer',
-          color: sound ? accent : 'rgba(245,245,247,0.55)',
+          color: sound ? accent : 'rgb(var(--text-primary) / 0.55)',
           fontFamily: 'var(--font-mono), ui-monospace, monospace',
           fontSize: 11, letterSpacing: '0.25em', textTransform: 'uppercase',
           display: 'flex', alignItems: 'center', gap: 10,
@@ -157,7 +157,7 @@ export function TunnelHUD() {
         style={{
           position: 'fixed', top: 22, right: 168, zIndex: 50,
           background: 'transparent', border: 'none', cursor: 'pointer',
-          color: 'rgba(245,245,247,0.55)',
+          color: 'rgb(var(--text-primary) / 0.55)',
           fontFamily: 'var(--font-mono), ui-monospace, monospace',
           fontSize: 11, letterSpacing: '0.25em', textTransform: 'uppercase',
           display: 'flex', alignItems: 'center', gap: 10,
@@ -165,7 +165,7 @@ export function TunnelHUD() {
           transition: 'color 200ms',
         }}
         onMouseEnter={(e) => { e.currentTarget.style.color = accent }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(245,245,247,0.55)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = 'rgb(var(--text-primary) / 0.55)' }}
       >
         {isDark ? (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -202,7 +202,7 @@ export function TunnelHUD() {
                 display: 'flex', alignItems: 'center', gap: 14,
                 background: 'transparent', border: 'none', cursor: 'pointer',
                 padding: 0, textAlign: 'left',
-                color: isActive ? '#F5F5F7' : 'rgba(245,245,247,0.4)',
+                color: isActive ? 'rgb(var(--text-primary))' : 'rgb(var(--text-primary) / 0.4)',
                 transition: 'color 220ms',
                 pointerEvents: 'auto',
               }}
@@ -210,7 +210,7 @@ export function TunnelHUD() {
               <span style={{
                 width: 12, height: 12, borderRadius: '50%',
                 background: isActive ? accent : 'transparent',
-                border: `1px solid ${isActive ? accent : 'rgba(245,245,247,0.35)'}`,
+                border: `1px solid ${isActive ? accent : 'rgb(var(--text-primary) / 0.35)'}`,
                 boxShadow: isActive ? `0 0 10px ${hexAlpha(accent, 0.7)}` : 'none',
                 transition: 'all 220ms',
                 flexShrink: 0,
@@ -218,7 +218,7 @@ export function TunnelHUD() {
               <span style={{
                 fontSize: 11, fontWeight: 600,
                 letterSpacing: '0.28em',
-                color: isActive ? accent : 'rgba(245,245,247,0.5)',
+                color: isActive ? accent : 'rgb(var(--text-primary) / 0.5)',
               }}>{s.short}</span>
             </button>
           )
@@ -239,7 +239,7 @@ export function TunnelHUD() {
           zIndex: 50, pointerEvents: 'none',
           fontFamily: 'var(--font-mono), ui-monospace, monospace',
           fontSize: 10, letterSpacing: '0.3em',
-          color: 'rgba(245,245,247,0.7)',
+          color: 'rgb(var(--text-primary) / 0.7)',
           textTransform: 'uppercase',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
         }}
@@ -253,7 +253,7 @@ export function TunnelHUD() {
         style={{
           position: 'fixed', bottom: 28, left: 32, zIndex: 50,
           fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          color: 'rgba(245,245,247,0.55)',
+          color: 'rgb(var(--text-primary) / 0.55)',
           fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase',
           display: 'flex', flexDirection: 'column', gap: 8,
         }}
@@ -290,7 +290,7 @@ function StationOverlay({ station, progress }: { station: StationDef; progress: 
         pointerEvents: 'none',
         opacity,
         transition: 'opacity 200ms',
-        color: '#F5F5F7',
+        color: 'rgb(var(--text-primary))',
       }}
     >
       {renderCard(station)}
@@ -320,13 +320,13 @@ const eyebrow = (color: string) => ({
 const heading = {
   fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
   fontSize: 56, fontWeight: 800 as const, lineHeight: 1.04,
-  letterSpacing: '-0.02em', color: '#F5F5F7',
+  letterSpacing: '-0.02em', color: 'rgb(var(--text-primary))',
   margin: '0 0 22px',
 }
 
 const tagline = {
   fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
-  fontSize: 16, lineHeight: 1.55, color: 'rgba(245,245,247,0.7)',
+  fontSize: 16, lineHeight: 1.55, color: 'rgb(var(--text-primary) / 0.7)',
   margin: '0 0 22px', maxWidth: 480,
 }
 
@@ -372,7 +372,7 @@ function HeroCard({ station }: { station: StationDef }) {
         textTransform: 'uppercase',
         marginBottom: 24,
       }}>
-        <span style={{ color: '#F5F5F7', display: 'block' }}>SHAH</span>
+        <span style={{ color: 'rgb(var(--text-primary))', display: 'block' }}>SHAH</span>
         <span style={{
           color: station.color,
           textShadow: `0 0 18px ${hexAlpha(station.color, 0.45)}`,
@@ -389,7 +389,7 @@ function HeroCard({ station }: { station: StationDef }) {
       <div style={{
         fontFamily: 'var(--font-mono), monospace',
         fontSize: 12, letterSpacing: '0.18em',
-        color: 'rgba(245,245,247,0.85)', marginBottom: 24,
+        color: 'rgb(var(--text-primary) / 0.85)', marginBottom: 24,
       }}>
         REACT &nbsp;·&nbsp; NEXT.JS &nbsp;·&nbsp; FLUTTER &nbsp;·&nbsp; WEBRTC
       </div>
@@ -437,12 +437,12 @@ function AboutCard({ station }: { station: StationDef }) {
           }}>
             <div style={{
               fontFamily: 'var(--font-display), system-ui, sans-serif',
-              fontSize: 32, fontWeight: 800, color: '#F5F5F7',
+              fontSize: 32, fontWeight: 800, color: 'rgb(var(--text-primary))',
               lineHeight: 1, letterSpacing: '-0.02em',
             }}>{s.v}</div>
             <div style={{
               marginTop: 6, fontFamily: 'var(--font-mono), monospace',
-              fontSize: 9, letterSpacing: '0.28em', color: 'rgba(245,245,247,0.55)',
+              fontSize: 9, letterSpacing: '0.28em', color: 'rgb(var(--text-primary) / 0.55)',
             }}>{s.l}</div>
           </div>
         ))}
@@ -452,7 +452,7 @@ function AboutCard({ station }: { station: StationDef }) {
           <span key={t} style={{
             fontFamily: 'var(--font-mono), monospace',
             fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase',
-            color: 'rgba(245,245,247,0.7)',
+            color: 'rgb(var(--text-primary) / 0.7)',
             padding: '5px 11px',
             border: `1px solid ${hexAlpha(station.color, 0.3)}`,
             borderRadius: 3,
@@ -508,13 +508,13 @@ function ExperienceCard({ station }: { station: StationDef }) {
               }}>{e.company}</div>
               <div style={{
                 fontFamily: 'var(--font-display), system-ui, sans-serif',
-                fontSize: 17, fontWeight: 700, color: '#F5F5F7',
+                fontSize: 17, fontWeight: 700, color: 'rgb(var(--text-primary))',
               }}>{e.role}</div>
             </div>
             <div style={{
               fontFamily: 'var(--font-mono), monospace',
               fontSize: 10, letterSpacing: '0.16em',
-              color: 'rgba(245,245,247,0.6)', whiteSpace: 'nowrap',
+              color: 'rgb(var(--text-primary) / 0.6)', whiteSpace: 'nowrap',
             }}>{e.period}{e.current && ' · NOW'}</div>
           </li>
         ))}
@@ -534,9 +534,9 @@ function ContactCard({ station }: { station: StationDef }) {
         fontFamily: 'var(--font-mono), monospace',
         fontSize: 14, letterSpacing: '0.06em',
       }}>
-        <span style={{ color: '#F5F5F7' }}>hello@shahfahad.dev</span>
-        <span style={{ color: 'rgba(245,245,247,0.65)' }}>+92 304 2186009</span>
-        <span style={{ color: 'rgba(245,245,247,0.65)' }}>Karachi, Pakistan</span>
+        <span style={{ color: 'rgb(var(--text-primary))' }}>hello@shahfahad.dev</span>
+        <span style={{ color: 'rgb(var(--text-primary) / 0.65)' }}>+92 304 2186009</span>
+        <span style={{ color: 'rgb(var(--text-primary) / 0.65)' }}>Karachi, Pakistan</span>
       </div>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <a href="https://cal.com/shahfahad"   target="_blank" rel="noopener noreferrer" style={ctaBtn(station.color)}>
@@ -562,7 +562,7 @@ function SoundIcon({ active, color }: { active: boolean; color: string }) {
         <rect
           key={i} x={i * 4 + 1} y={(14 - h) / 2}
           width={2} height={h} rx={1}
-          fill={active ? color : 'rgba(245,245,247,0.4)'}
+          fill={active ? color : 'rgb(var(--text-primary) / 0.4)'}
         >
           {active && (
             <animate attributeName="height"
@@ -600,10 +600,10 @@ function SocialLink({
       rel="noopener noreferrer"
       aria-label={label}
       style={{
-        color: 'rgba(245,245,247,0.55)',
+        color: 'rgb(var(--text-primary) / 0.55)',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         width: 28, height: 28, borderRadius: 4,
-        border: '1px solid rgba(245,245,247,0.15)',
+        border: '1px solid rgb(var(--text-primary) / 0.15)',
         transition: 'color 200ms, border-color 200ms',
       }}
       onMouseEnter={(e) => {
@@ -611,8 +611,8 @@ function SocialLink({
         e.currentTarget.style.borderColor = hexAlpha(color, 0.5)
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.color       = 'rgba(245,245,247,0.55)'
-        e.currentTarget.style.borderColor = 'rgba(245,245,247,0.15)'
+        e.currentTarget.style.color       = 'rgb(var(--text-primary) / 0.55)'
+        e.currentTarget.style.borderColor = 'rgb(var(--text-primary) / 0.15)'
       }}
     >
       {children}

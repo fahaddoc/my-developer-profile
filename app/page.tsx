@@ -27,7 +27,6 @@ import { profilePageSchema, projectsItemListSchema } from '@/lib/seo/jsonld'
 import { useQualityLevel } from '@/components/r3f/useQualityLevel'
 import { QualityToggle } from '@/components/r3f/QualityToggle'
 import { TunnelAnchors, useTunnelLoop } from '@/components/r3f/TunnelScrollRails'
-import { useTheme } from '@/components/providers/ThemeProvider'
 import { PRESETS, type QualityLevel } from '@/lib/quality'
 
 const TunnelScene = dynamic(
@@ -42,9 +41,7 @@ const TunnelHUD = dynamic(
 export default function Page() {
   const [eligible, setEligible] = useState<boolean | null>(null)
   const quality = useQualityLevel()
-  const { theme } = useTheme()
 
-  // matchMedia check for hover-capable desktop. Re-evaluates on viewport change.
   useEffect(() => {
     const mql      = window.matchMedia('(min-width: 1024px) and (hover: hover)')
     const reduced  = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -58,14 +55,7 @@ export default function Page() {
     return () => mql.removeEventListener('change', onChange)
   }, [])
 
-  // While device gate or detect-gpu is pending, show spinner.
-  // SSR/initial render uses ClassicMode so HTML/SEO still ships.
   const stillResolving = eligible === null || (eligible && quality.loading)
-
-  // Light theme = ClassicMode (DOM portfolio shows full light/dark palette).
-  // Dark theme = TunnelMode (sci-fi sticks to its native palette).
-  // This way the theme toggle has a visible effect on the front page.
-  const showTunnel = theme === 'dark' && eligible && quality.level && PRESETS[quality.level].canvas
 
   return (
     <>
@@ -74,8 +64,8 @@ export default function Page() {
 
       {stillResolving ? (
         <BootSpinner />
-      ) : showTunnel ? (
-        <TunnelMode level={quality.level!} onLevelChange={quality.setOverride} reportLowFps={quality.reportLowFps} />
+      ) : eligible && quality.level && PRESETS[quality.level].canvas ? (
+        <TunnelMode level={quality.level} onLevelChange={quality.setOverride} reportLowFps={quality.reportLowFps} />
       ) : (
         <ClassicMode />
       )}

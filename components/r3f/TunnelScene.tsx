@@ -247,10 +247,11 @@ export function nearestStation(progress: number): StationDef {
 // for one draw call regardless of count.
 // ─────────────────────────────────────────────────────────────────────────────
 function Tunnel({
-  curve, ringCount,
+  curve, ringCount, dotColor = '#5EEAD4',
 }: {
   curve:     THREE.CatmullRomCurve3
   ringCount: number
+  dotColor?: string
 }) {
   // (Previously we drew a dark TubeGeometry inner skin for occlusion. With
   // fog + canvas background color the void reads fine — saved ~6k vertices
@@ -316,7 +317,7 @@ function Tunnel({
       <points geometry={dotsGeometry}>
         <pointsMaterial
           size={0.16}
-          color="#5EEAD4"
+          color={dotColor}
           sizeAttenuation
           transparent
           opacity={0.95}
@@ -331,7 +332,7 @@ function Tunnel({
       {/* Thin connector lines around each ring */}
       <lineSegments geometry={lineGeometry}>
         <lineBasicMaterial
-          color="#5EEAD4"
+          color={dotColor}
           transparent
           opacity={0.32}
           depthWrite={false}
@@ -1196,6 +1197,25 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
   const [canvasKey, setCanvasKey] = useState(0)
   const retriesRef = useRef(0)
 
+  // Read theme so the canvas bg + fog + lights flip with it.
+  const [isLight, setIsLight] = useState(false)
+  useEffect(() => {
+    const sync = () => {
+      const t = document.documentElement.getAttribute('data-theme')
+      setIsLight(t === 'light')
+    }
+    sync()
+    const mo = new MutationObserver(sync)
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => mo.disconnect()
+  }, [])
+
+  const bgColor    = isLight ? '#f1f5f9' : '#05050A'
+  const fogColor   = bgColor
+  const dotColor   = isLight ? '#0e7490' : '#5EEAD4'
+  const ambientI   = isLight ? 0.9      : 0.4
+  const pointLightI = isLight ? 0.6     : 1.5
+
   const curve = useMemo(() => new THREE.CatmullRomCurve3(
     CURVE_POINTS.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
     false,
@@ -1250,11 +1270,12 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         // project tiles can fire. HUD chrome sits on top in higher z-index and
         // still receives clicks because it sets pointerEvents:auto on itself.
         pointerEvents: 'auto',
-        background: '#05050A',
+        background: bgColor,
+        transition: 'background 220ms',
       }}
     >
       <Canvas
-        key={canvasKey}
+        key={`${canvasKey}-${isLight ? 'l' : 'd'}`}
         camera={{ fov: 70, near: 0.05, far: 400, position: [0, 0, 0] }}
         // DPR locked to 1. Retina 2× would 4× the framebuffer pixel count for
         // marginal gain on a glowy scene. Single biggest GPU-memory win.
@@ -1274,12 +1295,12 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
           gl.domElement.addEventListener('webglcontextlost', handler)
         }}
       >
-        <fog attach="fog" args={['#05050A', 8, 60]} />
+        <fog attach="fog" args={[fogColor, 8, 60]} />
 
-        <ambientLight intensity={0.4} />
-        <pointLight position={[0, 0, -5]} intensity={1.5} color="#5EEAD4" />
+        <ambientLight intensity={ambientI} />
+        <pointLight position={[0, 0, -5]} intensity={pointLightI} color={dotColor} />
 
-        <Tunnel curve={curve} ringCount={preset.tubeSegments} />
+        <Tunnel curve={curve} ringCount={preset.tubeSegments} dotColor={dotColor} />
 
         {STATIONS.map((s) => (
           <Station key={s.id} curve={curve} station={s} />
