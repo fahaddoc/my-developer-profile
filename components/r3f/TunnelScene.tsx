@@ -771,9 +771,17 @@ function ProjectTiles({
   const ringRefs = useRef<(THREE.Group | null)[]>([null, null, null])
 
   // Per-orbital-ring radii (in world units inside the tunnel; tunnel r=3.2)
-  const RING_RADII  = [1.20, 1.95, 2.65]
-  const RING_SPEEDS = [0.18, 0.10, -0.06]  // outer reverses for visual interest
-  const TILE_SCALES = [0.90, 1.05, 1.18]   // inner smaller, outer larger
+  // Spread wider than the old layout so the 9 cards don't collide.
+  const RING_RADII  = [1.55, 2.50, 3.40]
+  const RING_SPEEDS = [0.12, 0.07, -0.04]  // outer reverses for visual interest
+  const TILE_SCALES = [0.85, 0.95, 1.05]   // inner smaller, outer larger
+
+  // Independent per-tile Y bob phases — gives each card its own gentle float
+  // without all 9 moving in lockstep.
+  const bobPhases = useMemo(
+    () => Array.from({ length: 9 }, (_, i) => (i * 0.83) % (Math.PI * 2)),
+    [],
+  )
 
   // Place + orient group at the projects station
   useEffect(() => {
@@ -795,16 +803,25 @@ function ProjectTiles({
   const tmpLocal      = useMemo(() => new THREE.Vector3(), [])
   const REST_ORIGIN   = useMemo(() => new THREE.Vector3(0, 0, 0), [])
 
-  // Per-tile scale lerp state (rest=1, hovered ~1.8)
+  // Per-tile scale lerp state (rest=1, hovered ~1.55)
   const scaleRef = useRef<number[]>(Array.from({ length: 9 }, () => 1))
+  // Refs to each tile's outer group so we can apply per-tile Y bob without
+  // disturbing the hover-lerp on the animTile inner group.
+  const tileRootRefs = useRef<(THREE.Group | null)[]>([])
+  const tileBaseY    = useRef<number[]>(Array.from({ length: 9 }, () => 0))
 
-  useFrame(({ camera }, dt) => {
+  useFrame(({ camera, clock }, dt) => {
     const dist      = Math.abs(scrollRef.current - stationT)
     const proximity = Math.max(0, 1 - dist / 0.13)
     const opacity   = Math.pow(proximity, 1.4)
 
-    const cardOpacity = opacity.toFixed(3)
-    cardRefs.current.forEach((el) => { if (el) el.style.opacity = cardOpacity })
+    const cardOpacity   = opacity.toFixed(3)
+    const interactiveOn = opacity > 0.35
+    cardRefs.current.forEach((el) => {
+      if (!el) return
+      el.style.opacity       = cardOpacity
+      el.style.pointerEvents = interactiveOn ? 'auto' : 'none'
+    })
     ringMatsRef.current.forEach((m) => { if (m) m.opacity = opacity * 0.18 })
     if (sunRef.current)     sunRef.current.opacity     = opacity
     if (sunGlowRef.current) sunGlowRef.current.opacity = opacity * 0.55
@@ -814,6 +831,18 @@ function ProjectTiles({
     if (bob && !anyHover) {
       ringRefs.current.forEach((g, i) => {
         if (g) g.rotation.z += dt * RING_SPEEDS[i]
+      })
+    }
+
+    // Gentle per-tile Y bob — independent phases. Skipped for the hovered
+    // tile so it doesn't fight the camera-stick lerp.
+    if (bob) {
+      const t = clock.elapsedTime
+      tileRootRefs.current.forEach((root, idx) => {
+        if (!root) return
+        if (hoveredRef.current === idx) return
+        const bobY = Math.sin(t * 0.6 + bobPhases[idx]) * 0.06
+        root.position.y = tileBaseY.current[idx] + bobY
       })
     }
 
@@ -827,13 +856,12 @@ function ProjectTiles({
     }
     lastScrollRef.current = scrollRef.current
 
-    // Hover lerp is applied to an INNER group ('animTile') while the OUTER
-    // tile group + its hitbox stay static. That way the hitbox always lives
-    // at the rest position so the cursor doesn't oscillate over/out as the
-    // visible card glides toward the camera.
+    // Hover lerp on the inner animTile group. Hover detection now lives on
+    // the Html card itself (DOM mouse events), so the on-screen hover area
+    // always matches the visible card — even at the larger zoomed-in scale.
     if (groupRef.current) {
       camera.getWorldDirection(tmpDir)
-      const STICK_DIST = 2.6
+      const STICK_DIST = 4.0
 
       let tileIdx = 0
       groupRef.current.traverse((obj) => {
@@ -850,7 +878,7 @@ function ProjectTiles({
           obj.position.lerp(REST_ORIGIN, 0.14)
         }
 
-        const target = isHover ? 1.8 : 1
+        const target = isHover ? 1.55 : 1
         const cur    = scaleRef.current[tileIdx] ?? 1
         const next   = cur + (target - cur) * 0.16
         scaleRef.current[tileIdx] = next
@@ -922,10 +950,7 @@ function ProjectTiles({
             const x = Math.cos(angle) * radius
             const y = Math.sin(angle) * radius
             const scl = TILE_SCALES[ringIdx]
-            // Hitbox size scales with the visible card area (set via
-            // distanceFactor in the Html below — ~2.3 world units wide).
-            const HIT_W = 2.3 * scl
-            const HIT_H = 1.7 * scl
+            tileBaseY.current[i] = y
 
             // Split the project title at the em-dash so we can render the
             // primary name big + the sub-description small under it.
@@ -938,48 +963,41 @@ function ProjectTiles({
             return (
               <group
                 key={p.id}
+                ref={(g) => { tileRootRefs.current[i] = g }}
                 position={[x, y, 0]}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  router.push(`/projects/${p.id}`)
-                }}
               >
-                {/* Static invisible hitbox — slightly bigger than the visible
-                    card so a small cursor drift doesn't drop the hover. */}
-                <mesh
-                  position={[0, 0, 0]}
-                  onPointerOver={(e) => {
-                    e.stopPropagation()
-                    hoveredRef.current = i
-                    if (typeof document !== 'undefined') document.body.style.cursor = 'pointer'
-                  }}
-                  onPointerOut={(e) => {
-                    e.stopPropagation()
-                    if (hoveredRef.current === i) hoveredRef.current = -1
-                    if (typeof document !== 'undefined') document.body.style.cursor = ''
-                  }}
-                >
-                  <planeGeometry args={[HIT_W * 1.05, HIT_H * 1.10]} />
-                  <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-                </mesh>
-
                 {/* Animated inner group — useFrame lerps THIS for fly-to-
-                    camera. Hitbox above stays static. */}
+                    camera on hover. Hover detection lives on the Html card
+                    below (DOM mouse events) so the hover hitbox always
+                    matches the visible card area, even when zoomed in. */}
                 <group userData={{ animTile: true }}>
                   <group scale={scl}>
                     <Html
                       transform
-                      pointerEvents="none"
-                      distanceFactor={2.6}
+                      pointerEvents="auto"
+                      distanceFactor={2.8}
                       center
                     >
                       <div
                         ref={(el) => { cardRefs.current[i] = el }}
+                        onMouseEnter={() => {
+                          hoveredRef.current = i
+                          if (typeof document !== 'undefined') document.body.style.cursor = 'pointer'
+                        }}
+                        onMouseLeave={() => {
+                          if (hoveredRef.current === i) hoveredRef.current = -1
+                          if (typeof document !== 'undefined') document.body.style.cursor = ''
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/projects/${p.id}`)
+                        }}
                         style={{
                           opacity: 0,
-                          transition: 'opacity 120ms linear',
-                          width: 230,
-                          padding: '18px 18px 16px',
+                          pointerEvents: 'none',
+                          transition: 'opacity 120ms linear, border-color 200ms, box-shadow 200ms',
+                          width: 210,
+                          padding: '16px 16px 14px',
                           borderRadius: 14,
                           border: `1.4px solid ${p.color}`,
                           background: `linear-gradient(140deg, rgba(8,10,14,0.55) 0%, rgba(8,10,14,0.78) 100%)`,
@@ -989,6 +1007,7 @@ function ProjectTiles({
                           fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
                           color: '#F5F5F7',
                           userSelect: 'none',
+                          cursor: 'pointer',
                         }}
                       >
                         {/* Top row: icon + number */}
