@@ -108,13 +108,28 @@ function makeNebulaMaterial(opts: {
       }
 
       void main() {
-        vec2 uv = vec2(atan(vDir.z, vDir.x) / 6.2831 + 0.5, vDir.y * 0.5 + 0.5);
-        uv *= uUvScale;
+        // Triplanar projection — sample fbm on the 3 cardinal planes and
+        // blend by direction. Avoids the atan2 seam that an equirectangular
+        // mapping creates along the +X axis on the back of the sphere.
+        vec3 d = vDir * uUvScale.x;
+        vec2 pXY = d.xy + uScrollA * uTime;
+        vec2 pZY = d.zy + uScrollB * uTime;
+        vec2 pXZ = d.xz + uScrollA * uTime * 0.6;
 
-        float n1 = fbm(uv + uScrollA * uTime);
-        float n2 = fbm(uv * 1.7 + uScrollB * uTime);
-        float n  = n1 * 0.65 + n2 * 0.35;
-        n = pow(n, 1.05);          // less crush → more bright area
+        float n1 = fbm(pXY);
+        float n2 = fbm(pZY * 1.3);
+        float n3 = fbm(pXZ * 1.6);
+
+        vec3 absD = abs(vDir);
+        // Sharpen weights so each plane dominates in its dominant axis.
+        absD = pow(absD, vec3(2.0));
+        float total = absD.x + absD.y + absD.z + 1e-5;
+        float n = (n1 * absD.z + n2 * absD.x + n3 * absD.y) / total;
+
+        // Second octave layer for finer detail
+        float n2b = fbm(d.xy * 1.7 + uScrollB * uTime * 0.8);
+        n = n * 0.7 + n2b * 0.3;
+        n = pow(n, 1.05);
 
         vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.10, 0.55, n));
         col = mix(col, uColorBright, smoothstep(0.40, 0.95, n) * uBrightStrength);
