@@ -22,6 +22,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { projects } from '@/data/projects'
 import { type QualityPreset, PRESETS } from '@/lib/quality'
 import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
+import { NebulaBackground } from '@/components/r3f/NebulaBackground'
 
 // Shared scroll progress — read each frame inside R3F, also subscribed via the
 // useScrollProgress hook below for HUD/UI updates outside the canvas.
@@ -1298,10 +1299,14 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         {/* Scene clear color — WebGL would otherwise paint black over the
             themed wrap div on every frame. */}
         <color attach="background" args={[bgColor]} />
-        <fog attach="fog" args={[fogColor, 8, 60]} />
+        <fog attach="fog" args={[fogColor, 12, 120]} />
 
         <ambientLight intensity={ambientI} />
         <pointLight position={[0, 0, -5]} intensity={pointLightI} color={dotColor} />
+
+        {/* Cosmic nebula + stars wrap the camera — paints first so the rest
+            of the scene sits on top. */}
+        <NebulaBackground isLight={isLight} accent={dotColor} />
 
         <Tunnel curve={curve} ringCount={preset.tubeSegments} dotColor={dotColor} />
 
