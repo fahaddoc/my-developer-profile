@@ -98,7 +98,10 @@ body {
   transition: background-color 200ms, color 200ms;
 }
 
-/* dot grid — subtle tech feel, swaps per theme */
+/* dot grid + scanline overlays — pushed behind everything via z-index: -1
+   so the tunnel canvas (z-index: 0) paints OVER them instead of underneath.
+   Previously they bled through onto 3D shapes, giving a striped/textured
+   look on solid-color geometry. */
 body::before {
   content: '';
   position: fixed;
@@ -109,7 +112,7 @@ body::before {
   );
   background-size: 32px 32px;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 
 body::after {
@@ -124,7 +127,7 @@ body::after {
     rgb(var(--scanline-rgb) / var(--scanline-alpha)) 4px
   );
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 
 #__next,
