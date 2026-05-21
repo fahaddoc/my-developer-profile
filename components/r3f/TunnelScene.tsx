@@ -1418,14 +1418,10 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
           </Suspense>
         </ProximityGate>
 
-        {/* Hero portrait card — heavy with the hologram layers, gate by proximity */}
-        <ProximityGate stationT={STATIONS.find((s) => s.id === 'hero')!.t} threshold={0.18}>
-          <HeroPortrait3D
-            curve={curve}
-            stationT={STATIONS.find((s) => s.id === 'hero')!.t}
-            accent={STATIONS.find((s) => s.id === 'hero')!.color}
-          />
-        </ProximityGate>
+        {/* Hero portrait now lives as a fixed-position DOM element inside
+            TunnelHUD (right side, mirroring the left-side hero text). The
+            3D <HeroPortrait3D> was removed so the card behaves like a
+            sticky HUD overlay instead of a 3D object the camera passes by. */}
 
         {/* Socials sign-off at the very end of the tunnel (t≈0.96) */}
         <ProximityGate stationT={0.96} threshold={0.16}>

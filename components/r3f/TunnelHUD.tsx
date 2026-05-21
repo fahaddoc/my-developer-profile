@@ -14,6 +14,7 @@ import {
   type StationDef,
 } from '@/components/r3f/TunnelScene'
 import { IntroMiniPlayer } from '@/components/r3f/IntroMiniPlayer'
+import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
 import { lenisInstance } from '@/components/providers/SmoothScroll'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { experience } from '@/data/projects'
@@ -231,6 +232,9 @@ export function TunnelHUD() {
       {/* ─── center: station content overlay ──────────────────────────── */}
       <StationOverlay station={station} progress={progress} />
 
+      {/* ─── right: hero portrait (only fades in on INTRO) ────────────── */}
+      <HeroSidePhoto progress={progress} accent={accent} />
+
       {/* ─── bottom-center: SCROLL DOWN + mouse icon ──────────────────── */}
       <div
         style={{
@@ -294,6 +298,36 @@ function StationOverlay({ station, progress }: { station: StationDef; progress: 
       }}
     >
       {renderCard(station)}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HeroSidePhoto — fixed right-side portrait, mirrors StationOverlay's
+// left-side text. Only fades in when camera is at the INTRO station (hero, t≈0.04).
+// ─────────────────────────────────────────────────────────────────────────────
+function HeroSidePhoto({ progress, accent }: { progress: number; accent: string }) {
+  const HERO_T = 0.04
+  const dist    = Math.abs(progress - HERO_T)
+  const opacity = Math.pow(Math.max(0, 1 - dist / 0.10), 1.1)
+
+  if (opacity < 0.01) return null
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        right:    '4vw',
+        top:      '50%',
+        transform: 'translateY(-50%)',
+        zIndex:   30,
+        width:    'min(40vw, 460px)',
+        pointerEvents: 'auto',
+        opacity,
+        transition: 'opacity 200ms',
+      }}
+    >
+      <FlipPhotoCard accent={accent} width={460} />
     </div>
   )
 }
