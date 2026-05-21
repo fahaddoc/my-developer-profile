@@ -41,9 +41,9 @@ export function ParticlePortrait({
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const particlesRef = useRef<Particle[]>([])
-  const hoverRef     = useRef(false)
   const rafRef       = useRef(0)
-  const burstTimeRef = useRef(0)   // ms timestamp of last hover-enter
+  // Cursor position in canvas-internal coordinate space. -9999 = no cursor.
+  const cursorRef    = useRef({ x: -9999, y: -9999, active: false })
 
   // Parse accent hex once for tint
   const tint = (() => {
@@ -96,60 +96,55 @@ export function ParticlePortrait({
   }, [src, width, height, step])
 
   function startLoop() {
-    const cx = width  / 2
-    const cy = height / 2.2  // bias toward face for nicer outward fan
+    // Influence radius in canvas-internal coords. Particles within this radius
+    // of the cursor get pushed away; everything else stays put / springs back.
+    const RADIUS    = 32
+    const STRENGTH  = 0.85
 
-    const tick = (now: number) => {
+    const tick = () => {
       const canvas = canvasRef.current
       if (!canvas) { rafRef.current = requestAnimationFrame(tick); return }
       const ctx = canvas.getContext('2d')
       if (!ctx) { rafRef.current = requestAnimationFrame(tick); return }
 
       ctx.clearRect(0, 0, width, height)
-      const hover = hoverRef.current
 
       const ps = particlesRef.current
-      const burstAge = (now - burstTimeRef.current) * 0.001  // sec since hover-enter
-      // Stronger initial impulse, decays after ~0.4s
-      const burstStrength = hover ? Math.max(0, 1 - burstAge / 0.4) : 0
+      const cur = cursorRef.current
 
       for (let i = 0; i < ps.length; i++) {
         const p = ps[i]
-        if (hover) {
-          if (burstStrength > 0) {
-            // Initial outward impulse from center, only applied at hover-start
-            const dx = p.ox - cx
-            const dy = p.oy - cy
-            const d  = Math.sqrt(dx * dx + dy * dy) + 1
-            const ux = dx / d
-            const uy = dy / d
-            // Per-particle randomness so they don't move in perfect radial sync
-            const r1 = ((Math.sin(p.ox * 12.9898 + p.oy * 78.233) * 43758.5) % 1 + 1) % 1
-            const r2 = ((Math.sin(p.ox * 39.346 + p.oy * 11.135) * 43758.5) % 1 + 1) % 1
-            const impulse = burstStrength * (0.6 + r1 * 0.8)
-            p.vx += ux * impulse + (r1 - 0.5) * 0.3
-            p.vy += uy * impulse + (r2 - 0.5) * 0.3 - 0.04   // tiny upward bias
+
+        // Cursor repulsion — only particles within RADIUS feel a push.
+        if (cur.active) {
+          const dx = p.x - cur.x
+          const dy = p.y - cur.y
+          const d2 = dx * dx + dy * dy
+          if (d2 < RADIUS * RADIUS) {
+            const d = Math.sqrt(d2) + 0.001
+            const force = (1 - d / RADIUS) * STRENGTH
+            p.vx += (dx / d) * force
+            p.vy += (dy / d) * force
           }
-          // Slow upward drift like dust on a draft
-          p.vy -= 0.005
-        } else {
-          // Spring back home
-          p.vx += (p.ox - p.x) * 0.06
-          p.vy += (p.oy - p.y) * 0.06
         }
-        p.vx *= 0.92
-        p.vy *= 0.92
+
+        // Always spring back home so untouched particles stay put and pushed
+        // particles drift back as the cursor moves away.
+        p.vx += (p.ox - p.x) * 0.08
+        p.vy += (p.oy - p.y) * 0.08
+        p.vx *= 0.86
+        p.vy *= 0.86
         p.x  += p.vx
         p.y  += p.vy
 
-        // Tint: shift color toward accent as particle drifts further from home
+        // Tint: shift toward accent as drift distance grows
         const dx2 = p.x - p.ox
         const dy2 = p.y - p.oy
-        const drift = Math.min(1, Math.sqrt(dx2 * dx2 + dy2 * dy2) / 30)
+        const drift = Math.min(1, Math.sqrt(dx2 * dx2 + dy2 * dy2) / 20)
         const r = Math.round(p.r * (1 - drift) + tint.r * drift)
         const g = Math.round(p.g * (1 - drift) + tint.g * drift)
         const b = Math.round(p.b * (1 - drift) + tint.b * drift)
-        const a = (p.a / 255) * (hover ? Math.max(0.35, 1 - drift * 0.6) : 1)
+        const a = (p.a / 255) * Math.max(0.45, 1 - drift * 0.4)
 
         ctx.fillStyle = `rgba(${r},${g},${b},${a})`
         ctx.fillRect(p.x, p.y, 1.4, 1.4)
@@ -160,14 +155,34 @@ export function ParticlePortrait({
     rafRef.current = requestAnimationFrame(tick)
   }
 
+  function handleMove(e: React.MouseEvent<HTMLDivElement>) {
+    const el = containerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    // Map screen → canvas-internal coords. Canvas is rendered with
+    // objectFit: contain so we honour the same aspect-fit math.
+    const containerAR = rect.width / rect.height
+    const imgAR       = width / height
+    let drawW = rect.width, drawH = rect.height, offsetX = 0, offsetY = 0
+    if (containerAR > imgAR) {
+      drawW   = rect.height * imgAR
+      offsetX = (rect.width - drawW) / 2
+    } else {
+      drawH   = rect.width / imgAR
+      offsetY = (rect.height - drawH) / 2
+    }
+    const localX = (e.clientX - rect.left - offsetX) / drawW * width
+    const localY = (e.clientY - rect.top  - offsetY) / drawH * height
+    cursorRef.current.x = localX
+    cursorRef.current.y = localY
+    cursorRef.current.active = true
+  }
+
   return (
     <div
       ref={containerRef}
-      onMouseEnter={() => {
-        if (!hoverRef.current) burstTimeRef.current = performance.now()
-        hoverRef.current = true
-      }}
-      onMouseLeave={() => { hoverRef.current = false }}
+      onMouseMove={handleMove}
+      onMouseLeave={() => { cursorRef.current.active = false }}
       style={{
         position: 'absolute',
         inset:    0,
