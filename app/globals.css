@@ -34,6 +34,12 @@
   --selection-bg:   168 85 247;
   --selection-fg:   241 245 249;
 
+  /* Per-theme text shadows for big headings — neon glow on dark,
+     subtle dark drop on light so headings have depth on white bg. */
+  --heading-shadow: 0 0 24px rgb(94 234 212 / 0.18);
+  --eyebrow-shadow: 0 0 10px rgb(94 234 212 / 0.5);
+  --body-shadow:    none;
+
   color-scheme: dark;
 }
 
@@ -58,6 +64,11 @@
 
   --selection-bg:   124 58 237;
   --selection-fg:   255 255 255;
+
+  /* Light-mode shadows — subtle dark drops give text depth on white bg */
+  --heading-shadow: 0 3px 18px rgb(15 23 42 / 0.18), 0 1px 3px rgb(15 23 42 / 0.10);
+  --eyebrow-shadow: 0 1px 6px rgb(15 23 42 / 0.18);
+  --body-shadow:    0 1px 4px rgb(15 23 42 / 0.10);
 
   color-scheme: light;
 }

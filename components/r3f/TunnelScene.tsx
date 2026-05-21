@@ -1330,6 +1330,14 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
           />
         </ProximityGate>
 
+        {/* Socials sign-off at the very end of the tunnel (t≈0.96) */}
+        <ProximityGate stationT={0.96} threshold={0.16}>
+          <SocialsEnd3D
+            curve={curve}
+            accent={STATIONS.find((s) => s.id === 'contact')!.color}
+          />
+        </ProximityGate>
+
         <CameraRig curve={curve} />
 
         {/* Bloom disabled — EffectComposer + Bloom allocates 5–8 viewport-

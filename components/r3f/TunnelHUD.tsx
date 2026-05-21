@@ -314,7 +314,7 @@ const eyebrow = (color: string) => ({
   fontFamily: 'var(--font-mono), ui-monospace, monospace',
   fontSize: 11, letterSpacing: '0.32em', textTransform: 'uppercase' as const,
   color, marginBottom: 18,
-  textShadow: `0 0 10px ${hexAlpha(color, 0.5)}`,
+  textShadow: 'var(--eyebrow-shadow)',
 })
 
 const heading = {
@@ -322,12 +322,14 @@ const heading = {
   fontSize: 56, fontWeight: 800 as const, lineHeight: 1.04,
   letterSpacing: '-0.02em', color: 'rgb(var(--text-primary))',
   margin: '0 0 22px',
+  textShadow: 'var(--heading-shadow)',
 }
 
 const tagline = {
   fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
-  fontSize: 16, lineHeight: 1.55, color: 'rgb(var(--text-primary) / 0.7)',
+  fontSize: 16, lineHeight: 1.55, color: 'rgb(var(--text-primary) / 0.78)',
   margin: '0 0 22px', maxWidth: 480,
+  textShadow: 'var(--body-shadow)',
 }
 
 const ctaBtn = (color: string): React.CSSProperties => ({
