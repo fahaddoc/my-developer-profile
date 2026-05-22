@@ -575,9 +575,13 @@ function ContactCard({ station }: { station: StationDef }) {
         <span style={{ color: 'rgb(var(--text-primary) / 0.65)' }}>Karachi, Pakistan</span>
       </div>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <a href="https://cal.com/shahfahad"   target="_blank" rel="noopener noreferrer" style={ctaBtn(station.color)}>
-          Book a 15-min call →
-        </a>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('contact-drawer-open'))}
+          style={{ ...ctaBtn(station.color), border: 'none', cursor: 'pointer' }}
+        >
+          Contact Me →
+        </button>
         <a href="mailto:hello@shahfahad.dev" style={ctaBtnGhost(station.color)}>
           Send a message →
         </a>
