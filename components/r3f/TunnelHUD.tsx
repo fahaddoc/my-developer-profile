@@ -582,9 +582,6 @@ function ContactCard({ station }: { station: StationDef }) {
         >
           Contact Me →
         </button>
-        <a href="mailto:hello@shahfahad.dev" style={ctaBtnGhost(station.color)}>
-          Send a message →
-        </a>
       </div>
     </>
   )
