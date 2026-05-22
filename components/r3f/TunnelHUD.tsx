@@ -336,11 +336,29 @@ function renderCard(s: StationDef) {
   switch (s.id) {
     case 'hero':       return <HeroCard       station={s} />
     case 'about':      return <AboutCard      station={s} />
+    case 'skills':     return <SkillsCard     station={s} />
     case 'projects':   return <ProjectsCard   station={s} />
     case 'experience': return <ExperienceCard station={s} />
     case 'contact':    return <ContactCard    station={s} />
   }
   return null
+}
+
+function SkillsCard({ station }: { station: StationDef }) {
+  return (
+    <>
+      <div style={eyebrow(station.color)}>{station.subtitle}</div>
+      <h2 style={heading}>{station.heading}</h2>
+      <p style={tagline}>{station.tagline}</p>
+      <div style={{
+        fontFamily: 'var(--font-mono), ui-monospace, monospace',
+        fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase',
+        color: 'rgb(var(--text-primary) / 0.55)',
+      }}>
+        → Drag the orbital ring · click a group for details
+      </div>
+    </>
+  )
 }
 
 // ── Shared style helpers ───────────────────────────────────────────────────

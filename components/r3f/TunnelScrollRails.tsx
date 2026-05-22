@@ -15,11 +15,11 @@ const beforeT = (t: number) => Math.max(0, t - 0.03) * SCROLLABLE_VH
 
 const ANCHORS = [
   { id: 'hero',       topVh: beforeT(0.04) },
-  { id: 'about',      topVh: beforeT(0.22) },
-  { id: 'projects',   topVh: beforeT(0.42) },
-  { id: 'experience', topVh: beforeT(0.62) },
-  { id: 'skills',     topVh: beforeT(0.74) },
-  { id: 'contact',    topVh: beforeT(0.86) },
+  { id: 'about',      topVh: beforeT(0.20) },
+  { id: 'skills',     topVh: beforeT(0.35) },
+  { id: 'projects',   topVh: beforeT(0.55) },
+  { id: 'experience', topVh: beforeT(0.75) },
+  { id: 'contact',    topVh: beforeT(0.90) },
 ]
 
 export function TunnelAnchors() {
