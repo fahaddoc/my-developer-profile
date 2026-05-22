@@ -22,6 +22,7 @@ import { projects } from '@/data/projects'
 import { type QualityPreset, PRESETS } from '@/lib/quality'
 import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
 import { NebulaBackground } from '@/components/r3f/NebulaBackground'
+import { SkillsOrbit } from '@/components/r3f/SkillsOrbit'
 
 // Shared scroll progress — read each frame inside R3F, also subscribed via the
 // useScrollProgress hook below for HUD/UI updates outside the canvas.
@@ -793,44 +794,17 @@ function iconFor(p: { id: string; category: string }): React.ReactNode {
   return PROJECT_ICON_OVERRIDE[p.id] ?? CATEGORY_ICON[p.category] ?? CATEGORY_ICON.web
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SkillsOrbit — orbital ring of skill-group cards around the SKILLS station's
-// cyan orb. Same architecture as ProjectTiles but smaller cards + active state
-// reveals the inner skill list.
-// ─────────────────────────────────────────────────────────────────────────────
-interface SkillGroup { label: string; icon: string; skills: string[] }
-const SKILL_GROUPS: SkillGroup[] = [
-  { label: 'Frontend',     icon: '⚡', skills: ['React.js', 'Next.js', 'TypeScript', 'JavaScript ES6+', 'Tailwind CSS', 'Framer Motion', 'Redux', 'HTML5/CSS3', 'Ant Design'] },
-  { label: 'Mobile',       icon: '📱', skills: ['Flutter', 'Dart', 'Floor ORM', 'SQLite', 'Android', 'iOS'] },
-  { label: 'Real-Time',    icon: '🔴', skills: ['WebRTC', 'SignalR', 'WebSocket', 'Socket.io'] },
-  { label: 'Backend',      icon: '⚙️', skills: ['Node.js', 'PHP', 'REST APIs', 'MySQL', 'PostgreSQL', 'MongoDB'] },
-  { label: '3D / Creative',icon: '🎮', skills: ['Three.js', 'React Three Fiber', 'GSAP', 'WebGL', 'Rapier', 'Meshopt'] },
-  { label: 'Tooling',      icon: '🛠️', skills: ['Git / GitHub', 'Vercel', 'Figma', 'VS Code', 'npm / yarn', 'Jira'] },
-]
-
-function SkillsOrbit({
-  curve, stationT,
+// SkillsAnchor — places its children EXACTLY where the SKILLS planet sits
+// (station offset [-1.6, 0.4, -2.2] from PLANETS.skills), so icons orbit
+// around the visible cyan orb rather than floating in empty space.
+function SkillsAnchor({
+  curve, stationT, children,
 }: {
   curve:    THREE.CatmullRomCurve3
   stationT: number
+  children: React.ReactNode
 }) {
-  const groupRef     = useRef<THREE.Group>(null)
-  const orbitRingRef = useRef<THREE.Group>(null)
-  const cardGroups   = useRef<(THREE.Group | null)[]>([])
-  const cardEls      = useRef<(HTMLDivElement | null)[]>([])
-
-  const ORBIT_RADIUS = 4.0
-  const AUTO_SPIN    = 0.003
-  const TWO_PI       = Math.PI * 2
-
-  const isDraggingRef = useRef(false)
-  const lastXRef      = useRef(0)
-  const movedRef      = useRef(0)
-  const tweeningRef   = useRef(false)
-  const hoveredRef    = useRef<number>(-1)
-  const activeIdxRef  = useRef(0)
-  const tmpVec        = useMemo(() => new THREE.Vector3(), [])
-
+  const groupRef = useRef<THREE.Group>(null)
   useEffect(() => {
     if (!groupRef.current) return
     const pos     = new THREE.Vector3()
@@ -840,178 +814,10 @@ function SkillsOrbit({
     groupRef.current.position.copy(pos)
     groupRef.current.lookAt(pos.clone().sub(tangent))
   }, [curve, stationT])
-
-  useEffect(() => {
-    const onMove = (e: PointerEvent) => {
-      if (!isDraggingRef.current) return
-      const dx = e.clientX - lastXRef.current
-      lastXRef.current = e.clientX
-      movedRef.current += Math.abs(dx)
-      if (orbitRingRef.current) orbitRingRef.current.rotation.y += dx * 0.01
-    }
-    const onUp = () => { isDraggingRef.current = false }
-    window.addEventListener('pointermove',   onMove)
-    window.addEventListener('pointerup',     onUp)
-    window.addEventListener('pointercancel', onUp)
-    return () => {
-      window.removeEventListener('pointermove',   onMove)
-      window.removeEventListener('pointerup',     onUp)
-      window.removeEventListener('pointercancel', onUp)
-    }
-  }, [])
-
-  useFrame(({ camera }) => {
-    const dist        = Math.abs(scrollRef.current - stationT)
-    const proximity   = Math.max(0, 1 - dist / 0.13)
-    const baseOpacity = Math.pow(proximity, 1.4)
-    const interactive = baseOpacity > 0.35
-
-    if (orbitRingRef.current && !isDraggingRef.current && !tweeningRef.current) {
-      orbitRingRef.current.rotation.y += AUTO_SPIN
-    }
-
-    let bestIdx = 0, bestZ = -Infinity
-    for (let i = 0; i < cardGroups.current.length; i++) {
-      const g = cardGroups.current[i]
-      if (!g) continue
-      g.lookAt(camera.position)
-      g.getWorldPosition(tmpVec)
-      if (tmpVec.z > bestZ) { bestZ = tmpVec.z; bestIdx = i }
-    }
-    activeIdxRef.current = bestIdx
-
-    for (let i = 0; i < cardEls.current.length; i++) {
-      const el = cardEls.current[i]
-      if (!el) continue
-      const isActive  = i === bestIdx
-      const isHovered = i === hoveredRef.current
-      let scale = isActive ? 1.0 : 0.78
-      if (isHovered) scale = 1.05
-      const op = isActive ? baseOpacity : baseOpacity * 0.55
-      el.style.transform   = `scale(${scale})`
-      el.style.opacity     = op.toFixed(3)
-      el.style.boxShadow   = isActive
-        ? 'inset 0 0 26px rgba(0,255,255,0.18), 0 0 36px rgba(0,255,255,0.55)'
-        : 'inset 0 0 16px rgba(0,255,255,0.06), 0 0 10px rgba(0,255,255,0.15)'
-      el.style.borderColor = isActive ? '#00ffff' : 'rgba(0,255,255,0.25)'
-      el.style.zIndex      = isActive ? '20' : ''
-      el.style.pointerEvents = interactive ? 'auto' : 'none'
-      // skill list visibility — active reveals, inactive hides
-      const list = el.querySelector('[data-skill-list]') as HTMLElement | null
-      if (list) list.style.opacity = isActive ? '1' : '0'
-    }
-  })
-
-  const onCardPointerDown = (e: React.PointerEvent) => {
-    isDraggingRef.current = true
-    movedRef.current      = 0
-    lastXRef.current      = e.clientX
-    tweeningRef.current   = false
-  }
-  const onCardClick = (idx: number) => {
-    if (movedRef.current > 6) return
-    if (idx === activeIdxRef.current) return // already front; no-op
-    const baseAngle = (idx / SKILL_GROUPS.length) * TWO_PI
-    const target = -Math.PI / 2 - baseAngle
-    const ring = orbitRingRef.current
-    if (!ring) return
-    const cur = ring.rotation.y
-    let diff = ((target - cur + Math.PI) % TWO_PI) - Math.PI
-    if (diff < -Math.PI) diff += TWO_PI
-    tweeningRef.current = true
-    gsap.to(ring.rotation, {
-      y: cur + diff,
-      duration: 0.7,
-      ease: 'power3.out',
-      onComplete: () => { tweeningRef.current = false },
-    })
-  }
-
   return (
     <group ref={groupRef}>
-      <group position={[0, 0, -4]}>
-        <group ref={orbitRingRef}>
-          {SKILL_GROUPS.map((g, i) => {
-            const angle = (i / SKILL_GROUPS.length) * TWO_PI
-            const x = Math.cos(angle) * ORBIT_RADIUS
-            const z = Math.sin(angle) * ORBIT_RADIUS
-            return (
-              <group
-                key={g.label}
-                ref={(node) => { cardGroups.current[i] = node }}
-                position={[x, 0, z]}
-              >
-                <Html
-                  transform
-                  pointerEvents="auto"
-                  distanceFactor={6.5}
-                  center
-                  zIndexRange={[100, 0]}
-                >
-                  <div
-                    ref={(el) => { cardEls.current[i] = el }}
-                    onPointerDown={onCardPointerDown}
-                    onMouseEnter={() => { hoveredRef.current = i }}
-                    onMouseLeave={() => { if (hoveredRef.current === i) hoveredRef.current = -1 }}
-                    onClick={(e) => { e.stopPropagation(); onCardClick(i) }}
-                    style={{
-                      opacity: 0,
-                      pointerEvents: 'none',
-                      transformOrigin: 'center',
-                      transition: 'transform 260ms cubic-bezier(0.16,1,0.3,1), box-shadow 240ms ease-out, opacity 160ms linear, border-color 200ms',
-                      width: 130,
-                      padding: '12px 12px 10px',
-                      borderRadius: 12,
-                      border: '1.2px solid rgba(0, 255, 255, 0.2)',
-                      background: 'rgba(0, 255, 255, 0.05)',
-                      backdropFilter: 'blur(6px)',
-                      WebkitBackdropFilter: 'blur(6px)',
-                      boxShadow: 'inset 0 0 18px rgba(0,255,255,0.08), 0 0 14px rgba(0,255,255,0.18)',
-                      fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
-                      color: 'rgb(var(--text-primary))',
-                      userSelect: 'none',
-                      cursor: 'grab',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div style={{ fontSize: 26, lineHeight: 1, marginBottom: 6 }}>{g.icon}</div>
-                    <div style={{
-                      fontFamily: 'var(--font-mono), ui-monospace, monospace',
-                      fontSize: 10, fontWeight: 700,
-                      letterSpacing: '0.18em', textTransform: 'uppercase',
-                      color: '#00ffff',
-                      marginBottom: 6,
-                      textShadow: '0 0 8px rgba(0,255,255,0.4)',
-                    }}>{g.label}</div>
-                    <div
-                      data-skill-list
-                      style={{
-                        display: 'flex', flexWrap: 'wrap', justifyContent: 'center',
-                        gap: 3,
-                        opacity: 0,
-                        transition: 'opacity 280ms ease-out',
-                      }}
-                    >
-                      {g.skills.map((s) => (
-                        <span key={s} style={{
-                          fontFamily: 'var(--font-mono), ui-monospace, monospace',
-                          fontSize: 7,
-                          padding: '2px 5px',
-                          borderRadius: 3,
-                          border: '1px solid rgba(0, 255, 255, 0.45)',
-                          color: '#cffaff',
-                          letterSpacing: '0.04em',
-                          background: 'rgba(0, 255, 255, 0.06)',
-                        }}>{s}</span>
-                      ))}
-                    </div>
-                  </div>
-                </Html>
-              </group>
-            )
-          })}
-        </group>
-      </group>
+      {/* matches PLANETS.skills.offset so orbit centers on the planet */}
+      <group position={[-1.6, 0.4, -2.2]}>{children}</group>
     </group>
   )
 }
@@ -1650,10 +1456,9 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         {/* Skills station — orbital ring of skill-group cards */}
         <ProximityGate stationT={STATIONS.find((s) => s.id === 'skills')!.t} threshold={0.20}>
           <Suspense fallback={null}>
-            <SkillsOrbit
-              curve={curve}
-              stationT={STATIONS.find((s) => s.id === 'skills')!.t}
-            />
+            <SkillsAnchor curve={curve} stationT={STATIONS.find((s) => s.id === 'skills')!.t}>
+              <SkillsOrbit />
+            </SkillsAnchor>
           </Suspense>
         </ProximityGate>
 
