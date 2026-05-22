@@ -769,13 +769,13 @@ function iconFor(p: { id: string; category: string }): React.ReactNode {
 }
 
 function ProjectTiles({
-  curve, stationT, bob = true,
+  curve, stationT,
 }: {
   curve:    THREE.CatmullRomCurve3
   stationT: number
   bob?:     boolean
 }) {
-  // 9 projects across 3 orbital rings (3 per ring). Featured first.
+  // 9 projects, featured first
   const pool = useMemo(() => {
     const sorted = [...projects].sort(
       (a, b) => Number(b.featured ?? false) - Number(a.featured ?? false),
@@ -783,29 +783,27 @@ function ProjectTiles({
     return sorted.slice(0, 9)
   }, [])
 
-  // (Old card design painted project images on a plane via useTexture; the
-  // new card design is HTML/CSS, so we no longer preload the images here —
-  // that was ~36 MB of GPU texture memory for nothing.)
-
+  // Roots
   const groupRef = useRef<THREE.Group>(null)
-  const cardRefs  = useRef<(HTMLDivElement | null)[]>([])
+  const ringRef  = useRef<THREE.Group>(null)
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([])
+  const tileRefs = useRef<(THREE.Group | null)[]>([])
 
-  // Three orbital rings — each its own group so we can rotate them at
-  // different angular velocities (inner = fastest, outer = slowest).
-  const ringRefs = useRef<(THREE.Group | null)[]>([null, null, null])
+  // Orbital params per spec
+  const ORBIT_RADIUS = 2.5
+  const TILT         = Math.PI / 12                          // 15° tilt
+  const AUTO_SPIN    = (0.3 * Math.PI * 2) / 60              // 0.3 rpm → rad/s
+  const TWO_PI       = Math.PI * 2
 
-  // Per-orbital-ring radii (in world units inside the tunnel; tunnel r=3.2)
-  // Spread wider than the old layout so the 9 cards don't collide.
-  const RING_RADII  = [1.70, 2.70, 3.65]
-  const RING_SPEEDS = [0, 0, 0]            // rotation disabled — too chaotic with 9 cards
-  const TILE_SCALES = [0.95, 1.00, 1.05]   // inner slightly smaller, outer slightly larger
-
-  // Independent per-tile Y bob phases — gives each card its own gentle float
-  // without all 9 moving in lockstep.
-  const bobPhases = useMemo(
-    () => Array.from({ length: 9 }, (_, i) => (i * 0.83) % (Math.PI * 2)),
-    [],
-  )
+  // Drag + velocity state
+  const ringAngleRef = useRef(0)
+  const velocityRef  = useRef(AUTO_SPIN)
+  const draggingRef  = useRef(false)
+  const tweeningRef  = useRef(false)
+  const lastPxRef    = useRef(0)
+  const lastTimeRef  = useRef(0)
+  const movedRef     = useRef(0)
+  const activeIdxRef = useRef(0)
 
   // Place + orient group at the projects station
   useEffect(() => {
@@ -818,109 +816,128 @@ function ProjectTiles({
     groupRef.current.lookAt(pos.clone().sub(tangent))
   }, [curve, stationT])
 
-  // Track which tile is hovered (-1 = none). Reused vectors so the hover
-  // animation doesn't allocate per frame.
-  const hoveredRef    = useRef<number>(-1)
-  const lastScrollRef = useRef<number>(0)
-  const tmpDir        = useMemo(() => new THREE.Vector3(), [])
-  const tmpWorld      = useMemo(() => new THREE.Vector3(), [])
-  const tmpLocal      = useMemo(() => new THREE.Vector3(), [])
-  const REST_ORIGIN   = useMemo(() => new THREE.Vector3(0, 0, 0), [])
-
-  // Per-tile scale lerp state (rest=1, hovered ~1.55)
-  const scaleRef = useRef<number[]>(Array.from({ length: 9 }, () => 1))
-  // Refs to each tile's outer group so we can apply per-tile Y bob without
-  // disturbing the hover-lerp on the animTile inner group.
-  const tileRootRefs = useRef<(THREE.Group | null)[]>([])
-  const tileBaseY    = useRef<number[]>(Array.from({ length: 9 }, () => 0))
-
-  useFrame(({ camera, clock }, dt) => {
-    const dist      = Math.abs(scrollRef.current - stationT)
-    const proximity = Math.max(0, 1 - dist / 0.13)
-    const opacity   = Math.pow(proximity, 1.4)
-
-    const cardOpacity   = opacity.toFixed(3)
-    const interactiveOn = opacity > 0.35
-    cardRefs.current.forEach((el) => {
-      if (!el) return
-      el.style.opacity       = cardOpacity
-      el.style.pointerEvents = interactiveOn ? 'auto' : 'none'
-    })
-
-    // Pause orbital rings while a tile is hovered so it doesn't drift away
-    const anyHover = hoveredRef.current !== -1
-    if (bob && !anyHover) {
-      ringRefs.current.forEach((g, i) => {
-        if (g) g.rotation.z += dt * RING_SPEEDS[i]
-      })
+  // Global drag tracking — pointermove + pointerup on window so the user can
+  // drag across the whole canvas, not just on a card.
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!draggingRef.current) return
+      const dx = e.clientX - lastPxRef.current
+      const now = performance.now()
+      const dt  = Math.max(1, now - lastTimeRef.current) / 1000
+      lastPxRef.current = e.clientX
+      lastTimeRef.current = now
+      const da = dx * 0.006
+      ringAngleRef.current += da
+      movedRef.current += Math.abs(dx)
+      velocityRef.current = THREE.MathUtils.clamp(da / dt, -10, 10)
     }
-
-    // Gentle per-tile Y bob — independent phases. Skipped for the hovered
-    // tile so it doesn't fight the camera-stick lerp.
-    if (bob) {
-      const t = clock.elapsedTime
-      tileRootRefs.current.forEach((root, idx) => {
-        if (!root) return
-        if (hoveredRef.current === idx) return
-        const bobY = Math.sin(t * 0.6 + bobPhases[idx]) * 0.06
-        root.position.y = tileBaseY.current[idx] + bobY
-      })
+    const onUp = () => { draggingRef.current = false }
+    window.addEventListener('pointermove',  onMove)
+    window.addEventListener('pointerup',    onUp)
+    window.addEventListener('pointercancel',onUp)
+    return () => {
+      window.removeEventListener('pointermove',  onMove)
+      window.removeEventListener('pointerup',    onUp)
+      window.removeEventListener('pointercancel',onUp)
     }
+  }, [])
 
-    // Release the hovered tile when the user starts scrolling — don't trap
-    // a sticky tile in their face if they want to keep moving.
-    if (Math.abs(scrollRef.current - lastScrollRef.current) > 0.0008) {
-      if (hoveredRef.current !== -1) {
-        hoveredRef.current = -1
-        if (typeof document !== 'undefined') document.body.style.cursor = ''
+  useFrame(({ camera }, dt) => {
+    // Proximity fade — only show when camera is near the projects station
+    const dist        = Math.abs(scrollRef.current - stationT)
+    const proximity   = Math.max(0, 1 - dist / 0.13)
+    const baseOpacity = Math.pow(proximity, 1.4)
+    const interactive = baseOpacity > 0.35
+
+    // Advance ring rotation
+    if (!tweeningRef.current && !draggingRef.current) {
+      // Decay velocity toward auto-spin
+      velocityRef.current += (AUTO_SPIN - velocityRef.current) * 0.035
+      ringAngleRef.current += velocityRef.current * dt
+    }
+    if (ringRef.current) ringRef.current.rotation.y = ringAngleRef.current
+
+    // Detect active card — closest to 6-o'clock (z=-r, angle=-π/2)
+    let bestIdx = 0, bestDist = Infinity
+    for (let i = 0; i < pool.length; i++) {
+      const baseAngle = (i / pool.length) * TWO_PI
+      let a = (baseAngle + ringAngleRef.current + Math.PI / 2) % TWO_PI
+      if (a < 0) a += TWO_PI
+      const d = Math.min(a, TWO_PI - a)
+      if (d < bestDist) { bestDist = d; bestIdx = i }
+    }
+    activeIdxRef.current = bestIdx
+
+    // Per-tile: billboard + active-state CSS
+    for (let i = 0; i < tileRefs.current.length; i++) {
+      const tile = tileRefs.current[i]
+      if (tile) tile.lookAt(camera.position)
+      const el = cardRefs.current[i]
+      if (!el) continue
+      const isActive = i === bestIdx
+      if (isActive) {
+        el.style.transform   = 'scale(1.2)'
+        el.style.opacity     = baseOpacity.toFixed(3)
+        el.style.boxShadow   = `inset 0 0 30px rgba(94,234,212,0.18), 0 0 38px rgba(94,234,212,0.55)`
+        el.style.borderColor = '#5EEAD4'
+        el.style.zIndex      = '20'
+      } else {
+        el.style.transform   = 'scale(0.85)'
+        el.style.opacity     = (baseOpacity * 0.55).toFixed(3)
+        el.style.boxShadow   = `inset 0 0 18px ${hexAlpha(pool[i].color, 0.10)}, 0 0 12px ${hexAlpha(pool[i].color, 0.15)}`
+        el.style.borderColor = hexAlpha(pool[i].color, 0.6)
+        el.style.zIndex      = ''
       }
-    }
-    lastScrollRef.current = scrollRef.current
-
-    // Hover effect is now CSS-only (transform scale on the hovered card
-    // below). We only keep the animTile traversal for billboarding so each
-    // card faces the camera. No 3D position/scale lerp = no overlap mess.
-    if (groupRef.current) {
-      groupRef.current.traverse((obj) => {
-        if (!obj.userData?.animTile) return
-        obj.position.lerp(REST_ORIGIN, 0.18)
-        obj.scale.setScalar(1)
-        obj.lookAt(camera.position)
-      })
+      el.style.pointerEvents = interactive ? 'auto' : 'none'
     }
   })
 
+  // Pointer handlers attached to each card root (R3F group). Capture down
+  // for drag-start; window listeners handle move+up.
+  const onCardPointerDown = (e: React.PointerEvent) => {
+    draggingRef.current  = true
+    movedRef.current     = 0
+    lastPxRef.current    = e.clientX
+    lastTimeRef.current  = performance.now()
+    tweeningRef.current  = false   // cancel any tween in progress
+  }
+
+  const onCardClick = (idx: number) => {
+    // Drag suppresses click — ignore if user moved more than threshold
+    if (movedRef.current > 6) return
+    if (idx === activeIdxRef.current) {
+      window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: pool[idx].id }))
+      return
+    }
+    // Tween ring so card `idx` lands at front (angle = -π/2)
+    const baseAngle = (idx / pool.length) * TWO_PI
+    const targetRingAngle = -Math.PI / 2 - baseAngle
+    const cur = ringAngleRef.current
+    let diff = ((targetRingAngle - cur + Math.PI) % TWO_PI) - Math.PI
+    if (diff < -Math.PI) diff += TWO_PI
+    const finalAngle = cur + diff
+    tweeningRef.current = true
+    velocityRef.current = 0
+    gsap.to(ringAngleRef, {
+      current: finalAngle,
+      duration: 0.7,
+      ease: 'power3.out',
+      onComplete: () => { tweeningRef.current = false; velocityRef.current = AUTO_SPIN },
+    })
+  }
+
   return (
     <group ref={groupRef}>
-      {/* Solar system pushed DOWN-PATH in the group's local frame so the
-          camera approaches it from a distance instead of flying through it.
-          Group's -Z = downstream direction (away from upstream-facing camera).
-          Offset z=-4 keeps the sun + tiles visible as camera nears stationT
-          and gracefully falls behind once camera passes through. */}
+      {/* Pushed downstream so camera approaches the orbital ring head-on */}
       <group position={[0, 0, -4]}>
-      {/* Central sun + glow halo removed — the PROJECTS station planet
-          (rendered by the Station/Planet component) is the focal sphere now. */}
+        {/* The orbital ring — rotated around its forward (Y) axis, tilted 15° */}
+        <group ref={ringRef} rotation={[TILT, 0, 0]}>
+          {pool.map((p, i) => {
+            const baseAngle = (i / pool.length) * TWO_PI
+            const x = Math.cos(baseAngle) * ORBIT_RADIUS
+            const z = Math.sin(baseAngle) * ORBIT_RADIUS
 
-      {/* Orbital path torus rings dropped — they read as thin lines on the
-          nebula. Tiles still orbit but without visible guide tracks. */}
-
-      {/* ─── 3 orbital rings, 3 tiles each ─────────────────────────────── */}
-      {[0, 1, 2].map((ringIdx) => (
-        <group
-          key={`ring-${ringIdx}`}
-          ref={(g) => { ringRefs.current[ringIdx] = g }}
-        >
-          {pool.slice(ringIdx * 3, ringIdx * 3 + 3).map((p, slot) => {
-            const i = ringIdx * 3 + slot
-            const angle = (slot / 3) * Math.PI * 2 + (ringIdx * Math.PI / 5)
-            const radius = RING_RADII[ringIdx]
-            const x = Math.cos(angle) * radius
-            const y = Math.sin(angle) * radius
-            const scl = TILE_SCALES[ringIdx]
-            tileBaseY.current[i] = y
-
-            // Split the project title at the em-dash so we can render the
-            // primary name big + the sub-description small under it.
+            // Title split
             const dashIdx = p.title.indexOf(' — ')
             const name    = (dashIdx > 0 ? p.title.slice(0, dashIdx)   : p.title).trim()
             const sub     = (dashIdx > 0 ? p.title.slice(dashIdx + 3)  : p.tagline ?? '').trim()
@@ -930,126 +947,99 @@ function ProjectTiles({
             return (
               <group
                 key={p.id}
-                ref={(g) => { tileRootRefs.current[i] = g }}
-                position={[x, y, 0]}
+                ref={(g) => { tileRefs.current[i] = g }}
+                position={[x, 0, z]}
               >
-                {/* Animated inner group — useFrame lerps THIS for fly-to-
-                    camera on hover. Hover detection lives on the Html card
-                    below (DOM mouse events) so the hover hitbox always
-                    matches the visible card area, even when zoomed in. */}
-                <group userData={{ animTile: true }}>
-                  <group scale={scl}>
-                    <Html
-                      transform
-                      pointerEvents="auto"
-                      distanceFactor={5.0}
-                      center
-                      zIndexRange={[100, 0]}
-                    >
-                      <div
-                        ref={(el) => { cardRefs.current[i] = el }}
-                        onMouseEnter={(e) => {
-                          hoveredRef.current = i
-                          e.currentTarget.style.transform = 'scale(1.18)'
-                          e.currentTarget.style.zIndex = '50'
-                          e.currentTarget.style.boxShadow = `inset 0 0 30px ${hexAlpha(p.color, 0.22)}, 0 0 36px ${hexAlpha(p.color, 0.5)}`
-                          if (typeof document !== 'undefined') document.body.style.cursor = 'pointer'
-                        }}
-                        onMouseLeave={(e) => {
-                          if (hoveredRef.current === i) hoveredRef.current = -1
-                          e.currentTarget.style.transform = 'scale(1)'
-                          e.currentTarget.style.zIndex = ''
-                          e.currentTarget.style.boxShadow = `inset 0 0 24px ${hexAlpha(p.color, 0.13)}, 0 0 22px ${hexAlpha(p.color, 0.22)}`
-                          if (typeof document !== 'undefined') document.body.style.cursor = ''
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (typeof window !== 'undefined') {
-                            window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: p.id }))
-                          }
-                        }}
-                        style={{
-                          opacity: 0,
-                          pointerEvents: 'none',
-                          transformOrigin: 'center',
-                          transition: 'opacity 120ms linear, transform 220ms ease-out, box-shadow 220ms ease-out',
-                          width: 160,
-                          padding: '12px 12px 11px',
-                          borderRadius: 12,
-                          border: `1.2px solid ${p.color}`,
-                          background: `linear-gradient(140deg, rgb(var(--bg-surface) / 0.55) 0%, rgb(var(--bg-surface) / 0.82) 100%)`,
-                          backdropFilter: 'blur(6px)',
-                          WebkitBackdropFilter: 'blur(6px)',
-                          boxShadow: `inset 0 0 24px ${hexAlpha(p.color, 0.13)}, 0 0 22px ${hexAlpha(p.color, 0.22)}`,
-                          fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
-                          color: 'rgb(var(--text-primary))',
-                          userSelect: 'none',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {/* Top row: icon + number */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
-                          <div style={{
-                            width: 34, height: 34, borderRadius: '50%',
-                            border: `1.2px solid ${p.color}`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: p.color,
-                            boxShadow: `0 0 12px ${hexAlpha(p.color, 0.3)}, inset 0 0 8px ${hexAlpha(p.color, 0.15)}`,
-                          }}>
-                            <span style={{ transform: 'scale(0.75)', display: 'inline-flex' }}>{iconFor(p)}</span>
-                          </div>
-                          <div style={{ textAlign: 'right', lineHeight: 1 }}>
-                            <div style={{
-                              fontFamily: 'var(--font-mono), ui-monospace, monospace',
-                              fontSize: 9, fontWeight: 700,
-                              letterSpacing: '0.14em', color: p.color,
-                            }}>{number}</div>
-                            <div style={{
-                              width: 4, height: 4, borderRadius: '50%',
-                              background: p.color, marginLeft: 'auto', marginTop: 4,
-                              boxShadow: `0 0 5px ${p.color}`,
-                            }} />
-                          </div>
-                        </div>
-
-                        {/* Title + subtitle */}
-                        <div style={{
-                          fontWeight: 700, fontSize: 13,
-                          letterSpacing: '-0.01em', lineHeight: 1.18,
-                          marginBottom: 3,
-                        }}>{name}</div>
-                        <div style={{
-                          fontSize: 9.5, fontWeight: 400,
-                          color: 'rgb(var(--text-primary) / 0.62)',
-                          lineHeight: 1.32,
-                          minHeight: 12,
-                        }}>{sub}</div>
-
-                        {/* Tag pills */}
-                        {tags.length > 0 && (
-                          <div style={{ display: 'flex', gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
-                            {tags.map((t) => (
-                              <span key={t} style={{
-                                fontFamily: 'var(--font-mono), ui-monospace, monospace',
-                                fontSize: 8, padding: '3px 6px',
-                                borderRadius: 4,
-                                border: `1px solid ${hexAlpha(p.color, 0.5)}`,
-                                color: 'rgb(var(--text-primary))',
-                                letterSpacing: '0.04em',
-                                background: hexAlpha(p.color, 0.05),
-                              }}>{t}</span>
-                            ))}
-                          </div>
-                        )}
+                <Html
+                  transform
+                  pointerEvents="auto"
+                  distanceFactor={5.0}
+                  center
+                  zIndexRange={[100, 0]}
+                >
+                  <div
+                    ref={(el) => { cardRefs.current[i] = el }}
+                    onPointerDown={onCardPointerDown}
+                    onClick={(e) => { e.stopPropagation(); onCardClick(i) }}
+                    style={{
+                      opacity: 0,
+                      pointerEvents: 'none',
+                      transformOrigin: 'center',
+                      transition: 'transform 320ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms ease-out, opacity 160ms linear, border-color 200ms',
+                      width: 160,
+                      padding: '12px 12px 11px',
+                      borderRadius: 12,
+                      border: `1.2px solid ${p.color}`,
+                      background: `linear-gradient(140deg, rgb(var(--bg-surface) / 0.55) 0%, rgb(var(--bg-surface) / 0.82) 100%)`,
+                      backdropFilter: 'blur(6px)',
+                      WebkitBackdropFilter: 'blur(6px)',
+                      boxShadow: `inset 0 0 24px ${hexAlpha(p.color, 0.13)}, 0 0 22px ${hexAlpha(p.color, 0.22)}`,
+                      fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
+                      color: 'rgb(var(--text-primary))',
+                      userSelect: 'none',
+                      cursor: 'grab',
+                    }}
+                  >
+                    {/* Top row: icon + number */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
+                      <div style={{
+                        width: 34, height: 34, borderRadius: '50%',
+                        border: `1.2px solid ${p.color}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: p.color,
+                        boxShadow: `0 0 12px ${hexAlpha(p.color, 0.3)}, inset 0 0 8px ${hexAlpha(p.color, 0.15)}`,
+                      }}>
+                        <span style={{ transform: 'scale(0.75)', display: 'inline-flex' }}>{iconFor(p)}</span>
                       </div>
-                    </Html>
-                  </group>
-                </group>
+                      <div style={{ textAlign: 'right', lineHeight: 1 }}>
+                        <div style={{
+                          fontFamily: 'var(--font-mono), ui-monospace, monospace',
+                          fontSize: 9, fontWeight: 700,
+                          letterSpacing: '0.14em', color: p.color,
+                        }}>{number}</div>
+                        <div style={{
+                          width: 4, height: 4, borderRadius: '50%',
+                          background: p.color, marginLeft: 'auto', marginTop: 4,
+                          boxShadow: `0 0 5px ${p.color}`,
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* Title + subtitle */}
+                    <div style={{
+                      fontWeight: 700, fontSize: 13,
+                      letterSpacing: '-0.01em', lineHeight: 1.18,
+                      marginBottom: 3,
+                    }}>{name}</div>
+                    <div style={{
+                      fontSize: 9.5, fontWeight: 400,
+                      color: 'rgb(var(--text-primary) / 0.62)',
+                      lineHeight: 1.32,
+                      minHeight: 12,
+                    }}>{sub}</div>
+
+                    {/* Tag pills */}
+                    {tags.length > 0 && (
+                      <div style={{ display: 'flex', gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
+                        {tags.map((t) => (
+                          <span key={t} style={{
+                            fontFamily: 'var(--font-mono), ui-monospace, monospace',
+                            fontSize: 8, padding: '3px 6px',
+                            borderRadius: 4,
+                            border: `1px solid ${hexAlpha(p.color, 0.5)}`,
+                            color: 'rgb(var(--text-primary))',
+                            letterSpacing: '0.04em',
+                            background: hexAlpha(p.color, 0.05),
+                          }}>{t}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </Html>
               </group>
             )
           })}
         </group>
-      ))}
       </group>
     </group>
   )
