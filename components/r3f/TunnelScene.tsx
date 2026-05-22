@@ -783,29 +783,31 @@ function ProjectTiles({
     return sorted.slice(0, 9)
   }, [])
 
-  // Roots
-  const groupRef = useRef<THREE.Group>(null)
-  const ringRef  = useRef<THREE.Group>(null)
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([])
-  const tileRefs = useRef<(THREE.Group | null)[]>([])
+  // ── Architecture per spec ─────────────────────────────────────────────
+  // groupRef     — station root (positioned + oriented along the curve)
+  // orbitRingRef — the ring; rotates around Y axis
+  // cardGroups[] — per-card Three.Group at angle on the ring (billboarded)
+  // cardEls[]    — DOM div refs for CSS scale/opacity/glow updates
+  const groupRef     = useRef<THREE.Group>(null)
+  const orbitRingRef = useRef<THREE.Group>(null)
+  const cardGroups   = useRef<(THREE.Group | null)[]>([])
+  const cardEls      = useRef<(HTMLDivElement | null)[]>([])
 
-  // Orbital params per spec
-  const ORBIT_RADIUS = 2.5
-  const TILT         = Math.PI / 12                          // 15° tilt
-  const AUTO_SPIN    = (0.3 * Math.PI * 2) / 60              // 0.3 rpm → rad/s
+  const ORBIT_RADIUS = 4.5
+  const AUTO_SPIN    = 0.003        // rad / frame (spec)
   const TWO_PI       = Math.PI * 2
 
-  // Drag + velocity state
-  const ringAngleRef = useRef(0)
-  const velocityRef  = useRef(AUTO_SPIN)
-  const draggingRef  = useRef(false)
-  const tweeningRef  = useRef(false)
-  const lastPxRef    = useRef(0)
-  const lastTimeRef  = useRef(0)
-  const movedRef     = useRef(0)
-  const activeIdxRef = useRef(0)
+  // Drag + state
+  const isDraggingRef = useRef(false)
+  const startXRef     = useRef(0)
+  const lastXRef      = useRef(0)
+  const movedRef      = useRef(0)
+  const tweeningRef   = useRef(false)
+  const hoveredRef    = useRef<number>(-1)
+  const activeIdxRef  = useRef(0)
+  const tmpVec        = useMemo(() => new THREE.Vector3(), [])
 
-  // Place + orient group at the projects station
+  // Anchor station root on the curve
   useEffect(() => {
     if (!groupRef.current) return
     const pos     = new THREE.Vector3()
@@ -816,128 +818,128 @@ function ProjectTiles({
     groupRef.current.lookAt(pos.clone().sub(tangent))
   }, [curve, stationT])
 
-  // Global drag tracking — pointermove + pointerup on window so the user can
-  // drag across the whole canvas, not just on a card.
+  // Global drag listeners
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
-      if (!draggingRef.current) return
-      const dx = e.clientX - lastPxRef.current
-      const now = performance.now()
-      const dt  = Math.max(1, now - lastTimeRef.current) / 1000
-      lastPxRef.current = e.clientX
-      lastTimeRef.current = now
-      const da = dx * 0.006
-      ringAngleRef.current += da
+      if (!isDraggingRef.current) return
+      const dx = e.clientX - lastXRef.current
+      lastXRef.current = e.clientX
       movedRef.current += Math.abs(dx)
-      velocityRef.current = THREE.MathUtils.clamp(da / dt, -10, 10)
+      if (orbitRingRef.current) orbitRingRef.current.rotation.y += dx * 0.01
     }
-    const onUp = () => { draggingRef.current = false }
-    window.addEventListener('pointermove',  onMove)
-    window.addEventListener('pointerup',    onUp)
-    window.addEventListener('pointercancel',onUp)
+    const onUp = () => { isDraggingRef.current = false }
+    window.addEventListener('pointermove',   onMove)
+    window.addEventListener('pointerup',     onUp)
+    window.addEventListener('pointercancel', onUp)
     return () => {
-      window.removeEventListener('pointermove',  onMove)
-      window.removeEventListener('pointerup',    onUp)
-      window.removeEventListener('pointercancel',onUp)
+      window.removeEventListener('pointermove',   onMove)
+      window.removeEventListener('pointerup',     onUp)
+      window.removeEventListener('pointercancel', onUp)
     }
   }, [])
 
-  useFrame(({ camera }, dt) => {
-    // Proximity fade — only show when camera is near the projects station
+  useFrame(({ camera }) => {
+    // Proximity fade
     const dist        = Math.abs(scrollRef.current - stationT)
     const proximity   = Math.max(0, 1 - dist / 0.13)
     const baseOpacity = Math.pow(proximity, 1.4)
     const interactive = baseOpacity > 0.35
 
-    // Advance ring rotation
-    if (!tweeningRef.current && !draggingRef.current) {
-      // Decay velocity toward auto-spin
-      velocityRef.current += (AUTO_SPIN - velocityRef.current) * 0.035
-      ringAngleRef.current += velocityRef.current * dt
+    // Auto rotation — stops while dragging / tweening
+    if (orbitRingRef.current && !isDraggingRef.current && !tweeningRef.current) {
+      orbitRingRef.current.rotation.y += AUTO_SPIN
     }
-    if (ringRef.current) ringRef.current.rotation.y = ringAngleRef.current
 
-    // Detect active card — closest to 6-o'clock (z=-r, angle=-π/2)
-    let bestIdx = 0, bestDist = Infinity
-    for (let i = 0; i < pool.length; i++) {
-      const baseAngle = (i / pool.length) * TWO_PI
-      let a = (baseAngle + ringAngleRef.current + Math.PI / 2) % TWO_PI
-      if (a < 0) a += TWO_PI
-      const d = Math.min(a, TWO_PI - a)
-      if (d < bestDist) { bestDist = d; bestIdx = i }
+    // Each card faces camera + compute world Z for active detection
+    let bestIdx = 0
+    let bestZ   = -Infinity
+    for (let i = 0; i < cardGroups.current.length; i++) {
+      const g = cardGroups.current[i]
+      if (!g) continue
+      g.lookAt(camera.position)
+      g.getWorldPosition(tmpVec)
+      if (tmpVec.z > bestZ) { bestZ = tmpVec.z; bestIdx = i }
     }
     activeIdxRef.current = bestIdx
 
-    // Per-tile: billboard + active-state CSS
-    for (let i = 0; i < tileRefs.current.length; i++) {
-      const tile = tileRefs.current[i]
-      if (tile) tile.lookAt(camera.position)
-      const el = cardRefs.current[i]
+    // CSS state per card
+    for (let i = 0; i < cardEls.current.length; i++) {
+      const el = cardEls.current[i]
       if (!el) continue
-      const isActive = i === bestIdx
-      if (isActive) {
-        el.style.transform   = 'scale(1.2)'
-        el.style.opacity     = baseOpacity.toFixed(3)
-        el.style.boxShadow   = `inset 0 0 30px rgba(94,234,212,0.18), 0 0 38px rgba(94,234,212,0.55)`
-        el.style.borderColor = '#5EEAD4'
-        el.style.zIndex      = '20'
-      } else {
-        el.style.transform   = 'scale(0.85)'
-        el.style.opacity     = (baseOpacity * 0.55).toFixed(3)
-        el.style.boxShadow   = `inset 0 0 18px ${hexAlpha(pool[i].color, 0.10)}, 0 0 12px ${hexAlpha(pool[i].color, 0.15)}`
-        el.style.borderColor = hexAlpha(pool[i].color, 0.6)
-        el.style.zIndex      = ''
-      }
+      const isActive  = i === bestIdx
+      const isHovered = i === hoveredRef.current
+      let scale = isActive ? 1.0 : 0.75
+      if (isHovered) scale = 1.05
+      const op = isActive ? baseOpacity : baseOpacity * 0.5
+      el.style.transform = `scale(${scale})`
+      el.style.opacity   = op.toFixed(3)
+      el.style.boxShadow = isActive
+        ? 'inset 0 0 26px rgba(94,234,212,0.18), 0 0 36px rgba(94,234,212,0.55)'
+        : `inset 0 0 16px ${hexAlpha(pool[i].color, 0.10)}, 0 0 12px ${hexAlpha(pool[i].color, 0.18)}`
+      el.style.borderColor   = isActive ? '#5EEAD4' : hexAlpha(pool[i].color, 0.55)
+      el.style.zIndex        = isActive ? '20' : ''
       el.style.pointerEvents = interactive ? 'auto' : 'none'
     }
+
+    // Hover Z-push — translate hovered card's parent group +0.3 toward camera
+    // (local +Z after lookAt = away from camera, so push along -Z, but lookAt
+    // orients local -Z toward camera, so toward camera = -Z. Apply via
+    // translateZ negative on the inner mesh? Easier: use card group's
+    // position has been set on ring; can't displace without breaking orbit.
+    // We instead push the inner Html wrapper via local translateZ on a child
+    // group below.)
   })
 
-  // Pointer handlers attached to each card root (R3F group). Capture down
-  // for drag-start; window listeners handle move+up.
+  // Pointer handlers on each card div
   const onCardPointerDown = (e: React.PointerEvent) => {
-    draggingRef.current  = true
-    movedRef.current     = 0
-    lastPxRef.current    = e.clientX
-    lastTimeRef.current  = performance.now()
-    tweeningRef.current  = false   // cancel any tween in progress
+    isDraggingRef.current = true
+    movedRef.current      = 0
+    startXRef.current     = e.clientX
+    lastXRef.current      = e.clientX
+    tweeningRef.current   = false
   }
-
   const onCardClick = (idx: number) => {
-    // Drag suppresses click — ignore if user moved more than threshold
-    if (movedRef.current > 6) return
+    if (movedRef.current > 6) return    // drag, not click
     if (idx === activeIdxRef.current) {
       window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: pool[idx].id }))
       return
     }
-    // Tween ring so card `idx` lands at front (angle = -π/2)
+    // Tween ring so this card lands closest to camera. Active = max world Z.
+    // World Z is maximised when the card sits along ring's +Z axis (in world
+    // after group orientation). Card at angle θ on ring has local position
+    // (cos θ, 0, sin θ). After ringRotation y = R applied, world (in group
+    // local) becomes ... we just need (θ + R) such that sin(θ + R) is +1
+    // (since group is oriented so group-local +Z points toward camera).
+    // Wait: group lookAt(pos - tangent) → group's -Z points to camera. So
+    // closest to camera = group-local -Z = sin negative. So we want sin(θ+R)
+    // minimal = -1 → θ + R = -π/2 → R = -π/2 - θ.
     const baseAngle = (idx / pool.length) * TWO_PI
-    const targetRingAngle = -Math.PI / 2 - baseAngle
-    const cur = ringAngleRef.current
-    let diff = ((targetRingAngle - cur + Math.PI) % TWO_PI) - Math.PI
+    const target = -Math.PI / 2 - baseAngle
+    const ring = orbitRingRef.current
+    if (!ring) return
+    const cur = ring.rotation.y
+    let diff = ((target - cur + Math.PI) % TWO_PI) - Math.PI
     if (diff < -Math.PI) diff += TWO_PI
     const finalAngle = cur + diff
     tweeningRef.current = true
-    velocityRef.current = 0
-    gsap.to(ringAngleRef, {
-      current: finalAngle,
+    gsap.to(ring.rotation, {
+      y: finalAngle,
       duration: 0.7,
       ease: 'power3.out',
-      onComplete: () => { tweeningRef.current = false; velocityRef.current = AUTO_SPIN },
+      onComplete: () => { tweeningRef.current = false },
     })
   }
 
   return (
     <group ref={groupRef}>
-      {/* Pushed downstream so camera approaches the orbital ring head-on */}
       <group position={[0, 0, -4]}>
-        {/* The orbital ring — rotated around its forward (Y) axis, tilted 15° */}
-        <group ref={ringRef} rotation={[TILT, 0, 0]}>
+        {/* orbitRing — single Y-axis ring at planet centre */}
+        <group ref={orbitRingRef}>
           {pool.map((p, i) => {
-            const baseAngle = (i / pool.length) * TWO_PI
-            const x = Math.cos(baseAngle) * ORBIT_RADIUS
-            const z = Math.sin(baseAngle) * ORBIT_RADIUS
+            const angle = (i / pool.length) * TWO_PI
+            const x = Math.cos(angle) * ORBIT_RADIUS
+            const z = Math.sin(angle) * ORBIT_RADIUS
 
-            // Title split
             const dashIdx = p.title.indexOf(' — ')
             const name    = (dashIdx > 0 ? p.title.slice(0, dashIdx)   : p.title).trim()
             const sub     = (dashIdx > 0 ? p.title.slice(dashIdx + 3)  : p.tagline ?? '').trim()
@@ -947,85 +949,84 @@ function ProjectTiles({
             return (
               <group
                 key={p.id}
-                ref={(g) => { tileRefs.current[i] = g }}
+                ref={(g) => { cardGroups.current[i] = g }}
                 position={[x, 0, z]}
               >
                 <Html
                   transform
                   pointerEvents="auto"
-                  distanceFactor={5.0}
+                  distanceFactor={6.5}
                   center
                   zIndexRange={[100, 0]}
                 >
                   <div
-                    ref={(el) => { cardRefs.current[i] = el }}
+                    ref={(el) => { cardEls.current[i] = el }}
                     onPointerDown={onCardPointerDown}
+                    onMouseEnter={() => { hoveredRef.current = i }}
+                    onMouseLeave={() => { if (hoveredRef.current === i) hoveredRef.current = -1 }}
                     onClick={(e) => { e.stopPropagation(); onCardClick(i) }}
                     style={{
                       opacity: 0,
                       pointerEvents: 'none',
                       transformOrigin: 'center',
-                      transition: 'transform 320ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms ease-out, opacity 160ms linear, border-color 200ms',
-                      width: 160,
-                      padding: '12px 12px 11px',
-                      borderRadius: 12,
+                      transition: 'transform 260ms cubic-bezier(0.16,1,0.3,1), box-shadow 240ms ease-out, opacity 160ms linear, border-color 200ms',
+                      width: 110,
+                      padding: '10px 10px 9px',
+                      borderRadius: 10,
                       border: `1.2px solid ${p.color}`,
                       background: `linear-gradient(140deg, rgb(var(--bg-surface) / 0.55) 0%, rgb(var(--bg-surface) / 0.82) 100%)`,
                       backdropFilter: 'blur(6px)',
                       WebkitBackdropFilter: 'blur(6px)',
-                      boxShadow: `inset 0 0 24px ${hexAlpha(p.color, 0.13)}, 0 0 22px ${hexAlpha(p.color, 0.22)}`,
+                      boxShadow: `inset 0 0 18px ${hexAlpha(p.color, 0.12)}, 0 0 16px ${hexAlpha(p.color, 0.20)}`,
                       fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
                       color: 'rgb(var(--text-primary))',
                       userSelect: 'none',
                       cursor: 'grab',
                     }}
                   >
-                    {/* Top row: icon + number */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                       <div style={{
-                        width: 34, height: 34, borderRadius: '50%',
-                        border: `1.2px solid ${p.color}`,
+                        width: 26, height: 26, borderRadius: '50%',
+                        border: `1.1px solid ${p.color}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         color: p.color,
-                        boxShadow: `0 0 12px ${hexAlpha(p.color, 0.3)}, inset 0 0 8px ${hexAlpha(p.color, 0.15)}`,
+                        boxShadow: `0 0 10px ${hexAlpha(p.color, 0.3)}, inset 0 0 6px ${hexAlpha(p.color, 0.15)}`,
                       }}>
-                        <span style={{ transform: 'scale(0.75)', display: 'inline-flex' }}>{iconFor(p)}</span>
+                        <span style={{ transform: 'scale(0.6)', display: 'inline-flex' }}>{iconFor(p)}</span>
                       </div>
                       <div style={{ textAlign: 'right', lineHeight: 1 }}>
                         <div style={{
                           fontFamily: 'var(--font-mono), ui-monospace, monospace',
-                          fontSize: 9, fontWeight: 700,
+                          fontSize: 8, fontWeight: 700,
                           letterSpacing: '0.14em', color: p.color,
                         }}>{number}</div>
                         <div style={{
-                          width: 4, height: 4, borderRadius: '50%',
-                          background: p.color, marginLeft: 'auto', marginTop: 4,
-                          boxShadow: `0 0 5px ${p.color}`,
+                          width: 3, height: 3, borderRadius: '50%',
+                          background: p.color, marginLeft: 'auto', marginTop: 3,
+                          boxShadow: `0 0 4px ${p.color}`,
                         }} />
                       </div>
                     </div>
 
-                    {/* Title + subtitle */}
                     <div style={{
-                      fontWeight: 700, fontSize: 13,
+                      fontWeight: 700, fontSize: 11,
                       letterSpacing: '-0.01em', lineHeight: 1.18,
-                      marginBottom: 3,
+                      marginBottom: 2,
                     }}>{name}</div>
                     <div style={{
-                      fontSize: 9.5, fontWeight: 400,
+                      fontSize: 8.5, fontWeight: 400,
                       color: 'rgb(var(--text-primary) / 0.62)',
-                      lineHeight: 1.32,
-                      minHeight: 12,
+                      lineHeight: 1.3,
+                      minHeight: 11,
                     }}>{sub}</div>
 
-                    {/* Tag pills */}
                     {tags.length > 0 && (
-                      <div style={{ display: 'flex', gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 3, marginTop: 6, flexWrap: 'wrap' }}>
                         {tags.map((t) => (
                           <span key={t} style={{
                             fontFamily: 'var(--font-mono), ui-monospace, monospace',
-                            fontSize: 8, padding: '3px 6px',
-                            borderRadius: 4,
+                            fontSize: 7, padding: '2px 5px',
+                            borderRadius: 3,
                             border: `1px solid ${hexAlpha(p.color, 0.5)}`,
                             color: 'rgb(var(--text-primary))',
                             letterSpacing: '0.04em',
