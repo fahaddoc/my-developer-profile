@@ -32,12 +32,16 @@ interface Particle {
   wobble: number
 }
 
-// Short intro — must be short enough that a big bold font renders clearly
-// into particles. Hand-broken into 3 lines (no auto-wrap mid-word).
+// Full intro — 7 paragraphs separated by \n. Each paragraph is word-wrapped
+// inside the canvas; font auto-shrinks until every line fits.
 const DEFAULT_INTRO = [
-  "Hi, I'm Shah Fahad",
-  "Senior Software Engineer",
-  "Karachi, Pakistan",
+  "Hi, I'm Shah Fahad — a Senior Software Engineer based in Karachi, Pakistan, with over 6 years of experience building real-time web and mobile applications that scale.",
+  "I specialize in React, Next.js, TypeScript, Flutter, and WebRTC — crafting high-performance products across fintech, healthcare, and live-communication domains.",
+  "Currently at DigitalHire, I lead frontend development for a modern hiring platform — building reusable component libraries, complex application flows, and optimizing for exceptional user experience.",
+  "Before that, at MILETAP, I built Konnect.im — an enterprise-grade real-time video conferencing platform with screen sharing, live chat, and participant management, powered by WebRTC and SignalR.",
+  "Some of my proudest work includes Agent Shah — a playable 3D stealth shooter built entirely in Three.js where the agent is me. I've also built a WhatsApp ChatBot Simulator, a farmer loan management system called Reap Agro, an offline-first hospital OPD app in Flutter, and a service booking platform called Helpers.",
+  "Across 4 companies, 9+ shipped projects, and 25+ clients — I've learned that great software isn't just about clean code. It's about products people actually use.",
+  "I'm currently open to new opportunities — remote or on-site. Explore my work at shahfahad.dev or reach me at hello@shahfahad.dev.",
 ].join('\n')
 
 export function ParticlePortrait({
@@ -104,32 +108,55 @@ export function ParticlePortrait({
         }
       }
 
-      // Render intro lines onto an offscreen at the LARGEST font that fits
-      // horizontally. System Arial bold — guaranteed available, no font-load
-      // race. Each line in `intro` rendered as-is (no auto-wrap mid-word).
+      // Render intro paragraphs onto an offscreen. Word-wrap each paragraph
+      // to canvas width. Auto-shrink font until entire wrapped block fits in
+      // canvas height. System Arial bold — guaranteed available.
       const txt = document.createElement('canvas')
       txt.width = width; txt.height = height
       const txtCtx = txt.getContext('2d', { willReadFrequently: true })
       if (!txtCtx) return
       txtCtx.fillStyle = 'white'
 
-      const lines = intro.split('\n').filter(l => l.length > 0)
+      const paragraphs = intro.split('\n').filter(l => l.length > 0)
+      const maxW = width - 12
 
-      // Shrink font until widest line fits in canvas width (and total height
-      // fits too). This guarantees big readable letters within constraints.
-      const maxW = width - 16
+      // Build wrapped line list for a given font size.
+      const wrapAt = (size: number): string[] => {
+        txtCtx.font = `bold ${size}px Arial, sans-serif`
+        const out: string[] = []
+        for (const para of paragraphs) {
+          const words = para.split(/\s+/)
+          let line = ''
+          for (const w of words) {
+            const cand = line ? line + ' ' + w : w
+            if (txtCtx.measureText(cand).width > maxW) {
+              if (line) out.push(line)
+              line = w
+            } else {
+              line = cand
+            }
+          }
+          if (line) out.push(line)
+          out.push('') // blank line between paragraphs
+        }
+        // drop trailing blank
+        while (out.length && out[out.length - 1] === '') out.pop()
+        return out
+      }
+
+      // Find largest size where wrapped block height fits in canvas height.
       const findFitSize = (): number => {
         let size = fontPx
-        while (size > 8) {
-          txtCtx.font = `bold ${size}px Arial, sans-serif`
-          const widest = Math.max(...lines.map(l => txtCtx.measureText(l).width))
-          const totalH = lines.length * Math.round(size * 1.25)
-          if (widest <= maxW && totalH <= height - 12) return size
+        while (size > 7) {
+          const lines = wrapAt(size)
+          const lineH = Math.round(size * 1.25)
+          if (lines.length * lineH <= height - 10) return size
           size -= 1
         }
         return size
       }
       const used = findFitSize()
+      const lines = wrapAt(used)
 
       txtCtx.clearRect(0, 0, width, height)
       txtCtx.font = `bold ${used}px Arial, sans-serif`
@@ -139,7 +166,7 @@ export function ParticlePortrait({
       const blockH = lines.length * lineHeight
       const startY = (height - blockH) / 2 + lineHeight / 2
       lines.forEach((l, i) => {
-        txtCtx.fillText(l, width / 2, startY + i * lineHeight)
+        if (l) txtCtx.fillText(l, width / 2, startY + i * lineHeight)
       })
       const td = txtCtx.getImageData(0, 0, width, height).data
 
