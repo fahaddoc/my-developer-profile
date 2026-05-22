@@ -71,7 +71,7 @@ export function IntroMiniPlayer({ accent }: IntroMiniPlayerProps) {
           ref={videoRef}
           poster="/videos/shah-intro-poster.png"
           playsInline
-          preload="metadata"
+          preload="none"
           style={{
             width: '100%', height: '100%',
             objectFit: 'cover', display: 'block',

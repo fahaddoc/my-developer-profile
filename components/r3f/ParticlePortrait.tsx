@@ -231,7 +231,16 @@ export function ParticlePortrait({
   }
 
   function startLoop() {
+    // Frame throttle — ~40fps is plenty for the particle field and cuts
+    // canvas redraw work by ~33% vs 60fps.
+    const FRAME_MS = 1000 / 40
+    let lastDraw = 0
     const tick = (now: number) => {
+      if (now - lastDraw < FRAME_MS) {
+        rafRef.current = requestAnimationFrame(tick)
+        return
+      }
+      lastDraw = now
       const canvas = canvasRef.current
       if (!canvas) { rafRef.current = requestAnimationFrame(tick); return }
       const ctx = canvas.getContext('2d')

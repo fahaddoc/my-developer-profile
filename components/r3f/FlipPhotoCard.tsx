@@ -103,9 +103,9 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
       >
         <ParticlePortrait
           src="/images/shah-fahad-sticker.png"
-          width={620}
-          height={830}
-          step={2}
+          width={480}
+          height={640}
+          step={3}
           accentTint={accent}
         />
       </div>

@@ -202,11 +202,11 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
     <group ref={groupRef}>
       {/* Outer nebula — atmospheric, low-frequency wash */}
       <mesh material={outerMat}>
-        <sphereGeometry args={[72, 32, 18]} />
+        <sphereGeometry args={[72, 20, 14]} />
       </mesh>
       {/* Inner nebula — denser color + faster motion */}
       <mesh material={innerMat}>
-        <sphereGeometry args={[50, 32, 18]} />
+        <sphereGeometry args={[50, 20, 14]} />
       </mesh>
     </group>
   )
