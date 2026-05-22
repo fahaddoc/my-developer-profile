@@ -32,30 +32,13 @@ interface Particle {
   wobble: number
 }
 
-// Full intro paragraph — the user's actual written script. Rendered in
-// Sora weight 800 (matches the LET'S STAY IN TOUCH bold). Auto-shrink picks
-// the largest font size that lets the whole para fit inside the canvas.
-const DEFAULT_INTRO =
-  "Hi, I'm Shah Fahad — a Senior Software Engineer based in Karachi, " +
-  "Pakistan, with over 6 years of experience building real-time web and " +
-  "mobile applications that scale. I specialize in React, Next.js, " +
-  "TypeScript, Flutter, and WebRTC — crafting high-performance products " +
-  "across fintech, healthcare, and live-communication domains. " +
-  "Currently at DigitalHire, I lead frontend development for a modern " +
-  "hiring platform — building reusable component libraries, complex " +
-  "application flows, and optimizing for exceptional user experience. " +
-  "Before that, at MILETAP, I built Konnect.im — an enterprise-grade " +
-  "real-time video conferencing platform with screen sharing, live chat, " +
-  "and participant management, powered by WebRTC and SignalR. Some of my " +
-  "proudest work includes Agent Shah — a playable 3D stealth shooter " +
-  "built entirely in Three.js where the agent is me. I've also built a " +
-  "WhatsApp ChatBot Simulator, a farmer loan management system called " +
-  "Reap Agro, an offline-first hospital OPD app in Flutter, and a " +
-  "service booking platform called Helpers. Across 4 companies, 9+ " +
-  "shipped projects, and 25+ clients — I've learned that great software " +
-  "isn't just about clean code. It's about products people actually use. " +
-  "I'm currently open to new opportunities — remote or on-site. Explore " +
-  "my work at shahfahad.dev or reach me at hello@shahfahad.dev."
+// Short intro — must be short enough that a big bold font renders clearly
+// into particles. Hand-broken into 3 lines (no auto-wrap mid-word).
+const DEFAULT_INTRO = [
+  "Hi, I'm Shah Fahad",
+  "Senior Software Engineer",
+  "Karachi, Pakistan",
+].join('\n')
 
 export function ParticlePortrait({
   src, width, height,
@@ -63,7 +46,7 @@ export function ParticlePortrait({
   step = 3,
   accentTint = '#5EEAD4',
   intro = DEFAULT_INTRO,
-  fontPx = 26,
+  fontPx = 40,
 }: ParticlePortraitProps) {
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -84,8 +67,14 @@ export function ParticlePortrait({
     let cancelled = false
 
     const init = async () => {
+      // Font loading: use system Arial (always available). Explicitly load
+      // bold variant before canvas measureText/fillText so metrics match
+      // what the renderer will actually paint.
       if (typeof document !== 'undefined' && 'fonts' in document) {
-        try { await (document as Document).fonts.ready } catch { /* noop */ }
+        try {
+          await (document as Document).fonts.load(`bold ${fontPx}px Arial`)
+          await (document as Document).fonts.ready
+        } catch { /* noop */ }
       }
       if (cancelled) return
 
@@ -115,52 +104,43 @@ export function ParticlePortrait({
         }
       }
 
-      // Render the intro paragraph onto an offscreen, word-wrapped to fit
+      // Render intro lines onto an offscreen at the LARGEST font that fits
+      // horizontally. System Arial bold — guaranteed available, no font-load
+      // race. Each line in `intro` rendered as-is (no auto-wrap mid-word).
       const txt = document.createElement('canvas')
       txt.width = width; txt.height = height
       const txtCtx = txt.getContext('2d', { willReadFrequently: true })
       if (!txtCtx) return
-      const family = "'Sora', 'Inter', system-ui, sans-serif"
       txtCtx.fillStyle = 'white'
 
-      // Render with explicit line breaks. Each paragraph (line) wraps only
-      // when it overflows. Empty strings produce visual spacing.
-      const maxW = width - 14
-      const renderWith = (size: number) => {
-        txtCtx.clearRect(0, 0, width, height)
-        txtCtx.font = `800 ${size}px ${family}`
-        txtCtx.textBaseline = 'top'
-        const paras = intro.split('\n')
-        const lineHeight = Math.round(size * 1.35)
-        const lines: string[] = []
-        for (const para of paras) {
-          if (para === '') { lines.push(''); continue }
-          const words = para.split(/\s+/)
-          let line = ''
-          for (const w of words) {
-            const cand = line ? line + ' ' + w : w
-            if (txtCtx.measureText(cand).width > maxW) {
-              if (line) lines.push(line)
-              line = w
-            } else {
-              line = cand
-            }
-          }
-          if (line) lines.push(line)
+      const lines = intro.split('\n').filter(l => l.length > 0)
+
+      // Shrink font until widest line fits in canvas width (and total height
+      // fits too). This guarantees big readable letters within constraints.
+      const maxW = width - 16
+      const findFitSize = (): number => {
+        let size = fontPx
+        while (size > 8) {
+          txtCtx.font = `bold ${size}px Arial, sans-serif`
+          const widest = Math.max(...lines.map(l => txtCtx.measureText(l).width))
+          const totalH = lines.length * Math.round(size * 1.25)
+          if (widest <= maxW && totalH <= height - 12) return size
+          size -= 1
         }
-        const totalH = lines.length * lineHeight
-        let yPos = Math.max(6, (height - totalH) / 2)
-        for (const l of lines) {
-          if (l) {
-            const lineW = txtCtx.measureText(l).width
-            txtCtx.fillText(l, (width - lineW) / 2, yPos)
-          }
-          yPos += lineHeight
-        }
-        return totalH <= height - 10
+        return size
       }
-      let used = fontPx
-      while (used > 6 && !renderWith(used)) used -= 1
+      const used = findFitSize()
+
+      txtCtx.clearRect(0, 0, width, height)
+      txtCtx.font = `bold ${used}px Arial, sans-serif`
+      txtCtx.textAlign = 'center'
+      txtCtx.textBaseline = 'middle'
+      const lineHeight = Math.round(used * 1.25)
+      const blockH = lines.length * lineHeight
+      const startY = (height - blockH) / 2 + lineHeight / 2
+      lines.forEach((l, i) => {
+        txtCtx.fillText(l, width / 2, startY + i * lineHeight)
+      })
       const td = txtCtx.getImageData(0, 0, width, height).data
 
       const textPositions: Array<{ x: number; y: number }> = []
