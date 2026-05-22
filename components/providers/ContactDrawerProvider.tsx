@@ -24,9 +24,10 @@ const ACCENT = '#5EEAD4'
 const EMAIL  = 'hello@shahfahad.dev'
 
 export function ContactDrawerProvider({ children }: { children: React.ReactNode }) {
-  const [open, setOpen]       = useState(false)
-  const [mounted, setMounted] = useState(false)
-  const [isMobile, setMobile] = useState(false)
+  const [open, setOpen]         = useState(false)
+  const [openCount, setCount]   = useState(0)
+  const [mounted, setMounted]   = useState(false)
+  const [isMobile, setMobile]   = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
   useEffect(() => {
@@ -37,7 +38,7 @@ export function ContactDrawerProvider({ children }: { children: React.ReactNode 
     return () => mql.removeEventListener('change', sync)
   }, [])
 
-  const doOpen  = useCallback(() => setOpen(true),  [])
+  const doOpen  = useCallback(() => { setOpen(true); setCount((c) => c + 1) }, [])
   const doClose = useCallback(() => setOpen(false), [])
 
   useEffect(() => {
@@ -64,15 +65,16 @@ export function ContactDrawerProvider({ children }: { children: React.ReactNode 
   return (
     <Ctx.Provider value={value}>
       {children}
-      {mounted && createPortal(<Panel open={open} onClose={doClose} isMobile={isMobile} />, document.body)}
+      {mounted && createPortal(<Panel open={open} onClose={doClose} isMobile={isMobile} openKey={openCount} />, document.body)}
     </Ctx.Provider>
   )
 }
 
-function Panel({ open, onClose, isMobile }: {
+function Panel({ open, onClose, isMobile, openKey }: {
   open: boolean
   onClose: () => void
   isMobile: boolean
+  openKey: number
 }) {
   return (
     <AnimatePresence>
@@ -172,7 +174,7 @@ function Panel({ open, onClose, isMobile }: {
               </div>
             )}
 
-            <ContactBody onClose={onClose} />
+            <ContactBody key={openKey} onClose={onClose} />
           </motion.aside>
         </>
       )}
@@ -264,8 +266,30 @@ function ContactBody({ onClose }: { onClose: () => void }) {
             fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase',
             color: ACCENT, marginBottom: 8,
           }}>SENT</div>
-          Your email client should have opened with the message pre-filled.
-          Hit send and I&apos;ll get back to you soon.
+          <p style={{ margin: '0 0 14px 0', fontSize: 13, lineHeight: 1.55 }}>
+            Your email client should have opened with the message pre-filled.
+            Hit send and I&apos;ll get back to you soon.
+          </p>
+          <button
+            type="button"
+            onClick={() => { setSent(false); setName(''); setEmail(''); setSubject(''); setMessage('') }}
+            style={{
+              padding: '8px 12px',
+              fontFamily: 'var(--font-mono), monospace',
+              fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.2em', textTransform: 'uppercase',
+              color: ACCENT,
+              background: 'transparent',
+              border: '1px solid rgba(94,234,212,0.4)',
+              borderRadius: 6,
+              cursor: 'pointer',
+              transition: 'background 200ms, color 200ms',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(94,234,212,0.08)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            Send another →
+          </button>
         </div>
       ) : (
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
