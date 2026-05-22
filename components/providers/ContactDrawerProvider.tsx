@@ -199,21 +199,35 @@ function ContactBody({ onClose }: { onClose: () => void }) {
     e.preventDefault()
     if (!canSubmit) return
     setStatus('sending')
+
+    const serviceId  = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID
+    const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID
+    const publicKey  = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
+
+    if (!serviceId || !templateId || !publicKey) {
+      console.error('[contact] EmailJS env vars missing — restart `npm run dev` after editing .env.local', { serviceId: !!serviceId, templateId: !!templateId, publicKey: !!publicKey })
+      setStatus('error')
+      return
+    }
+
     try {
-      await emailjs.send(
-        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
-        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
+      const res = await emailjs.send(
+        serviceId,
+        templateId,
         {
           from_name:  name,
           from_email: email,
+          reply_to:   email,
           subject:    subject.trim() || `New message from ${name}`,
           message,
         },
-        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
+        { publicKey },
       )
+      console.info('[contact] EmailJS ok', res.status, res.text)
       setStatus('sent')
       setName(''); setEmail(''); setSubject(''); setMessage('')
-    } catch {
+    } catch (err) {
+      console.error('[contact] EmailJS send failed', err)
       setStatus('error')
     }
   }
