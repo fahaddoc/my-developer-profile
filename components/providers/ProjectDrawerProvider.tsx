@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { projects, type Project } from '@/data/projects'
+import { lenisInstance } from '@/components/providers/SmoothScroll'
 
 interface DrawerContextValue {
   openProjectId: string | null
@@ -55,6 +56,14 @@ export function ProjectDrawerProvider({ children }: { children: React.ReactNode 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [openId, close])
+
+  // Pause Lenis smooth-scroll while drawer open — otherwise wheel events
+  // on the drawer panel bubble up and scroll the tunnel behind it.
+  useEffect(() => {
+    if (!openId) return
+    lenisInstance?.stop?.()
+    return () => { lenisInstance?.start?.() }
+  }, [openId])
 
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -119,6 +128,9 @@ function Panel({ project, onClose, isMobile }: {
             role="dialog"
             aria-modal="true"
             aria-label={`${project.title} — details`}
+            data-lenis-prevent
+            onWheel={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
             initial={isMobile
               ? { y: '100%', opacity: 0 }
               : { x: 40, y: '-50%', opacity: 0, scale: 0.97 }}
@@ -305,40 +317,50 @@ function PanelBody({ project, onClose }: { project: Project; onClose: () => void
         ))}
       </div>
 
-      {/* Short description (clamp 4 lines) */}
+      {/* Description (full) */}
       <p style={{
-        color: 'rgba(245,245,247,0.72)',
+        color: 'rgba(245,245,247,0.78)',
         fontSize: 13,
-        lineHeight: 1.6,
+        lineHeight: 1.65,
         margin: '0 0 18px 0',
-        display: '-webkit-box',
-        WebkitLineClamp: 4,
-        WebkitBoxOrient: 'vertical',
-        overflow: 'hidden',
       }}>
         {project.description}
       </p>
 
-      {/* Primary actions */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 22 }}>
-        {project.liveUrl && (
-          <NeonButton href={project.liveUrl} kind="solid">
-            VISIT PROJECT ↗
-          </NeonButton>
-        )}
-        <NeonButton href={`/projects/${project.id}`} kind="ghost" target="_blank">
-          VIEW CASE STUDY →
-        </NeonButton>
-      </div>
+      {/* Live site CTA (only if URL exists; case-study button removed —
+          full detail is rendered inline here in the drawer). */}
+      {project.liveUrl && (
+        <div style={{ marginBottom: 22 }}>
+          <NeonButton href={project.liveUrl} kind="solid">VISIT PROJECT ↗</NeonButton>
+        </div>
+      )}
 
-      {/* Key features */}
+      {/* Problem */}
+      {project.problem && (
+        <Group label="THE PROBLEM">
+          <p style={{ color: 'rgba(245,245,247,0.74)', fontSize: 12.5, lineHeight: 1.65, margin: 0 }}>
+            {project.problem}
+          </p>
+        </Group>
+      )}
+
+      {/* Solution */}
+      {project.solution && (
+        <Group label="THE SOLUTION">
+          <p style={{ color: 'rgba(245,245,247,0.74)', fontSize: 12.5, lineHeight: 1.65, margin: 0 }}>
+            {project.solution}
+          </p>
+        </Group>
+      )}
+
+      {/* Key features — ALL items (no slice) */}
       {project.features.length > 0 && (
         <Group label="KEY FEATURES">
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {project.features.slice(0, 4).map((f) => (
+            {project.features.map((f) => (
               <li key={f} style={{ display: 'flex', gap: 9, fontSize: 12.5, color: 'rgba(245,245,247,0.82)', lineHeight: 1.5 }}>
                 <CheckIcon />
-                <span>{shorten(f)}</span>
+                <span>{f}</span>
               </li>
             ))}
           </ul>
@@ -572,12 +594,3 @@ function NeonButton({
   )
 }
 
-function shorten(s: string): string {
-  // Trim wordy feature lines to a single comma-free clause when possible
-  if (s.length <= 60) return s
-  const cut = s.indexOf(' — ')
-  if (cut > 20 && cut < 70) return s.slice(0, cut)
-  const dot = s.indexOf('. ')
-  if (dot > 20 && dot < 70) return s.slice(0, dot)
-  return s.slice(0, 60).trim() + '…'
-}
