@@ -8,6 +8,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import emailjs from '@emailjs/browser'
 import { lenisInstance } from '@/components/providers/SmoothScroll'
 
 interface CtxValue {
@@ -187,18 +188,36 @@ function ContactBody({ onClose }: { onClose: () => void }) {
   const [email, setEmail]     = useState('')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
-  const [sent, setSent]       = useState(false)
+  const [status, setStatus]   = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
-  const canSubmit = name.trim().length > 1 && /^\S+@\S+\.\S+$/.test(email) && message.trim().length > 4
+  const canSubmit = status !== 'sending'
+    && name.trim().length > 1
+    && /^\S+@\S+\.\S+$/.test(email)
+    && message.trim().length > 4
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
-    const subj = subject.trim() || `New message from ${name}`
-    const body = `${message}\n\n— ${name}\n${email}`
-    window.location.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`
-    setSent(true)
+    setStatus('sending')
+    try {
+      await emailjs.send(
+        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
+        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
+        {
+          from_name:  name,
+          from_email: email,
+          subject:    subject.trim() || `New message from ${name}`,
+          message,
+        },
+        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
+      )
+      setStatus('sent')
+      setName(''); setEmail(''); setSubject(''); setMessage('')
+    } catch {
+      setStatus('error')
+    }
   }
+  const sent = status === 'sent'
 
   return (
     <div style={{ position: 'relative', padding: '22px 24px 28px' }}>
@@ -265,14 +284,14 @@ function ContactBody({ onClose }: { onClose: () => void }) {
             fontFamily: 'var(--font-mono), monospace',
             fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase',
             color: ACCENT, marginBottom: 8,
-          }}>SENT</div>
+          }}>MESSAGE SENT</div>
           <p style={{ margin: '0 0 14px 0', fontSize: 13, lineHeight: 1.55 }}>
-            Your email client should have opened with the message pre-filled.
-            Hit send and I&apos;ll get back to you soon.
+            Thanks for reaching out — your message landed in my inbox.
+            I&apos;ll reply within 24 hours.
           </p>
           <button
             type="button"
-            onClick={() => { setSent(false); setName(''); setEmail(''); setSubject(''); setMessage('') }}
+            onClick={() => { setStatus('idle') }}
             style={{
               padding: '8px 12px',
               fontFamily: 'var(--font-mono), monospace',
@@ -344,8 +363,22 @@ function ContactBody({ onClose }: { onClose: () => void }) {
               transition: 'background 220ms, box-shadow 220ms, border-color 220ms',
             }}
           >
-            Send Message →
+            {status === 'sending' ? 'Sending…' : 'Send Message →'}
           </button>
+
+          {status === 'error' && (
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(248, 113, 113, 0.5)',
+              background: 'rgba(248, 113, 113, 0.08)',
+              color: '#fecaca',
+              fontSize: 12,
+              lineHeight: 1.5,
+            }}>
+              Couldn&apos;t send right now — please email me directly at <a href={`mailto:${EMAIL}`} style={{ color: ACCENT }}>{EMAIL}</a>.
+            </div>
+          )}
 
           <div style={{
             display: 'flex', justifyContent: 'space-between', marginTop: 8,
