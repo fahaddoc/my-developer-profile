@@ -13,7 +13,6 @@
 // integration with main portfolio.
 
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
-import { useRouter } from 'next/navigation'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Text, Html } from '@react-three/drei'
 import * as THREE from 'three'
@@ -790,7 +789,6 @@ function ProjectTiles({
 
   const groupRef = useRef<THREE.Group>(null)
   const cardRefs  = useRef<(HTMLDivElement | null)[]>([])
-  const router    = useRouter()
 
   // Three orbital rings — each its own group so we can rotate them at
   // different angular velocities (inner = fastest, outer = slowest).
@@ -966,7 +964,9 @@ function ProjectTiles({
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
-                          router.push(`/projects/${p.id}`)
+                          if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: p.id }))
+                          }
                         }}
                         style={{
                           opacity: 0,
