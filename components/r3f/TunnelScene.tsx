@@ -324,14 +324,18 @@ function Station({
     groupRef.current.lookAt(pos.clone().sub(tangent))
   }, [curve, t])
 
-  // Proximity scrubbing — planet + label fade with camera approach.
+  // Planets stay visible throughout the tunnel at their true color — no
+  // hiding or alpha fade. The station label still fades with approach so it
+  // only "lights up" when nearby.
   useFrame(() => {
     const dist      = Math.abs(scrollRef.current - t)
-    const proximity = Math.max(0, 1 - dist / 0.08)
-    planetOpacityRef.current = proximity
+    const proximity = Math.max(0, 1 - dist / 0.10)
+
+    planetOpacityRef.current = 1
     if (textMatRef.current) (textMatRef.current as THREE.MeshBasicMaterial).opacity = proximity * 0.95
 
     if (groupRef.current) {
+      if (!groupRef.current.visible) groupRef.current.visible = true
       const breath = 1 + proximity * 0.04
       groupRef.current.scale.setScalar(breath)
     }
@@ -895,8 +899,8 @@ function ProjectTiles({
   useFrame(({ camera }) => {
     // Proximity fade
     const dist        = Math.abs(scrollRef.current - stationT)
-    const proximity   = Math.max(0, 1 - dist / 0.13)
-    const baseOpacity = Math.pow(proximity, 1.4)
+    const proximity   = Math.max(0, 1 - dist / 0.08)
+    const baseOpacity = Math.pow(proximity, 2.4)
     const interactive = baseOpacity > 0.35
 
     // Auto rotation — stops while dragging / tweening
@@ -907,12 +911,14 @@ function ProjectTiles({
     // Each card faces camera + compute world Z for active detection
     let bestIdx = 0
     let bestZ   = -Infinity
-    for (let i = 0; i < cardGroups.current.length; i++) {
-      const g = cardGroups.current[i]
-      if (!g) continue
+    const cardZs = cardGroups.current.map(g => {
+      if (!g) return -Infinity
       g.lookAt(camera.position)
       g.getWorldPosition(tmpVec)
-      if (tmpVec.z > bestZ) { bestZ = tmpVec.z; bestIdx = i }
+      return tmpVec.z
+    })
+    for (let i = 0; i < cardZs.length; i++) {
+      if (cardZs[i] > bestZ) { bestZ = cardZs[i]; bestIdx = i }
     }
     activeIdxRef.current = bestIdx
 
@@ -922,17 +928,30 @@ function ProjectTiles({
       if (!el) continue
       const isActive  = i === bestIdx
       const isHovered = i === hoveredRef.current
-      let scale = isActive ? 1.0 : 0.75
-      if (isHovered) scale = 1.05
-      const op = isActive ? baseOpacity : baseOpacity * 0.5
+      // Depth fade: front of orbit fully visible, back of orbit hidden
+      const depthT      = Math.max(0, Math.min(1, (cardZs[i] - (bestZ - 2 * ORBIT_RADIUS)) / (2 * ORBIT_RADIUS)))
+      const depthFade   = Math.pow(depthT, 2.2)
+      const cardOpacity = baseOpacity * depthFade
+      let scale = isActive ? 1.04 : 0.92
+      if (isHovered) scale = 1.08
       el.style.transform = `scale(${scale})`
-      el.style.opacity   = op.toFixed(3)
+      el.style.opacity   = cardOpacity.toFixed(3)
       el.style.boxShadow = isActive
-        ? 'inset 0 0 26px rgba(94,234,212,0.18), 0 0 36px rgba(94,234,212,0.55)'
-        : `inset 0 0 16px ${hexAlpha(pool[i].color, 0.10)}, 0 0 12px ${hexAlpha(pool[i].color, 0.18)}`
-      el.style.borderColor   = isActive ? '#5EEAD4' : hexAlpha(pool[i].color, 0.55)
-      el.style.zIndex        = isActive ? '20' : ''
-      el.style.pointerEvents = interactive ? 'auto' : 'none'
+        ? `
+          inset 0 1px 0 rgba(255,255,255,0.26),
+          inset 0 -1px 0 rgba(0,0,0,0.36),
+          0 16px 40px rgba(0,0,0,0.60),
+          0 0 56px ${hexAlpha(pool[i].color, 0.65)}
+        `
+        : `
+          inset 0 1px 0 rgba(255,255,255,0.18),
+          inset 0 -1px 0 rgba(0,0,0,0.34),
+          0 10px 28px rgba(0,0,0,0.55),
+          0 0 28px ${hexAlpha(pool[i].color, 0.28)}
+        `
+      el.style.borderColor   = isActive ? pool[i].color : hexAlpha(pool[i].color, 0.50)
+      el.style.zIndex        = isActive ? '20' : String(Math.round(cardZs[i] * 10) + 100)
+      el.style.pointerEvents = interactive && cardOpacity > 0.35 ? 'auto' : 'none'
     }
 
     // Hover Z-push — translate hovered card's parent group +0.3 toward camera
@@ -1024,14 +1043,27 @@ function ProjectTiles({
                       pointerEvents: 'none',
                       transformOrigin: 'center',
                       transition: 'transform 260ms cubic-bezier(0.16,1,0.3,1), box-shadow 240ms ease-out, opacity 160ms linear, border-color 200ms',
-                      width: 110,
-                      padding: '10px 10px 9px',
-                      borderRadius: 10,
-                      border: `1.2px solid ${p.color}`,
-                      background: `linear-gradient(140deg, rgb(var(--bg-surface) / 0.55) 0%, rgb(var(--bg-surface) / 0.82) 100%)`,
-                      backdropFilter: 'blur(6px)',
-                      WebkitBackdropFilter: 'blur(6px)',
-                      boxShadow: `inset 0 0 18px ${hexAlpha(p.color, 0.12)}, 0 0 16px ${hexAlpha(p.color, 0.20)}`,
+                      width: 115,
+                      padding: '12px 12px 10px',
+                      borderRadius: 20,
+                      border: `1.5px solid ${hexAlpha(p.color, 0.55)}`,
+                      // Dark glass fill — skills station has a dark backdrop so
+                      // its white-sheen cards naturally read as dark glass; the
+                      // projects station sits in front of the bright cyan
+                      // nebula, so projects need an explicit dark fill to LOOK
+                      // filled like skills do.
+                      background: `
+                        linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.02) 100%),
+                        linear-gradient(180deg, rgb(14,18,32) 0%, rgb(8,10,20) 100%)
+                      `,
+                      backdropFilter: 'blur(14px) saturate(160%)',
+                      WebkitBackdropFilter: 'blur(14px) saturate(160%)',
+                      boxShadow: `
+                        inset 0 1px 0 rgba(255,255,255,0.18),
+                        inset 0 -1px 0 rgba(0,0,0,0.34),
+                        0 10px 28px rgba(0,0,0,0.55),
+                        0 0 28px ${hexAlpha(p.color, 0.28)}
+                      `,
                       fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
                       color: 'rgb(var(--text-primary))',
                       userSelect: 'none',
@@ -1039,52 +1071,66 @@ function ProjectTiles({
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                      {/* Icon chip — glass capsule */}
                       <div style={{
-                        width: 26, height: 26, borderRadius: '50%',
-                        border: `1.1px solid ${p.color}`,
+                        width: 28, height: 28, borderRadius: '50%',
+                        border: `1.2px solid ${hexAlpha(p.color, 0.65)}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         color: p.color,
-                        boxShadow: `0 0 10px ${hexAlpha(p.color, 0.3)}, inset 0 0 6px ${hexAlpha(p.color, 0.15)}`,
+                        background: `linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02))`,
+                        backdropFilter: 'blur(8px)',
+                        WebkitBackdropFilter: 'blur(8px)',
+                        boxShadow: `
+                          inset 0 1px 0 rgba(255,255,255,0.18),
+                          0 0 10px ${hexAlpha(p.color, 0.40)}
+                        `,
+                        filter: `drop-shadow(0 0 4px ${hexAlpha(p.color, 0.4)})`,
                       }}>
-                        <span style={{ transform: 'scale(0.6)', display: 'inline-flex' }}>{iconFor(p)}</span>
+                        <span style={{ transform: 'scale(0.62)', display: 'inline-flex' }}>{iconFor(p)}</span>
                       </div>
                       <div style={{ textAlign: 'right', lineHeight: 1 }}>
                         <div style={{
                           fontFamily: 'var(--font-mono), ui-monospace, monospace',
                           fontSize: 8, fontWeight: 700,
-                          letterSpacing: '0.14em', color: p.color,
+                          letterSpacing: '0.16em', color: p.color,
+                          textShadow: `0 0 6px ${hexAlpha(p.color, 0.55)}`,
                         }}>{number}</div>
                         <div style={{
                           width: 3, height: 3, borderRadius: '50%',
                           background: p.color, marginLeft: 'auto', marginTop: 3,
-                          boxShadow: `0 0 4px ${p.color}`,
+                          boxShadow: `0 0 5px ${p.color}`,
                         }} />
                       </div>
                     </div>
 
                     <div style={{
-                      fontWeight: 700, fontSize: 11,
+                      fontWeight: 700, fontSize: 11.5,
                       letterSpacing: '-0.01em', lineHeight: 1.18,
                       marginBottom: 2,
+                      color: '#ffffff',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.45)',
                     }}>{name}</div>
                     <div style={{
                       fontSize: 8.5, fontWeight: 400,
-                      color: 'rgb(var(--text-primary) / 0.62)',
+                      color: 'rgba(255,255,255,0.65)',
                       lineHeight: 1.3,
                       minHeight: 11,
                     }}>{sub}</div>
 
                     {tags.length > 0 && (
-                      <div style={{ display: 'flex', gap: 3, marginTop: 6, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 4, marginTop: 7, flexWrap: 'wrap' }}>
                         {tags.map((t) => (
                           <span key={t} style={{
                             fontFamily: 'var(--font-mono), ui-monospace, monospace',
-                            fontSize: 7, padding: '2px 5px',
-                            borderRadius: 3,
-                            border: `1px solid ${hexAlpha(p.color, 0.5)}`,
-                            color: 'rgb(var(--text-primary))',
-                            letterSpacing: '0.04em',
-                            background: hexAlpha(p.color, 0.05),
+                            fontSize: 7, padding: '2px 6px',
+                            borderRadius: 999,
+                            border: `1px solid ${hexAlpha(p.color, 0.45)}`,
+                            color: 'rgba(255,255,255,0.88)',
+                            letterSpacing: '0.05em',
+                            background: 'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
+                            backdropFilter: 'blur(6px)',
+                            WebkitBackdropFilter: 'blur(6px)',
+                            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), 0 0 6px ${hexAlpha(p.color, 0.18)}`,
                           }}>{t}</span>
                         ))}
                       </div>
@@ -1128,8 +1174,8 @@ function HeroPortrait3D({
 
   useFrame(() => {
     const dist      = Math.abs(scrollRef.current - stationT)
-    const proximity = Math.max(0, 1 - dist / 0.13)
-    if (wrapRef.current) wrapRef.current.style.opacity = Math.pow(proximity, 1.3).toFixed(3)
+    const proximity = Math.max(0, 1 - dist / 0.07)
+    if (wrapRef.current) wrapRef.current.style.opacity = Math.pow(proximity, 2.4).toFixed(3)
   })
 
   return (
@@ -1181,8 +1227,8 @@ function SocialsEnd3D({
   useFrame(() => {
     // Fade in past CONTACT (t=0.86), full strength at STATION_T.
     const dist      = Math.abs(scrollRef.current - STATION_T)
-    const proximity = Math.max(0, 1 - dist / 0.12)
-    if (wrapRef.current) wrapRef.current.style.opacity = Math.pow(proximity, 1.2).toFixed(3)
+    const proximity = Math.max(0, 1 - dist / 0.07)
+    if (wrapRef.current) wrapRef.current.style.opacity = Math.pow(proximity, 2.4).toFixed(3)
   })
 
   const linkBase: React.CSSProperties = {
@@ -1457,20 +1503,14 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         <ProximityGate stationT={STATIONS.find((s) => s.id === 'skills')!.t} threshold={0.20}>
           <Suspense fallback={null}>
             <SkillsAnchor curve={curve} stationT={STATIONS.find((s) => s.id === 'skills')!.t}>
-              <SkillsOrbit />
+              <SkillsOrbit stationT={STATIONS.find((s) => s.id === 'skills')!.t} />
             </SkillsAnchor>
           </Suspense>
         </ProximityGate>
 
-        <ProximityGate stationT={STATIONS.find((s) => s.id === 'projects')!.t} threshold={0.20}>
-          <Suspense fallback={null}>
-            <ProjectTiles
-              curve={curve}
-              stationT={STATIONS.find((s) => s.id === 'projects')!.t}
-              bob={preset.tileBob}
-            />
-          </Suspense>
-        </ProximityGate>
+        {/* Projects grid now renders as a flat right-side HUD panel inside
+            TunnelHUD <ProjectsSideGrid>. Uniform card sizes, CSS grid layout
+            — replaces the previous 3D orbital ring around the planet. */}
 
         {/* Hero portrait now lives as a fixed-position DOM element inside
             TunnelHUD (right side, mirroring the left-side hero text). The

@@ -15,13 +15,12 @@ export default function AppleIcon() {
           alignItems: 'center',
           justifyContent: 'center',
           background:
-            'radial-gradient(circle at 30% 30%, #2e1065 0%, #0a0a0f 70%), linear-gradient(135deg, #1a0b2e 0%, #0a0a0f 100%)',
-          color: '#a855f7',
-          fontWeight: 800,
-          fontSize: 110,
-          letterSpacing: -6,
+            'radial-gradient(circle at 30% 30%, #25212e 0%, #0a0a0f 72%), linear-gradient(135deg, #1a1822 0%, #0a0a0f 100%)',
+          color: '#b4a5c8',
+          fontWeight: 700,
+          fontSize: 108,
+          letterSpacing: -5,
           fontFamily: 'system-ui, -apple-system, sans-serif',
-          textShadow: '0 0 20px rgba(168,85,247,0.6)',
         }}
       >
         SF

@@ -128,20 +128,17 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
           boxShadow: `0 0 10px ${hexAlpha(accent, 0.25)}`,
         }}
       >
-        {sound ? (
-          <>
+        <span style={{ display: 'inline-flex', alignItems: 'center', width: 9, height: 9 }}>
+          {sound ? (
             <span style={{
               width: 6, height: 6, borderRadius: '50%',
               background: accent, boxShadow: `0 0 6px ${accent}`,
             }} />
-            playing intro
-          </>
-        ) : (
-          <>
+          ) : (
             <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor"><path d="M2 1.5v7l6-3.5z" /></svg>
-            click for intro
-          </>
-        )}
+          )}
+        </span>
+        <span>{sound ? 'playing intro' : 'click for intro'}</span>
       </div>
     </div>
   )

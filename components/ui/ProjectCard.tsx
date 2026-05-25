@@ -86,9 +86,9 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
             border transition-all duration-300
             ${hovered
               ? 'border-accent-cyan/60 shadow-[0_0_28px_rgba(34,211,238,0.22),0_0_60px_rgba(34,211,238,0.08)]'
-              : 'border-accent-violet/12'
+              : 'border-white/10'
             }
-            bg-bg-surface
+            bg-bg-surface/40 backdrop-blur-xl
           `}
         >
 

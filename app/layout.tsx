@@ -103,8 +103,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  // `colorScheme` + `themeColor` are now set per-theme via the inline script
-  // that sets data-theme on <html> before paint.
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)',  color: '#0a0a0a' },
+    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
+  ],
 }
 
 // Inline script that runs BEFORE React hydrates. Reads localStorage (or

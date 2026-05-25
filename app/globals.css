@@ -15,29 +15,29 @@
   --bg-surface:    13  13  20;
   --bg-elevated:   17  17  32;
 
-  --accent-violet: 168 85  247;
-  --accent-cyan:   34  211 238;
-  --accent-green:  34  197 94;
-  --accent-emerald:16  185 129;
+  /* Editorial palette — muted, desaturated. Same hues, ~40% saturation. */
+  --accent-violet: 180 165 200;
+  --accent-cyan:   150 175 185;
+  --accent-green:  150 175 150;
+  --accent-emerald:120 160 145;
 
   --text-primary:  241 245 249;
   --text-secondary:148 163 184;
   --text-muted:    71  85  105;
 
   /* Overlays — dot grid + scanlines */
-  --grid-dot-rgb:    168 85 247;
-  --grid-dot-alpha:  0.07;
+  --grid-dot-rgb:    180 165 200;
+  --grid-dot-alpha:  0.05;
   --scanline-rgb:    0 0 0;
   --scanline-alpha:  0.03;
 
   /* Selection */
-  --selection-bg:   168 85 247;
+  --selection-bg:   180 165 200;
   --selection-fg:   241 245 249;
 
-  /* Per-theme text shadows for big headings — neon glow on dark,
-     subtle dark drop on light so headings have depth on white bg. */
-  --heading-shadow: 0 0 24px rgb(94 234 212 / 0.18);
-  --eyebrow-shadow: 0 0 10px rgb(94 234 212 / 0.5);
+  /* Subtle dark drops — no neon glow */
+  --heading-shadow: 0 2px 12px rgb(0 0 0 / 0.5);
+  --eyebrow-shadow: none;
   --body-shadow:    none;
 
   color-scheme: dark;
@@ -116,27 +116,43 @@ footer {
   color: rgb(var(--selection-fg));
 }
 
+/* Base link styling — muted lavender, subtle underline, no glow */
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 180ms ease, border-color 180ms ease;
+}
+a:hover {
+  color: rgb(var(--accent-violet));
+}
+a:focus-visible {
+  outline: 2px solid rgb(var(--accent-violet) / 0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 @layer utilities {
+  /* Glow utilities — softened (≈50% original alpha) using muted token palette */
   .glow-violet {
-    box-shadow: 0 0 40px rgb(var(--accent-violet) / 0.35), 0 0 80px rgb(var(--accent-violet) / 0.1);
+    box-shadow: 0 0 32px rgb(var(--accent-violet) / 0.18), 0 0 70px rgb(var(--accent-violet) / 0.05);
   }
   .glow-violet-sm {
-    box-shadow: 0 0 20px rgb(var(--accent-violet) / 0.15);
+    box-shadow: 0 0 18px rgb(var(--accent-violet) / 0.08);
   }
   .glow-cyan {
-    box-shadow: 0 0 40px rgb(var(--accent-cyan) / 0.3), 0 0 80px rgb(var(--accent-cyan) / 0.08);
+    box-shadow: 0 0 32px rgb(var(--accent-cyan) / 0.15), 0 0 70px rgb(var(--accent-cyan) / 0.04);
   }
   .glow-cyan-sm {
-    box-shadow: 0 0 16px rgb(var(--accent-cyan) / 0.12);
+    box-shadow: 0 0 14px rgb(var(--accent-cyan) / 0.06);
   }
   .glow-emerald-sm {
-    box-shadow: 0 0 16px rgb(var(--accent-emerald) / 0.3);
+    box-shadow: 0 0 14px rgb(var(--accent-emerald) / 0.15);
   }
   .text-glow-violet {
-    text-shadow: 0 0 20px rgb(var(--accent-violet) / 0.7), 0 0 40px rgb(var(--accent-violet) / 0.3);
+    text-shadow: 0 0 16px rgb(var(--accent-violet) / 0.35), 0 0 32px rgb(var(--accent-violet) / 0.12);
   }
   .text-glow-cyan {
-    text-shadow: 0 0 20px rgb(var(--accent-cyan) / 0.7), 0 0 40px rgb(var(--accent-cyan) / 0.3);
+    text-shadow: 0 0 16px rgb(var(--accent-cyan) / 0.35), 0 0 32px rgb(var(--accent-cyan) / 0.12);
   }
   .border-subtle {
     border-color: rgb(var(--accent-violet) / 0.12);
@@ -146,8 +162,8 @@ footer {
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
   }
   .neon-card:hover {
-    border-color: rgb(var(--accent-violet) / 0.45);
-    box-shadow: 0 0 30px rgb(var(--accent-violet) / 0.12), inset 0 0 30px rgb(var(--accent-violet) / 0.03);
+    border-color: rgb(var(--accent-violet) / 0.30);
+    box-shadow: 0 0 22px rgb(var(--accent-violet) / 0.06), inset 0 0 22px rgb(var(--accent-violet) / 0.02);
   }
 }
 

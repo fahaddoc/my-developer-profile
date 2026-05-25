@@ -17,7 +17,7 @@ import { IntroMiniPlayer } from '@/components/r3f/IntroMiniPlayer'
 import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
 import { lenisInstance } from '@/components/providers/SmoothScroll'
 import { useTheme } from '@/components/providers/ThemeProvider'
-import { experience } from '@/data/projects'
+import { experience, projects } from '@/data/projects'
 
 // Lenis hijacks native scroll, so el.scrollIntoView({behavior:'smooth'})
 // gets cancelled mid-animation. Use lenis.scrollTo when available so the
@@ -235,6 +235,9 @@ export function TunnelHUD() {
       {/* ─── right: hero portrait (only fades in on INTRO) ────────────── */}
       <HeroSidePhoto progress={progress} accent={accent} />
 
+      {/* ─── right: projects grid (only fades in on PROJECTS) ─────────── */}
+      <ProjectsSideGrid progress={progress} />
+
       {/* ─── bottom-center: SCROLL DOWN + mouse icon ──────────────────── */}
       <div
         style={{
@@ -332,6 +335,122 @@ function HeroSidePhoto({ progress, accent }: { progress: number; accent: string 
   )
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ProjectsSideGrid — fixed right-side 3×3 grid of project cards. Replaces the
+// orbital 3D ring around the PROJECTS planet. Cards are uniform size, click
+// opens the project drawer.
+// ─────────────────────────────────────────────────────────────────────────────
+function ProjectsSideGrid({ progress }: { progress: number }) {
+  const PROJECTS_T = STATIONS.find((s) => s.id === 'projects')?.t ?? 0.55
+  const dist    = Math.abs(progress - PROJECTS_T)
+  const opacity = Math.pow(Math.max(0, 1 - dist / 0.10), 1.1)
+
+  if (opacity < 0.01) return null
+
+  const pool = [...projects]
+    .sort((a, b) => Number(b.featured ?? false) - Number(a.featured ?? false))
+    .slice(0, 9)
+
+  const openDrawer = (id: string) => {
+    window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: id }))
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        right:    '5vw',
+        top:      '50%',
+        transform: 'translateY(-50%)',
+        zIndex:   30,
+        display:  'grid',
+        gridTemplateColumns: 'repeat(3, 132px)',
+        gridAutoRows: '132px',
+        gap: 14,
+        opacity,
+        transition: 'opacity 220ms',
+        pointerEvents: opacity > 0.4 ? 'auto' : 'none',
+      }}
+    >
+      {pool.map((p, i) => (
+        <button
+          key={p.id}
+          onClick={() => openDrawer(p.id)}
+          aria-label={`Open ${p.title} case study`}
+          style={{
+            position: 'relative',
+            padding: '12px 12px 10px',
+            borderRadius: 16,
+            border: `1.5px solid ${hexAlpha(p.color, 0.55)}`,
+            background: `
+              linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.02) 100%),
+              linear-gradient(180deg, rgb(14,18,32) 0%, rgb(8,10,20) 100%)
+            `,
+            backdropFilter: 'blur(14px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(160%)',
+            color: 'rgb(var(--text-primary))',
+            textAlign: 'left',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
+            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+            transition: 'transform 200ms cubic-bezier(0.16,1,0.3,1), border-color 200ms',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform   = 'scale(1.04)'
+            e.currentTarget.style.borderColor = p.color
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform   = 'scale(1)'
+            e.currentTarget.style.borderColor = hexAlpha(p.color, 0.55)
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{
+              width: 28, height: 28, borderRadius: '50%',
+              border: `1.2px solid ${hexAlpha(p.color, 0.65)}`,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02))',
+              color: p.color,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-mono), monospace',
+              fontSize: 11, fontWeight: 700,
+            }}>
+              {p.category === 'mobile' ? '◳' : p.category === 'realtime' ? '◎' : '◰'}
+            </span>
+            <span style={{
+              fontFamily: 'var(--font-mono), monospace',
+              fontSize: 9, fontWeight: 700,
+              letterSpacing: '0.16em', color: p.color,
+            }}>
+              {String(i + 1).padStart(2, '0')}
+            </span>
+          </div>
+
+          <div>
+            <div style={{
+              fontSize: 12.5, fontWeight: 700, lineHeight: 1.18,
+              color: '#ffffff',
+              overflow: 'hidden', textOverflow: 'ellipsis',
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+            }}>
+              {p.title.split(' — ')[0]}
+            </div>
+            <div style={{
+              marginTop: 4,
+              fontFamily: 'var(--font-mono), monospace',
+              fontSize: 8.5,
+              color: 'rgba(255,255,255,0.55)',
+              letterSpacing: '0.06em',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {(p.tech ?? []).slice(0, 2).join(' · ')}
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function renderCard(s: StationDef) {
   switch (s.id) {
     case 'hero':       return <HeroCard       station={s} />
@@ -345,17 +464,65 @@ function renderCard(s: StationDef) {
 }
 
 function SkillsCard({ station }: { station: StationDef }) {
+  const stats = [
+    { label: 'React + Next.js',  value: 'Frontend Core'      },
+    { label: 'Flutter + WebRTC', value: 'Mobile & Real-Time' },
+    { label: 'Three.js + GSAP',  value: '3D & Creative'      },
+  ]
   return (
     <>
-      <div style={eyebrow(station.color)}>{station.subtitle}</div>
-      <h2 style={heading}>{station.heading}</h2>
-      <p style={tagline}>{station.tagline}</p>
+      <div style={{
+        fontFamily: 'var(--font-mono), ui-monospace, monospace',
+        fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase',
+        color: '#00ffff', marginBottom: 18,
+        textShadow: 'var(--eyebrow-shadow)',
+      }}>
+        Technologies I work with
+      </div>
+
+      <h2 style={{
+        ...heading,
+        fontSize: '2.2rem',
+        color: '#ffffff',
+        marginBottom: 18,
+      }}>
+        6 Years of Craft
+      </h2>
+
+      <p style={{
+        fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
+        fontSize: '0.95rem', lineHeight: 1.7, color: '#a0a0b0',
+        margin: '0 0 26px', maxWidth: 480,
+      }}>
+        From pixel-perfect React interfaces to real-time WebRTC video platforms — I build things that work at scale. Specialized across frontend, mobile, and live-communication systems.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 22 }}>
+        {stats.map((s) => (
+          <div key={s.label} style={{
+            display: 'flex', alignItems: 'baseline',
+            fontFamily: 'var(--font-mono), ui-monospace, monospace',
+            fontSize: 12, letterSpacing: '0.06em',
+          }}>
+            <span style={{ color: '#ffffff' }}>{s.label}</span>
+            <span style={{
+              flex: 1, margin: '0 10px', overflow: 'hidden',
+              color: 'rgb(var(--text-primary) / 0.25)',
+              letterSpacing: '0.2em',
+            }}>
+              ················································
+            </span>
+            <span style={{ color: '#00ffff' }}>{s.value}</span>
+          </div>
+        ))}
+      </div>
+
       <div style={{
         fontFamily: 'var(--font-mono), ui-monospace, monospace',
         fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase',
         color: 'rgb(var(--text-primary) / 0.55)',
       }}>
-        → Drag the orbital ring · click a group for details
+        → Drag to explore · click icon for details
       </div>
     </>
   )
@@ -451,16 +618,29 @@ function HeroCard({ station }: { station: StationDef }) {
         Building real-time, high-performance and scalable digital experiences
         from <span style={{ color: station.color }}>Karachi, Pakistan.</span>
       </p>
-      <a
-        href="#about"
-        onClick={(e) => {
-          e.preventDefault()
-          scrollToStation('about')
-        }}
-        style={ctaBtn(station.color)}
-      >
-        Start Journey <span style={{ fontSize: 13 }}>→</span>
-      </a>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+        <a
+          href="#about"
+          onClick={(e) => {
+            e.preventDefault()
+            scrollToStation('about')
+          }}
+          style={ctaBtn(station.color)}
+        >
+          Start Journey <span style={{ fontSize: 13 }}>→</span>
+        </a>
+        <a
+          href="/Shah_Fahad_Resume.pdf"
+          download="Shah_Fahad_Resume.pdf"
+          aria-label="Download Shah Fahad's resume (PDF)"
+          style={ctaBtnGhost(station.color)}
+        >
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M2.5 13h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Resume
+        </a>
+      </div>
     </>
   )
 }
