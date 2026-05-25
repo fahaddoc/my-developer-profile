@@ -3,6 +3,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from 'next/font/google'
 import { GoogleAnalytics } from '@next/third-parties/google'
+import Script from 'next/script'
 import { SmoothScroll } from '@/components/providers/SmoothScroll'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { personSchema, websiteSchema } from '@/lib/seo/jsonld'
@@ -112,6 +113,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <JsonLd data={websiteSchema()} />
         <SmoothScroll>{children}</SmoothScroll>
         {gaId ? <GoogleAnalytics gaId={gaId} /> : null}
+        <Script src="https://leflux.xrlabs.app/embed.js" strategy="afterInteractive" />
       </body>
     </html>
   )
