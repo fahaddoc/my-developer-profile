@@ -5,6 +5,9 @@
 // the 3D scene. That kills the old collision between drei <Html> and the
 // passing tunnel rings.
 
+import { useEffect, useRef, useState } from 'react'
+import { FaGithub, FaLinkedinIn, FaEnvelope, FaPhone } from 'react-icons/fa6'
+import type { IconType } from 'react-icons'
 import {
   STATIONS,
   nearestStation,
@@ -236,7 +239,10 @@ export function TunnelHUD() {
       <HeroSidePhoto progress={progress} accent={accent} />
 
       {/* ─── right: projects grid (only fades in on PROJECTS) ─────────── */}
-      <ProjectsSideGrid progress={progress} />
+      <AboutStory progress={progress} />
+      <ProjectsConstellation progress={progress} />
+      <ExperienceJourney progress={progress} />
+      <ContactOrbit progress={progress} />
 
       {/* ─── bottom-center: SCROLL DOWN + mouse icon ──────────────────── */}
       <div
@@ -336,117 +342,482 @@ function HeroSidePhoto({ progress, accent }: { progress: number; accent: string 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ProjectsSideGrid — fixed right-side 3×3 grid of project cards. Replaces the
-// orbital 3D ring around the PROJECTS planet. Cards are uniform size, click
-// opens the project drawer.
+// ProjectsConstellation — projects rendered as glowing nodes wired to a central
+// hub on the right half of the screen. Autoplays through the projects; hovering
+// any node pins it (autoplay pauses) and surfaces its detail card. Click a node
+// or the CTA to open the full project drawer.
 // ─────────────────────────────────────────────────────────────────────────────
-function ProjectsSideGrid({ progress }: { progress: number }) {
+
+// Node layout in % of the constellation box. The detail card sits on the LEFT
+// of the box (≈ screen centre); the hub + node thumbnails ring the RIGHT, so
+// nodes stay clear of the card (min x ≈ 52%).
+const CN_HUB   = { x: 58, y: 50 }
+const CN_NODES = [
+  { x: 86, y: 50 }, { x: 79, y: 23 }, { x: 63, y: 9 },
+  { x: 44, y: 14 }, { x: 32, y: 36 }, { x: 32, y: 64 },
+  { x: 44, y: 86 }, { x: 63, y: 91 }, { x: 79, y: 77 },
+]
+// Autoplay cadence. A literal quarter-second strobes too fast to read the card,
+// so it sits at a readable pace — tweak this single value to taste.
+const CN_AUTOPLAY_MS = 2600
+
+function ProjectsConstellation({ progress }: { progress: number }) {
   const PROJECTS_T = STATIONS.find((s) => s.id === 'projects')?.t ?? 0.55
   const dist    = Math.abs(progress - PROJECTS_T)
-  const opacity = Math.pow(Math.max(0, 1 - dist / 0.10), 1.1)
-
-  if (opacity < 0.01) return null
+  // Tight band around the PROJECTS station so the whole constellation has fully
+  // faded out BEFORE the camera reaches the neighbouring stations (skills 0.35
+  // / experience 0.75) — no bleed into the next section. Card stays fully
+  // opaque mid-dwell (a dark panel ghosts the instant its opacity dips), the
+  // ambient lines / nodes / glow fade on a slightly narrower ramp.
+  const cardOp  = Math.max(0, Math.min(1, (0.105 - dist) / 0.035))
+  const ambient = Math.max(0, Math.min(1, (0.095 - dist) / 0.04))
+  const near    = cardOp > 0.4
 
   const pool = [...projects]
     .sort((a, b) => Number(b.featured ?? false) - Number(a.featured ?? false))
     .slice(0, 9)
 
-  const openDrawer = (id: string) => {
+  const [active, setActive] = useState(0)
+  const [paused, setPaused] = useState(false)
+
+  // Autoplay — only advances while the station is in view and not hovered.
+  useEffect(() => {
+    if (!near || paused) return
+    const id = setInterval(() => {
+      setActive((a) => (a + 1) % pool.length)
+    }, CN_AUTOPLAY_MS)
+    return () => clearInterval(id)
+  }, [near, paused, pool.length])
+
+  if (dist > 0.11) return null
+
+  const ACCENT   = '#5EEAD4'
+  const catLabel = (c: string) =>
+    c === 'mobile' ? 'MOBILE' : c === 'realtime' ? 'REAL-TIME' : 'WEB'
+  const openDrawer = (id: string) =>
     window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: id }))
-  }
+
+  const p = pool[active]
+
+  return (
+    <div
+      onMouseLeave={() => setPaused(false)}
+      style={{
+        position: 'fixed',
+        right:    0,
+        top:      '50%',
+        transform: 'translateY(-50%)',
+        width:    'min(64vw, 980px)',
+        height:   'min(86vh, 700px)',
+        zIndex:   30,
+        pointerEvents: near ? 'auto' : 'none',
+      }}
+    >
+      <style>{`
+        @keyframes cn-pulse { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.85} 50%{transform:translate(-50%,-50%) scale(1.16);opacity:1} }
+        @keyframes cn-bar   { from{width:0%} to{width:100%} }
+        @keyframes cn-fade  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes cn-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-9px)} }
+      `}</style>
+
+      {/* connector lines hub → nodes */}
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: ambient, transition: 'opacity 220ms' }}>
+        {CN_NODES.map((n, i) => (
+          <line key={i}
+            x1={`${CN_HUB.x}%`} y1={`${CN_HUB.y}%`} x2={`${n.x}%`} y2={`${n.y}%`}
+            stroke={i === active ? ACCENT : 'rgba(94,234,212,0.16)'}
+            strokeWidth={i === active ? 1.5 : 0.8}
+            strokeDasharray={i === active ? '0' : '3 5'}
+            style={{ transition: 'stroke .35s, stroke-width .35s' }} />
+        ))}
+      </svg>
+
+      {/* centre energy glow behind the card — the card itself is the hub now */}
+      <div style={{
+        position: 'absolute', left: `${CN_HUB.x}%`, top: '50%', transform: 'translate(-50%,-50%)',
+        width: 420, height: 420, borderRadius: '50%', pointerEvents: 'none',
+        background: `radial-gradient(circle, ${ACCENT}24, transparent 70%)`,
+        opacity: ambient, transition: 'opacity 220ms',
+      }} />
+
+      {/* node thumbnails — each node is a mini project card wired to the hub */}
+      {CN_NODES.map((n, i) => {
+        const it = pool[i]
+        const on = i === active
+        return (
+          <button key={it.id}
+            onMouseEnter={() => { setActive(i); setPaused(true) }}
+            onFocus={() => { setActive(i); setPaused(true) }}
+            onClick={() => openDrawer(it.id)}
+            aria-label={`Open ${it.title} case study`}
+            style={{
+              position: 'absolute', left: `${n.x}%`, top: `${n.y}%`,
+              transform: 'translate(-50%,-50%)',
+              width: 76, height: 58, padding: 0, border: 'none', background: 'transparent',
+              cursor: 'pointer', zIndex: on ? 6 : 2,
+            }}>
+            {/* scale layer */}
+            <div style={{
+              width: '100%', height: '100%',
+              opacity: (on ? 1 : 0.7) * ambient,
+              transform: `scale(${on ? 1.08 : 0.9})`,
+              transition: 'opacity .25s, transform .35s cubic-bezier(.16,1,.3,1)',
+            }}>
+              {/* floating layer — gentle bob, desynced per node */}
+              <div style={{
+                position: 'relative', width: '100%', height: '100%',
+                borderRadius: 11, overflow: 'hidden', background: '#0a0e1a',
+                border: on ? `1.5px solid ${ACCENT}` : '1px solid rgba(94,234,212,0.26)',
+                boxShadow: on
+                  ? `0 0 24px ${ACCENT}99, 0 12px 28px rgba(0,0,0,0.6)`
+                  : '0 8px 20px rgba(0,0,0,0.5)',
+                transition: 'border-color .3s, box-shadow .3s',
+                animation: `cn-float ${(3.6 + (i % 3) * 0.9).toFixed(1)}s ease-in-out ${(-i * 0.6).toFixed(1)}s infinite`,
+              }}>
+                <img src={it.image} alt="" draggable={false}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', inset: 0, background: on
+                  ? 'linear-gradient(180deg, rgba(5,8,16,0.04), rgba(5,8,16,0.42))'
+                  : 'linear-gradient(180deg, rgba(5,8,16,0.28), rgba(5,8,16,0.64))' }} />
+                <span style={{
+                  position: 'absolute', top: 4, left: 6,
+                  fontFamily: 'var(--font-mono), monospace', fontSize: 8.5, fontWeight: 700,
+                  letterSpacing: '0.1em', color: '#fff', textShadow: `0 0 6px ${ACCENT}, 0 1px 3px #000`,
+                }}>
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+              </div>
+            </div>
+          </button>
+        )
+      })}
+
+      {/* detail card — the centre hub itself. Nodes ring around it, connector
+          lines emanate from behind it. Opaque so nothing bleeds through. */}
+      <div style={{
+        position: 'absolute', left: `${CN_HUB.x}%`, top: '50%', transform: 'translate(-50%,-50%)',
+        width: 300, zIndex: 7,
+        opacity: cardOp, transition: 'opacity 200ms',
+        // Glassmorphic — translucent dark tint + backdrop blur frosts the
+        // nebula behind the card; the dark tint keeps text readable.
+        background: 'linear-gradient(165deg, rgba(17,27,42,0.52) 0%, rgba(7,11,18,0.60) 100%)',
+        backdropFilter: 'blur(24px) saturate(165%)', WebkitBackdropFilter: 'blur(24px) saturate(165%)',
+        border: `1px solid ${ACCENT}59`, borderRadius: 22,
+        boxShadow: `0 34px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(94,234,212,0.12), 0 0 60px ${ACCENT}26, inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.3)`,
+        overflow: 'hidden',
+      }}>
+        <style>{`
+          .cn-cta { transition: filter .25s, box-shadow .25s, transform .2s; }
+          .cn-cta:hover { filter: brightness(1.08); box-shadow: 0 10px 26px ${ACCENT}55; transform: translateY(-1px); }
+          .cn-cta:active { transform: translateY(0); }
+          .cn-cta .cn-arr { display: inline-block; transition: transform .25s; }
+          .cn-cta:hover .cn-arr { transform: translateX(5px); }
+        `}</style>
+
+        {/* autoplay progress bar */}
+        <div style={{ height: 3, background: 'rgba(255,255,255,0.06)' }}>
+          <div
+            key={`${active}-${paused}`}
+            style={{
+              height: '100%', background: `linear-gradient(90deg, ${ACCENT}, #38bdf8)`,
+              width: paused ? '100%' : '0%', boxShadow: `0 0 8px ${ACCENT}`,
+              animation: paused ? 'none' : `cn-bar ${CN_AUTOPLAY_MS}ms linear forwards`,
+              opacity: paused ? 0.4 : 1,
+            }} />
+        </div>
+
+        <div key={p.id} style={{ opacity: 1, animation: 'cn-fade .4s ease' }}>
+          {/* cinematic image — the title overlays its lower third */}
+          <div style={{ position: 'relative', height: 162, overflow: 'hidden' }}>
+            <img src={p.image} alt="" draggable={false}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div style={{ position: 'absolute', inset: 0,
+              background: 'linear-gradient(180deg, rgba(10,16,26,0) 26%, rgba(10,16,26,0.5) 56%, rgba(11,17,28,0.78) 100%)' }} />
+            <span style={{
+              position: 'absolute', top: 13, left: 13, padding: '4px 9px', borderRadius: 6,
+              background: 'rgba(7,11,18,0.58)', backdropFilter: 'blur(4px)',
+              border: `1px solid ${ACCENT}3a`,
+              fontFamily: 'var(--font-mono), monospace', fontSize: 8, fontWeight: 700,
+              letterSpacing: '0.16em', color: ACCENT,
+            }}>{catLabel(p.category)}</span>
+            <span style={{
+              position: 'absolute', top: 13, right: 14,
+              fontFamily: 'var(--font-mono), monospace', fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.1em', color: '#fff', textShadow: `0 0 8px ${ACCENT}`,
+            }}>
+              {String(active + 1).padStart(2, '0')}
+              <span style={{ opacity: 0.45 }}> / {String(pool.length).padStart(2, '0')}</span>
+            </span>
+            {/* overlaid meta + title */}
+            <div style={{ position: 'absolute', left: 15, right: 15, bottom: 11 }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5,
+                fontFamily: 'var(--font-mono), monospace', fontSize: 8,
+                letterSpacing: '0.18em', color: ACCENT,
+              }}>
+                <span style={{ width: 14, height: 1.5, background: ACCENT, boxShadow: `0 0 6px ${ACCENT}` }} />
+                {p.company.toUpperCase()} · {p.year}
+              </div>
+              <div style={{
+                fontFamily: 'var(--font-display), sans-serif', fontWeight: 800,
+                fontSize: 18, lineHeight: 1.05, letterSpacing: '-0.015em', color: '#fff',
+                textShadow: '0 2px 16px rgba(0,0,0,0.85)',
+              }}>{p.title.split(' — ')[0]}</div>
+            </div>
+          </div>
+
+          {/* body */}
+          <div style={{ padding: '11px 15px 15px' }}>
+            <p style={{
+              fontSize: 11.5, lineHeight: 1.5, color: 'rgba(255,255,255,0.62)',
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            }}>{p.tagline}</p>
+
+            <div style={{ marginTop: 11, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {(p.tech ?? []).slice(0, 3).map((t) => (
+                <span key={t} style={{
+                  fontFamily: 'var(--font-mono), monospace', fontSize: 8.5,
+                  color: 'rgba(255,255,255,0.82)', padding: '3px 8px', borderRadius: 999,
+                  border: '1px solid rgba(94,234,212,0.28)', background: 'rgba(94,234,212,0.05)',
+                }}>{t}</span>
+              ))}
+            </div>
+
+            <button
+              className="cn-cta"
+              onClick={() => openDrawer(p.id)}
+              style={{
+                marginTop: 13, width: '100%', padding: '10px 0', borderRadius: 10,
+                background: `linear-gradient(135deg, ${ACCENT} 0%, #38bdf8 100%)`,
+                color: '#05070d', border: 'none', cursor: 'pointer',
+                fontFamily: 'var(--font-mono), monospace', fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.15em',
+              }}>VIEW CASE STUDY <span className="cn-arr">→</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExperienceJourney — right-side "Orbital Trajectory" for the EXPERIENCE station.
+// A curved flight path with a glowing waypoint-planet per role (newest on top),
+// labels beside each. Proximity-faded + fully gone before the neighbouring
+// stations (projects 0.55 / contact 0.90).
+// ─────────────────────────────────────────────────────────────────────────────
+const EJ_NODES = [{ x: 78, y: 12 }, { x: 40, y: 38 }, { x: 70, y: 64 }, { x: 32, y: 88 }]
+const EJ_PATH  = 'M 78 12 C 55 22, 50 28, 40 38 S 78 54, 70 64 S 40 78, 32 88'
+
+function ExperienceJourney({ progress }: { progress: number }) {
+  const EXP_T   = STATIONS.find((s) => s.id === 'experience')?.t ?? 0.75
+  const dist    = Math.abs(progress - EXP_T)
+  // Very tight — experience (0.75) and contact (0.90) are only 0.15 apart and
+  // both render on the right, so hand off cleanly around their midpoint (0.825)
+  // with no overlap.
+  const opacity = Math.max(0, Math.min(1, (0.075 - dist) / 0.035))
+  const near    = opacity > 0.4
+  if (dist > 0.08) return null
+
+  const ACCENT = '#5EEAD4'
+  const jour   = experience.slice(0, 4)
 
   return (
     <div
       style={{
-        position: 'fixed',
-        right:    '5vw',
-        top:      '50%',
-        transform: 'translateY(-50%)',
-        zIndex:   30,
-        display:  'grid',
-        gridTemplateColumns: 'repeat(3, 132px)',
-        gridAutoRows: '132px',
-        gap: 14,
-        opacity,
-        transition: 'opacity 220ms',
-        pointerEvents: opacity > 0.4 ? 'auto' : 'none',
+        position: 'fixed', right: 0, top: '50%', transform: 'translateY(-50%)',
+        width: 'min(56vw, 780px)', height: 'min(74vh, 560px)', zIndex: 30,
+        opacity, transition: 'opacity 240ms', pointerEvents: near ? 'auto' : 'none',
       }}
     >
-      {pool.map((p, i) => (
-        <button
-          key={p.id}
-          onClick={() => openDrawer(p.id)}
-          aria-label={`Open ${p.title} case study`}
-          style={{
-            position: 'relative',
-            padding: '12px 12px 10px',
-            borderRadius: 16,
-            border: `1.5px solid ${hexAlpha(p.color, 0.55)}`,
-            background: `
-              linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.02) 100%),
-              linear-gradient(180deg, rgb(14,18,32) 0%, rgb(8,10,20) 100%)
-            `,
-            backdropFilter: 'blur(14px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(14px) saturate(160%)',
-            color: 'rgb(var(--text-primary))',
-            textAlign: 'left',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
-            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-            transition: 'transform 200ms cubic-bezier(0.16,1,0.3,1), border-color 200ms',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform   = 'scale(1.04)'
-            e.currentTarget.style.borderColor = p.color
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform   = 'scale(1)'
-            e.currentTarget.style.borderColor = hexAlpha(p.color, 0.55)
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{
-              width: 28, height: 28, borderRadius: '50%',
-              border: `1.2px solid ${hexAlpha(p.color, 0.65)}`,
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02))',
-              color: p.color,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'var(--font-mono), monospace',
-              fontSize: 11, fontWeight: 700,
-            }}>
-              {p.category === 'mobile' ? '◳' : p.category === 'realtime' ? '◎' : '◰'}
-            </span>
-            <span style={{
-              fontFamily: 'var(--font-mono), monospace',
-              fontSize: 9, fontWeight: 700,
-              letterSpacing: '0.16em', color: p.color,
-            }}>
-              {String(i + 1).padStart(2, '0')}
-            </span>
-          </div>
+      <style>{`
+        @keyframes ej-dash  { to { stroke-dashoffset: -40; } }
+        @keyframes ej-float { 0%,100%{ transform: translate(-50%,-50%) translateY(0); }
+                              50%   { transform: translate(-50%,-50%) translateY(-7px); } }
+      `}</style>
 
-          <div>
+      {/* trajectory path */}
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+        <path d={EJ_PATH} fill="none" stroke={`${ACCENT}40`} strokeWidth="0.5" strokeDasharray="2 3" style={{ animation: 'ej-dash 3s linear infinite' }} />
+        <path d={EJ_PATH} fill="none" stroke={ACCENT} strokeWidth="0.3" opacity="0.5" />
+      </svg>
+
+      {/* waypoint planets + labels */}
+      {jour.map((e, i) => {
+        const p = EJ_NODES[i]
+        return (
+          <div key={e.id} style={{
+            position: 'absolute', left: `${p.x}%`, top: `${p.y}%`,
+            animation: `ej-float ${(3.6 + i * 0.5).toFixed(1)}s ease-in-out ${(-i * 0.4).toFixed(1)}s infinite`,
+          }}>
+            <span style={{
+              display: 'block', width: e.current ? 22 : 16, height: e.current ? 22 : 16, borderRadius: '50%',
+              background: `radial-gradient(circle at 35% 30%, #aef6ec, ${ACCENT} 55%, #0b6b5e)`,
+              boxShadow: `0 0 ${e.current ? 26 : 16}px ${ACCENT}`,
+              border: e.current ? '2px solid #fff' : 'none',
+            }} />
             <div style={{
-              fontSize: 12.5, fontWeight: 700, lineHeight: 1.18,
-              color: '#ffffff',
-              overflow: 'hidden', textOverflow: 'ellipsis',
-              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-            }}>
-              {p.title.split(' — ')[0]}
-            </div>
-            <div style={{
-              marginTop: 4,
-              fontFamily: 'var(--font-mono), monospace',
-              fontSize: 8.5,
-              color: 'rgba(255,255,255,0.55)',
-              letterSpacing: '0.06em',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {(p.tech ?? []).slice(0, 2).join(' · ')}
+              position: 'absolute', top: '50%', transform: 'translateY(-50%)',
+              [p.x > 50 ? 'right' : 'left']: 26, width: 184,
+              textAlign: p.x > 50 ? 'right' : 'left',
+            } as React.CSSProperties}>
+              <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 9.5, letterSpacing: '0.1em', color: ACCENT }}>
+                {e.period}{e.current ? ' · NOW' : ''}
+              </div>
+              <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 15, fontWeight: 700, color: '#fff', lineHeight: 1.15, marginTop: 2, textShadow: '0 1px 8px rgba(0,0,0,0.7)' }}>
+                {e.role}
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 10, color: 'rgba(255,255,255,0.55)' }}>
+                {e.company}
+              </div>
             </div>
           </div>
-        </button>
-      ))}
+        )
+      })}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ContactOrbit — right-side "Orbiting Channels" for the CONTACT station.
+// An Earth hub with contact channels (email / linkedin / github / phone) as
+// floating orbiting nodes wired to it; click any node to open the contact
+// drawer. Proximity-faded so it doesn't bleed into the experience section.
+// ─────────────────────────────────────────────────────────────────────────────
+const CO_HUB   = { x: 50, y: 50 }
+const CO_NODES: { icon: IconType; label: string; x: number; y: number }[] = [
+  { icon: FaEnvelope,   label: 'Email',    x: 24, y: 22 },
+  { icon: FaLinkedinIn, label: 'LinkedIn', x: 78, y: 30 },
+  { icon: FaGithub,     label: 'GitHub',   x: 22, y: 78 },
+  { icon: FaPhone,      label: 'Phone',    x: 78, y: 72 },
+]
+
+function ContactOrbit({ progress }: { progress: number }) {
+  const CONTACT_T = STATIONS.find((s) => s.id === 'contact')?.t ?? 0.90
+  const dist      = Math.abs(progress - CONTACT_T)
+  // Mirror ExperienceJourney's tight band so the two hand off cleanly (~0.825)
+  // without overlapping on the right.
+  const opacity   = Math.max(0, Math.min(1, (0.075 - dist) / 0.035))
+  const near      = opacity > 0.4
+  if (dist > 0.08) return null
+
+  const ACCENT = '#5EEAD4'
+  const open   = () => window.dispatchEvent(new Event('contact-drawer-open'))
+
+  return (
+    <div
+      style={{
+        position: 'fixed', right: 0, top: '50%', transform: 'translateY(-50%)',
+        width: 'min(54vw, 720px)', height: 'min(72vh, 540px)', zIndex: 30,
+        opacity, transition: 'opacity 240ms', pointerEvents: near ? 'auto' : 'none',
+      }}
+    >
+      <style>{`
+        @keyframes co-pulse { 0%,100%{ transform: translate(-50%,-50%) scale(1); opacity:.9 } 50%{ transform: translate(-50%,-50%) scale(1.16); opacity:1 } }
+        @keyframes co-float { 0%,100%{ transform: translate(-50%,-50%) translateY(0) } 50%{ transform: translate(-50%,-50%) translateY(-8px) } }
+      `}</style>
+
+      {/* connector lines hub → channels */}
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+        {CO_NODES.map((n, i) => (
+          <line key={i} x1={`${CO_HUB.x}%`} y1={`${CO_HUB.y}%`} x2={`${n.x}%`} y2={`${n.y}%`}
+            stroke={`${ACCENT}30`} strokeWidth="1" strokeDasharray="3 4" />
+        ))}
+      </svg>
+
+      {/* Earth hub */}
+      <div style={{
+        position: 'absolute', left: `${CO_HUB.x}%`, top: `${CO_HUB.y}%`, width: 92, height: 92, borderRadius: '50%',
+        transform: 'translate(-50%,-50%)',
+        background: 'radial-gradient(circle at 36% 30%, #6fd3ff, #1b6fb0 50%, #06243f 100%)',
+        boxShadow: '0 0 52px #2b9fe0aa, inset -8px -8px 22px rgba(0,0,0,0.5)',
+      }} />
+      <div style={{
+        position: 'absolute', left: `${CO_HUB.x}%`, top: `${CO_HUB.y}%`, width: 124, height: 124, borderRadius: '50%',
+        transform: 'translate(-50%,-50%)', border: `1px solid ${ACCENT}55`, animation: 'co-pulse 3s ease-in-out infinite',
+      }} />
+
+      {/* channel nodes */}
+      {CO_NODES.map((n, i) => {
+        const Icon = n.icon
+        return (
+          <button key={n.label} onClick={open} aria-label={`Open contact — ${n.label}`}
+            style={{
+              position: 'absolute', left: `${n.x}%`, top: `${n.y}%`, transform: 'translate(-50%,-50%)',
+              border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
+              animation: `co-float ${(3.5 + i * 0.6).toFixed(1)}s ease-in-out ${(-i * 0.5).toFixed(1)}s infinite`,
+            }}>
+            <span style={{
+              display: 'flex', width: 52, height: 52, borderRadius: '50%', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(13,22,34,0.72)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+              border: `1.5px solid ${ACCENT}66`, boxShadow: `0 0 18px ${ACCENT}44`,
+            }}>
+              <Icon size={19} color={ACCENT} />
+            </span>
+            <span style={{
+              position: 'absolute', top: 'calc(100% + 5px)', left: '50%', transform: 'translateX(-50%)',
+              whiteSpace: 'nowrap', fontFamily: 'var(--font-mono), monospace', fontSize: 9.5,
+              letterSpacing: '0.1em', color: 'rgba(255,255,255,0.65)',
+            }}>{n.label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AboutStory — right-side "Terminal Log" for the ABOUT station. A mono terminal
+// window that prints a short personal story. Proximity-faded with a tight band
+// so it doesn't bleed into intro (0.04) / skills (0.35).
+// ─────────────────────────────────────────────────────────────────────────────
+const ABOUT_STORY_LINES = [
+  "I'm a software engineer from Karachi, Pakistan.",
+  "6+ years building real-time products people actually use —",
+  "from MILETAP's video conferencing to DigitalHire's hiring system.",
+  "Clean code, real performance, interfaces that feel alive.",
+]
+
+function AboutStory({ progress }: { progress: number }) {
+  const ABOUT_T = STATIONS.find((s) => s.id === 'about')?.t ?? 0.20
+  const dist    = Math.abs(progress - ABOUT_T)
+  // Tight band — intro (0.04) and skills (0.35) are close, so fade fast.
+  const opacity = Math.max(0, Math.min(1, (0.075 - dist) / 0.035))
+  const near    = opacity > 0.4
+  if (dist > 0.08) return null
+
+  const ACCENT = '#5EEAD4'
+
+  return (
+    <div
+      style={{
+        position: 'fixed', right: '5vw', top: '50%', transform: 'translateY(-50%)',
+        width: 'min(46vw, 540px)', zIndex: 30,
+        opacity, transition: 'opacity 240ms', pointerEvents: near ? 'auto' : 'none',
+        borderRadius: 8, overflow: 'hidden',
+        background: 'rgba(6,10,16,0.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+        border: `1px solid ${ACCENT}40`, boxShadow: `0 24px 60px rgba(0,0,0,0.55), 0 0 36px ${ACCENT}1a`,
+      }}
+    >
+      <style>{`@keyframes about-cursor { 0%,49%{opacity:1} 50%,100%{opacity:0} }`}</style>
+      {/* title bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 14px', borderBottom: '1px solid rgba(94,234,212,0.16)', background: 'rgba(94,234,212,0.04)' }}>
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f56' }} />
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }} />
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#27c93f' }} />
+        <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono), monospace', fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>shah@portfolio: ~/about</span>
+      </div>
+      <div style={{ padding: '18px 18px 22px', fontFamily: 'var(--font-mono), monospace', fontSize: 13, lineHeight: 1.7 }}>
+        <div style={{ color: ACCENT }}>$ whoami</div>
+        {ABOUT_STORY_LINES.map((ln, i) => (
+          <div key={i} style={{ color: 'rgba(255,255,255,0.82)', marginTop: i === 0 ? 6 : 2 }}>
+            <span style={{ color: ACCENT, opacity: 0.6 }}>&gt; </span>{ln}
+          </div>
+        ))}
+        <div style={{ marginTop: 12, color: ACCENT }}>
+          $ <span style={{ display: 'inline-block', width: 8, height: 15, background: ACCENT, marginLeft: 2, verticalAlign: 'middle', animation: 'about-cursor 1.1s step-end infinite' }} />
+        </div>
+      </div>
     </div>
   )
 }
@@ -522,7 +893,7 @@ function SkillsCard({ station }: { station: StationDef }) {
         fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase',
         color: 'rgb(var(--text-primary) / 0.55)',
       }}>
-        → Drag to explore · click icon for details
+        → Click any skill to spin the orbit
       </div>
     </>
   )
@@ -706,53 +1077,29 @@ function ProjectsCard({ station }: { station: StationDef }) {
       <div style={{
         fontFamily: 'var(--font-mono), monospace',
         fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase',
-        color: hexAlpha(station.color, 0.7), marginBottom: 22,
+        color: hexAlpha(station.color, 0.7),
       }}>
         → tap any thumbnail in the tunnel to open its case study
       </div>
-      <a
-        href="#projects"
-        style={ctaBtnGhost(station.color)}
-        onClick={(e) => { e.preventDefault() }}
-      >
-        view all projects
-      </a>
     </>
   )
 }
 
 function ExperienceCard({ station }: { station: StationDef }) {
-  const entries = experience.slice(0, 3)
+  // The journey itself now renders as the right-side Orbital Trajectory
+  // (<ExperienceJourney/>); the left panel keeps just the intro copy.
   return (
     <>
       <div style={eyebrow(station.color)}>{station.subtitle}</div>
       <h2 style={heading}>{station.heading}</h2>
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {entries.map((e) => (
-          <li key={e.id} style={{
-            padding: '14px 0',
-            borderTop: `1px solid ${hexAlpha(station.color, 0.25)}`,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 18,
-          }}>
-            <div>
-              <div style={{
-                fontFamily: 'var(--font-mono), monospace',
-                fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase',
-                color: station.color, marginBottom: 4,
-              }}>{e.company}</div>
-              <div style={{
-                fontFamily: 'var(--font-display), system-ui, sans-serif',
-                fontSize: 17, fontWeight: 700, color: 'rgb(var(--text-primary))',
-              }}>{e.role}</div>
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-mono), monospace',
-              fontSize: 10, letterSpacing: '0.16em',
-              color: 'rgb(var(--text-primary) / 0.6)', whiteSpace: 'nowrap',
-            }}>{e.period}{e.current && ' · NOW'}</div>
-          </li>
-        ))}
-      </ul>
+      <p style={tagline}>{station.tagline}</p>
+      <div style={{
+        marginTop: 18, fontFamily: 'var(--font-mono), monospace',
+        fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase',
+        color: hexAlpha(station.color, 0.7),
+      }}>
+        → follow the trajectory · newest role on top
+      </div>
     </>
   )
 }

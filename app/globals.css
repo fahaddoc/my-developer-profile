@@ -231,3 +231,15 @@ a:focus-visible {
 .scan-sweep {
   animation: scan-sweep 4.5s linear infinite;
 }
+
+/* Station heading (3D Html label) — gentle floating drift + breath. Applied to
+   the per-letter coloured heading above each station planet in TunnelScene. */
+@keyframes station-heading-float {
+  0%   { transform: translateY(0)     scale(1);     }
+  50%  { transform: translateY(-12px) scale(1.018); }
+  100% { transform: translateY(0)     scale(1);     }
+}
+.station-heading {
+  animation: station-heading-float 4.2s ease-in-out infinite;
+  will-change: transform;
+}

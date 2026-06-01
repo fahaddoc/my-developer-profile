@@ -14,7 +14,7 @@
 
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Text, Html } from '@react-three/drei'
+import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -305,7 +305,7 @@ function Station({
   const { t, label } = station
 
   const groupRef        = useRef<THREE.Group>(null)
-  const textMatRef      = useRef<THREE.Material | null>(null)
+  const labelRef        = useRef<HTMLDivElement>(null)
   const planetOpacityRef = useRef(0)
 
   // Place + orient the group once on mount.
@@ -332,7 +332,7 @@ function Station({
     const proximity = Math.max(0, 1 - dist / 0.10)
 
     planetOpacityRef.current = 1
-    if (textMatRef.current) (textMatRef.current as THREE.MeshBasicMaterial).opacity = proximity * 0.95
+    if (labelRef.current) labelRef.current.style.opacity = String(proximity * 0.95)
 
     if (groupRef.current) {
       if (!groupRef.current.visible) groupRef.current.visible = true
@@ -348,29 +348,40 @@ function Station({
           the PLANETS map above. */}
       <Planet stationId={station.id} opacityRef={planetOpacityRef} />
 
-      {/* Floating label above the ring — sequence number stripped (just the
-          short name, e.g. INTRO / ABOUT). Troika colorRanges paints the
-          second character white while the rest stays in the station accent. */}
-      <Text
+      {/* Floating label above the planet — rendered as a CSS3D Html plane so we
+          get exact per-letter coloring (troika colorRanges is unreliable via
+          drei): the SECOND letter is white, every other letter is the site's
+          primary accent. Tilts with the station group like the old 3D text. */}
+      <Html
         position={[0, 2.35, 0.3]}
-        fontSize={0.32}
-        color={station.color}
-        anchorX="center"
-        anchorY="middle"
-        letterSpacing={0.18}
-        outlineColor="#1A0E00"
-        outlineWidth={0.012}
-        // @ts-expect-error — drei passes unknown props through to troika-three-text
-        colorRanges={{ 0: station.color, 1: '#FFFFFF', 2: station.color }}
-        onUpdate={(self) => {
-          if (!textMatRef.current && self.material) {
-            textMatRef.current = self.material as THREE.Material
-            ;(self.material as THREE.MeshBasicMaterial).transparent = true
-          }
-        }}
+        center
+        transform
+        scale={0.34}
+        zIndexRange={[18, 0]}
+        style={{ pointerEvents: 'none' }}
       >
-        {station.short}
-      </Text>
+        <div
+          ref={labelRef}
+          className="station-heading"
+          style={{
+            fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
+            fontWeight: 800,
+            fontSize: 72,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            userSelect: 'none',
+            opacity: 0,
+          }}
+        >
+          {[...station.short].map((ch, i) => (
+            <span key={i} style={{
+              color: i === 1 ? '#FFFFFF' : station.color,
+              textShadow: `0 0 22px ${station.color}99, 0 2px 10px rgba(0,0,0,0.5)`,
+            }}>{ch}</span>
+          ))}
+        </div>
+      </Html>
 
       {/* Station content (calling card, stats, timeline, etc) is now rendered
           as flat HUD chrome via TunnelHUD <StationOverlay>, NOT in 3D space.

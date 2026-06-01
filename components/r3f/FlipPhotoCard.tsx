@@ -107,6 +107,16 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
           height={640}
           step={3}
           accentTint={accent}
+          // Short, punchy reform text — the full bio crammed into the canvas
+          // shrank to ~7px and read as illegible particle mush. A few short
+          // lines let the particles form large, readable letters.
+          intro={
+            "Hi, I'm Shah Fahad — Senior Software Engineer.\n" +
+            "6+ years building real-time products that scale.\n" +
+            "React · Next.js · Flutter · WebRTC.\n" +
+            "Karachi, Pakistan."
+          }
+          fontPx={40}
         />
       </div>
 
