@@ -14,14 +14,14 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #1a0b2e 0%, #0a0a0f 100%)',
-          color: '#a855f7',
-          fontWeight: 800,
-          fontSize: 38,
-          letterSpacing: -2,
+          background: 'linear-gradient(135deg, #1a1822 0%, #0a0a0f 100%)',
+          color: '#b4a5c8',
+          fontWeight: 700,
+          fontSize: 36,
+          letterSpacing: -1.5,
           fontFamily: 'system-ui, -apple-system, sans-serif',
-          borderRadius: 12,
-          boxShadow: 'inset 0 0 0 2px rgba(168,85,247,0.5)',
+          borderRadius: 14,
+          border: '1.5px solid rgba(180,165,200,0.28)',
         }}
       >
         SF

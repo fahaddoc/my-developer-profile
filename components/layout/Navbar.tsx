@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { navLinks } from '@/data/nav-links'
+import { ThemeToggle } from '@/components/layout/ThemeToggle'
 
 export { navLinks }
 
@@ -71,8 +72,9 @@ export function Navbar() {
             ))}
           </ul>
 
-          {/* Hire Me CTA */}
+          {/* Theme toggle + Hire Me CTA */}
           <div className="hidden md:flex items-center gap-3">
+            <ThemeToggle />
             <button
               onClick={() => handleNavClick('#contact')}
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-accent-violet text-white text-sm font-medium hover:bg-opacity-90 transition-all duration-200"
@@ -82,9 +84,11 @@ export function Navbar() {
             </button>
           </div>
 
-          {/* Mobile hamburger */}
+          {/* Mobile: theme toggle + hamburger */}
+          <div className="md:hidden flex items-center gap-2">
+            <ThemeToggle compact />
           <button
-            className="md:hidden flex flex-col gap-1.5 p-2"
+            className="flex flex-col gap-1.5 p-2"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle menu"
             aria-expanded={menuOpen}
@@ -94,6 +98,7 @@ export function Navbar() {
             <span className={`block w-5 h-px bg-text-primary transition-all duration-300 ${menuOpen ? 'opacity-0' : ''}`} />
             <span className={`block w-5 h-px bg-text-primary transition-all duration-300 ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
           </button>
+          </div>
         </nav>
       </header>
 

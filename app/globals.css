@@ -3,22 +3,80 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* injected by next/font via layout.tsx */
-  /* --font-display, --font-body, --font-mono */
+/* ─── Theme tokens ───────────────────────────────────────────────────────────
+   Every theme-relevant value is a CSS variable so flipping
+   <html data-theme="light"> swaps the whole palette in one shot. RGB triplets
+   are space-separated so Tailwind's `rgb(var(--x) / <alpha-value>)` syntax
+   works (lets us write classes like bg-bg-base/40). */
 
-  --clr-violet: #a855f7;
-  --clr-cyan: #22d3ee;
-  --clr-emerald: #10b981;
+:root,
+:root[data-theme='dark'] {
+  --bg-base:       10  10  10;
+  --bg-surface:    13  13  20;
+  --bg-elevated:   17  17  32;
 
-  --glow-violet: rgba(168, 85, 247, 0.35);
-  --glow-violet-sm: rgba(168, 85, 247, 0.15);
-  --glow-cyan: rgba(34, 211, 238, 0.3);
-  --glow-cyan-sm: rgba(34, 211, 238, 0.12);
-  --glow-emerald: rgba(16, 185, 129, 0.3);
+  /* Editorial palette — muted, desaturated. Same hues, ~40% saturation. */
+  --accent-violet: 180 165 200;
+  --accent-cyan:   150 175 185;
+  --accent-green:  150 175 150;
+  --accent-emerald:120 160 145;
 
-  --border-subtle: rgba(168, 85, 247, 0.12);
-  --border-hover: rgba(168, 85, 247, 0.4);
+  --text-primary:  241 245 249;
+  --text-secondary:148 163 184;
+  --text-muted:    71  85  105;
+
+  /* Overlays — dot grid + scanlines */
+  --grid-dot-rgb:    180 165 200;
+  --grid-dot-alpha:  0.05;
+  --scanline-rgb:    0 0 0;
+  --scanline-alpha:  0.03;
+
+  /* Selection */
+  --selection-bg:   180 165 200;
+  --selection-fg:   241 245 249;
+
+  /* Subtle dark drops — no neon glow */
+  --heading-shadow: 0 2px 12px rgb(0 0 0 / 0.5);
+  --eyebrow-shadow: none;
+  --body-shadow:    none;
+
+  /* Mobile "space" accent — the #5EEAD4 teal identity from the desktop tunnel */
+  --mob-accent: 94 234 212;
+
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg-base:       248 250 252;
+  --bg-surface:    255 255 255;
+  --bg-elevated:   241 245 249;
+
+  --accent-violet: 124 58  237;
+  --accent-cyan:   8   145 178;
+  --accent-green:  22  163 74;
+  --accent-emerald:5   150 105;
+
+  --text-primary:  15  23  42;
+  --text-secondary:71  85  105;
+  --text-muted:    100 116 139;
+
+  --grid-dot-rgb:    100 116 139;
+  --grid-dot-alpha:  0.12;
+  --scanline-rgb:    100 116 139;
+  --scanline-alpha:  0.02;
+
+  --selection-bg:   124 58 237;
+  --selection-fg:   255 255 255;
+
+  /* Light-mode shadows — subtle dark drops give text depth on white bg */
+  --heading-shadow: 0 3px 18px rgb(15 23 42 / 0.18), 0 1px 3px rgb(15 23 42 / 0.10);
+  --eyebrow-shadow: 0 1px 6px rgb(15 23 42 / 0.18);
+  --body-shadow:    0 1px 4px rgb(15 23 42 / 0.10);
+
+  /* Darker teal so the accent stays legible on the white mobile background */
+  --mob-accent: 13 148 136;
+
+  color-scheme: light;
 }
 
 * {
@@ -30,7 +88,6 @@
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
-  /* hide scrollbar — all browsers */
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
@@ -40,40 +97,18 @@ html::-webkit-scrollbar {
 }
 
 body {
-  background-color: #0a0a0a;
-  color: #f1f5f9;
+  background-color: rgb(var(--bg-base));
+  color: rgb(var(--text-primary));
   font-family: var(--font-body), system-ui, sans-serif;
   overflow-x: hidden;
+  transition: background-color 200ms, color 200ms;
 }
 
-/* dot grid — subtle tech feel, barely visible on dark bg */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: radial-gradient(rgba(168, 85, 247, 0.07) 1px, transparent 1px);
-  background-size: 32px 32px;
-  pointer-events: none;
-  z-index: 0;
-}
+/* Background pattern lives in components/visual/CircuitBackground.tsx
+   (mounted at z-index: -1 directly in layout.tsx). The dot-grid + scanline
+   pseudo-elements were dropped — they were either invisible or striping the
+   tunnel canvas. */
 
-/* scanline overlay — gives that slight CRT depth, very subtle */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.03) 2px,
-    rgba(0, 0, 0, 0.03) 4px
-  );
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* make sure actual content sits above the overlays */
 #__next,
 main,
 header,
@@ -82,58 +117,59 @@ footer {
   z-index: 1;
 }
 
-
 ::selection {
-  background: rgba(168, 85, 247, 0.3);
-  color: #f1f5f9;
+  background: rgb(var(--selection-bg) / 0.3);
+  color: rgb(var(--selection-fg));
+}
+
+/* Base link styling — muted lavender, subtle underline, no glow */
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 180ms ease, border-color 180ms ease;
+}
+a:hover {
+  color: rgb(var(--accent-violet));
+}
+a:focus-visible {
+  outline: 2px solid rgb(var(--accent-violet) / 0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 @layer utilities {
-  /* violet glow helpers */
+  /* Glow utilities — softened (≈50% original alpha) using muted token palette */
   .glow-violet {
-    box-shadow: 0 0 40px var(--glow-violet), 0 0 80px rgba(168, 85, 247, 0.1);
+    box-shadow: 0 0 32px rgb(var(--accent-violet) / 0.18), 0 0 70px rgb(var(--accent-violet) / 0.05);
   }
-
   .glow-violet-sm {
-    box-shadow: 0 0 20px var(--glow-violet-sm);
+    box-shadow: 0 0 18px rgb(var(--accent-violet) / 0.08);
   }
-
-  /* cyan glow — used on real-time / tech elements */
   .glow-cyan {
-    box-shadow: 0 0 40px var(--glow-cyan), 0 0 80px rgba(34, 211, 238, 0.08);
+    box-shadow: 0 0 32px rgb(var(--accent-cyan) / 0.15), 0 0 70px rgb(var(--accent-cyan) / 0.04);
   }
-
   .glow-cyan-sm {
-    box-shadow: 0 0 16px var(--glow-cyan-sm);
+    box-shadow: 0 0 14px rgb(var(--accent-cyan) / 0.06);
   }
-
-  /* emerald — skills section */
   .glow-emerald-sm {
-    box-shadow: 0 0 16px var(--glow-emerald);
+    box-shadow: 0 0 14px rgb(var(--accent-emerald) / 0.15);
   }
-
-  /* neon text glow */
   .text-glow-violet {
-    text-shadow: 0 0 20px rgba(168, 85, 247, 0.7), 0 0 40px rgba(168, 85, 247, 0.3);
+    text-shadow: 0 0 16px rgb(var(--accent-violet) / 0.35), 0 0 32px rgb(var(--accent-violet) / 0.12);
   }
-
   .text-glow-cyan {
-    text-shadow: 0 0 20px rgba(34, 211, 238, 0.7), 0 0 40px rgba(34, 211, 238, 0.3);
+    text-shadow: 0 0 16px rgb(var(--accent-cyan) / 0.35), 0 0 32px rgb(var(--accent-cyan) / 0.12);
   }
-
   .border-subtle {
-    border-color: var(--border-subtle);
+    border-color: rgb(var(--accent-violet) / 0.12);
   }
-
-  /* neon border on hover cards */
   .neon-card {
-    border: 1px solid rgba(168, 85, 247, 0.12);
+    border: 1px solid rgb(var(--accent-violet) / 0.12);
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
   }
-
   .neon-card:hover {
-    border-color: rgba(168, 85, 247, 0.45);
-    box-shadow: 0 0 30px rgba(168, 85, 247, 0.12), inset 0 0 30px rgba(168, 85, 247, 0.03);
+    border-color: rgb(var(--accent-violet) / 0.30);
+    box-shadow: 0 0 22px rgb(var(--accent-violet) / 0.06), inset 0 0 22px rgb(var(--accent-violet) / 0.02);
   }
 }
 
@@ -191,7 +227,6 @@ footer {
   animation: photo-glitch 9s linear infinite;
 }
 
-/* Scan-line that sweeps top→bottom over the photo */
 @keyframes scan-sweep {
   0%   { transform: translateY(-100%); opacity: 0; }
   10%  { opacity: 0.9; }
@@ -201,4 +236,16 @@ footer {
 
 .scan-sweep {
   animation: scan-sweep 4.5s linear infinite;
+}
+
+/* Station heading (3D Html label) — gentle floating drift + breath. Applied to
+   the per-letter coloured heading above each station planet in TunnelScene. */
+@keyframes station-heading-float {
+  0%   { transform: translateY(0)     scale(1);     }
+  50%  { transform: translateY(-12px) scale(1.018); }
+  100% { transform: translateY(0)     scale(1);     }
+}
+.station-heading {
+  animation: station-heading-float 4.2s ease-in-out infinite;
+  will-change: transform;
 }

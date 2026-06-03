@@ -32,6 +32,11 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
     })
 
     lenisInstance = lenis
+    // Expose on window for any non-React code paths that need to scroll
+    // (e.g. nav buttons through HMR-stale module imports).
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __lenis?: Lenis }).__lenis = lenis
+    }
 
     // keep ScrollTrigger in sync with Lenis scroll position
     lenis.on('scroll', ScrollTrigger.update)
@@ -43,6 +48,9 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
 
     return () => {
       lenisInstance = null
+      if (typeof window !== 'undefined') {
+        delete (window as unknown as { __lenis?: Lenis }).__lenis
+      }
       lenis.destroy()
       gsap.ticker.remove(raf)
     }

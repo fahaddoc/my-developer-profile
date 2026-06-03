@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
 import { ProjectCard } from '@/components/ui/ProjectCard'
-import { ProjectModal } from '@/components/ui/ProjectModal'
+import { useProjectDrawer } from '@/components/providers/ProjectDrawerProvider'
 import { projects, type Project } from '@/data/projects'
 import { useReduceScrollFx } from '@/hooks/useReduceScrollFx'
 
@@ -253,8 +253,8 @@ const filters: { label: string; value: Filter }[] = [
 ]
 
 export function Projects() {
-  const [activeFilter, setActiveFilter]       = useState<Filter>('all')
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [activeFilter, setActiveFilter] = useState<Filter>('all')
+  const { open: openProject } = useProjectDrawer()
   const sectionRef = useRef<HTMLElement>(null)
 
   const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start start', 'end start'] })
@@ -331,7 +331,7 @@ export function Projects() {
                 className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10"
               >
                 {featured.map((project, i) => (
-                  <ProjectCard key={project.id} project={project} index={i} onClick={setSelectedProject} />
+                  <ProjectCard key={project.id} project={project} index={i} onClick={(p) => openProject(p.id)} />
                 ))}
               </motion.div>
             )}
@@ -345,7 +345,7 @@ export function Projects() {
                   <motion.button key={project.id}
                     initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0 }} transition={{ duration: 0.35, delay: i * 0.05 }}
-                    onClick={() => setSelectedProject(project)}
+                    onClick={() => openProject(project.id)}
                     className="w-full flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 px-4 py-4 border-b border-accent-violet/10 text-left hover:bg-accent-violet/5 transition-colors duration-200 group"
                   >
                     <div className="flex-1 min-w-0">
@@ -401,7 +401,6 @@ export function Projects() {
         </div>
       </motion.div>
 
-      <ProjectModal project={selectedProject} onClose={() => setSelectedProject(null)} />
     </section>
   )
 }
