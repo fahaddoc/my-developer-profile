@@ -12,7 +12,8 @@
 // Structure:
 //   - 26 stars: opacity-only twinkle, deterministic positions (no rerender)
 //   - Nebula glow: single radial-gradient div, scale + opacity pulse
-//   - SF initials: outlined cyan stroke (no shadow keyframe), fades in
+//   - SF mark: a morphing liquid-glass blob (border-radius morph; runs on a
+//     free main thread since AppShell is deferred) with a steady glowing SF
 //   - Tagline: opacity-only fade-in
 //   - Whole loader: opacity transition to fade out
 
@@ -122,8 +123,11 @@ export function LoadingScreen({ onComplete }: Props) {
         transformOrigin: 'center',
       }} />
 
-      {/* SF — outlined cyan stroke. Static text-shadow (no keyframe), fade-in
-          via opacity ONLY. The glow halo is a separate stacked layer below. */}
+      {/* SF Emboss — a morphing liquid-glass blob with an embossed SF mark.
+          The whole blob fades in via opacity (composited); the blob shape
+          morphs (border-radius) and the SF stays steady + legible. Mounts
+          before AppShell, so the main thread is free and the morph stays
+          smooth. */}
       <div style={{
         position:       'absolute',
         inset:          0,
@@ -132,36 +136,49 @@ export function LoadingScreen({ onComplete }: Props) {
         justifyContent: 'center',
         pointerEvents:  'none',
       }}>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {/* Static halo — radial gradient behind the letters, opacity fade in */}
+        <div style={{
+          position:       'relative',
+          width:          'clamp(200px, 26vw, 300px)',
+          aspectRatio:    '1 / 1',
+          display:        'flex',
+          alignItems:     'center',
+          justifyContent: 'center',
+          opacity:        0,
+          animation:      'ls-fade-in 900ms 150ms ease-out forwards',
+          willChange:     'opacity',
+        }}>
+          {/* Glass blob — morphs behind the mark */}
           <div style={{
-            position:      'absolute',
-            top:           '50%',
-            left:          '50%',
-            width:         420,
-            height:        420,
-            marginLeft:    -210,
-            marginTop:     -210,
-            borderRadius:  '50%',
-            background:    'radial-gradient(circle at center, rgba(0,255,255,0.40) 0%, rgba(0,255,255,0.18) 35%, rgba(119,0,255,0.12) 55%, transparent 75%)',
-            opacity:       0,
-            animation:     'ls-halo 1800ms 200ms ease-out forwards',
-            willChange:    'opacity, transform',
-            pointerEvents: 'none',
+            position:             'absolute',
+            inset:                0,
+            background:           'linear-gradient(160deg, rgba(94,234,212,0.22), rgba(56,189,248,0.10))',
+            backdropFilter:       'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            border:               '1px solid rgba(94,234,212,0.5)',
+            boxShadow:            'inset 0 10px 30px rgba(255,255,255,0.22), inset 0 -14px 36px rgba(0,0,0,0.45), 0 0 60px rgba(0,255,255,0.28)',
+            animation:            'ls-morph 4s ease-in-out infinite',
+            willChange:           'border-radius',
           }} />
+          {/* Sheen highlight */}
+          <div style={{
+            position:     'absolute',
+            top:          '20%',
+            left:         '24%',
+            width:        '26%',
+            height:       '15%',
+            borderRadius: '50%',
+            background:   'rgba(255,255,255,0.42)',
+            filter:       'blur(6px)',
+          }} />
+          {/* SF — white with a static cyan glow (no keyframe, paint-once) */}
           <span style={{
-            position:         'relative',
-            fontFamily:       'var(--font-display), ui-monospace, "SF Mono", monospace',
-            fontSize:         'clamp(120px, 20vw, 220px)',
-            fontWeight:       800,
-            letterSpacing:    '-0.04em',
-            color:            'transparent',
-            WebkitTextStroke: '1px rgba(0,255,255,0.55)',
-            // STATIC shadow — no keyframe, no per-frame paint cost
-            textShadow:       '0 0 12px rgba(0,255,255,0.55), 0 0 28px rgba(0,255,255,0.35)',
-            opacity:          0,
-            animation:        'ls-fade-in 1200ms ease-out forwards',
-            willChange:       'opacity',
+            position:      'relative',
+            fontFamily:    'var(--font-display), ui-monospace, "SF Mono", monospace',
+            fontWeight:    800,
+            fontSize:      'clamp(64px, 9vw, 110px)',
+            letterSpacing: '0.01em',
+            color:         '#ffffff',
+            textShadow:    '0 0 18px rgba(0,255,255,0.7), 0 0 5px rgba(255,255,255,0.55)',
           }}>SF</span>
         </div>
       </div>
@@ -193,12 +210,15 @@ export function LoadingScreen({ onComplete }: Props) {
           0%, 100% { transform: scale(0.94); opacity: 0.82; }
           50%      { transform: scale(1.06); opacity: 1;    }
         }
-        @keyframes ls-halo {
-          from { opacity: 0; transform: scale(0.85); }
-          to   { opacity: 1; transform: scale(1);    }
-        }
         @keyframes ls-fade-in {
           to { opacity: 1; }
+        }
+        /* Liquid-glass blob shape morph (border-radius). Runs on a free main
+           thread during the loader, so it stays smooth. */
+        @keyframes ls-morph {
+          0%, 100% { border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; }
+          34%      { border-radius: 70% 30% 46% 54% / 30% 60% 40% 70%; }
+          67%      { border-radius: 36% 64% 58% 42% / 62% 38% 62% 38%; }
         }
       `}</style>
     </div>

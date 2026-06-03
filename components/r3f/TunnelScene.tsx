@@ -1470,7 +1470,12 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
       }}
     >
       <Canvas
-        key={`${canvasKey}-${isLight ? 'l' : 'd'}`}
+        // NOTE: do NOT put isLight in this key. The bg/fog/lights are reactive
+        // props and NebulaBackground rebuilds its material on isLight via
+        // useMemo, so the theme flips in place. Keying on isLight forced a full
+        // Canvas unmount+remount (WebGL context teardown + whole-scene rebuild)
+        // on every toggle → a multi-hundred-ms main-thread block = the "jerk".
+        key={canvasKey}
         camera={{ fov: 70, near: 0.05, far: 400, position: [0, 0, 0] }}
         // DPR locked to 1. Retina 2× would 4× the framebuffer pixel count for
         // marginal gain on a glowy scene. Single biggest GPU-memory win.

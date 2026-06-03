@@ -136,7 +136,7 @@ export function TunnelHUD() {
       <button
         type="button"
         onClick={() => setSound(!sound)}
-        aria-label={sound ? 'Mute sound' : 'Enable sound'}
+        aria-label={sound ? 'Stop intro video' : 'Play intro video'}
         aria-pressed={sound}
         style={{
           position: 'fixed', top: 22, right: 32, zIndex: 50,
@@ -148,8 +148,12 @@ export function TunnelHUD() {
           pointerEvents: 'auto', padding: 0,
         }}
       >
-        <SoundIcon active={sound} color={accent} />
-        SOUND {sound ? 'ON' : 'OFF'}
+        <svg width="11" height="11" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
+          {sound
+            ? <rect x="1.6" y="1.6" width="6.8" height="6.8" rx="1.2" />
+            : <path d="M2.2 1.3v7.4l6-3.7z" />}
+        </svg>
+        {sound ? 'INTRO ON' : 'PLAY INTRO'}
       </button>
 
       {/* THEME toggle — sits to the left of SOUND */}
@@ -512,6 +516,7 @@ function ProjectsConstellation({ progress }: { progress: number }) {
           .cn-cta:active { transform: translateY(0); }
           .cn-cta .cn-arr { display: inline-block; transition: transform .25s; }
           .cn-cta:hover .cn-arr { transform: translateX(5px); }
+          @keyframes cn-mesh { to { transform: rotate(360deg); } }
         `}</style>
 
         {/* autoplay progress bar */}
@@ -527,48 +532,48 @@ function ProjectsConstellation({ progress }: { progress: number }) {
         </div>
 
         <div key={p.id} style={{ opacity: 1, animation: 'cn-fade .4s ease' }}>
-          {/* cinematic image — the title overlays its lower third */}
-          <div style={{ position: 'relative', height: 162, overflow: 'hidden' }}>
-            <img src={p.image} alt="" draggable={false}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            <div style={{ position: 'absolute', inset: 0,
-              background: 'linear-gradient(180deg, rgba(10,16,26,0) 26%, rgba(10,16,26,0.5) 56%, rgba(11,17,28,0.78) 100%)' }} />
+          {/* gradient-mesh cover — a rotating conic gradient (per-project colour
+              → accent) instead of a screenshot. */}
+          <div style={{ position: 'relative', height: 92, overflow: 'hidden' }}>
+            <div style={{
+              position: 'absolute', inset: '-60%',
+              background: `conic-gradient(from 0deg, ${p.color}, ${ACCENT}, #a78bfa, ${p.color})`,
+              filter: 'blur(16px)', animation: 'cn-mesh 7s linear infinite',
+            }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(10,16,26,0) 45%, rgba(11,17,28,0.62) 100%)' }} />
             <span style={{
-              position: 'absolute', top: 13, left: 13, padding: '4px 9px', borderRadius: 6,
-              background: 'rgba(7,11,18,0.58)', backdropFilter: 'blur(4px)',
-              border: `1px solid ${ACCENT}3a`,
+              position: 'absolute', top: 12, left: 13, padding: '4px 9px', borderRadius: 6,
+              background: 'rgba(7,11,18,0.55)', backdropFilter: 'blur(4px)',
+              border: `1px solid ${ACCENT}40`,
               fontFamily: 'var(--font-mono), monospace', fontSize: 8, fontWeight: 700,
-              letterSpacing: '0.16em', color: ACCENT,
-            }}>{catLabel(p.category)}</span>
+              letterSpacing: '0.16em', color: '#fff',
+            }}>{catLabel(p.category)} · {p.year}</span>
             <span style={{
-              position: 'absolute', top: 13, right: 14,
+              position: 'absolute', top: 12, right: 14,
               fontFamily: 'var(--font-mono), monospace', fontSize: 11, fontWeight: 700,
-              letterSpacing: '0.1em', color: '#fff', textShadow: `0 0 8px ${ACCENT}`,
+              letterSpacing: '0.1em', color: '#fff', textShadow: '0 1px 6px rgba(0,0,0,0.6)',
             }}>
               {String(active + 1).padStart(2, '0')}
-              <span style={{ opacity: 0.45 }}> / {String(pool.length).padStart(2, '0')}</span>
+              <span style={{ opacity: 0.5 }}> / {String(pool.length).padStart(2, '0')}</span>
             </span>
-            {/* overlaid meta + title */}
-            <div style={{ position: 'absolute', left: 15, right: 15, bottom: 11 }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5,
-                fontFamily: 'var(--font-mono), monospace', fontSize: 8,
-                letterSpacing: '0.18em', color: ACCENT,
-              }}>
-                <span style={{ width: 14, height: 1.5, background: ACCENT, boxShadow: `0 0 6px ${ACCENT}` }} />
-                {p.company.toUpperCase()} · {p.year}
-              </div>
-              <div style={{
-                fontFamily: 'var(--font-display), sans-serif', fontWeight: 800,
-                fontSize: 18, lineHeight: 1.05, letterSpacing: '-0.015em', color: '#fff',
-                textShadow: '0 2px 16px rgba(0,0,0,0.85)',
-              }}>{p.title.split(' — ')[0]}</div>
-            </div>
           </div>
 
           {/* body */}
-          <div style={{ padding: '11px 15px 15px' }}>
+          <div style={{ padding: '14px 15px 15px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6,
+              fontFamily: 'var(--font-mono), monospace', fontSize: 8.5,
+              letterSpacing: '0.16em', color: ACCENT,
+            }}>
+              <span style={{ width: 14, height: 1.5, background: ACCENT, boxShadow: `0 0 6px ${ACCENT}` }} />
+              {p.company.toUpperCase()}
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-display), sans-serif', fontWeight: 800,
+              fontSize: 19, lineHeight: 1.08, letterSpacing: '-0.015em', color: '#fff',
+            }}>{p.title.split(' — ')[0]}</div>
             <p style={{
+              marginTop: 8,
               fontSize: 11.5, lineHeight: 1.5, color: 'rgba(255,255,255,0.62)',
               display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
             }}>{p.tagline}</p>
@@ -845,7 +850,7 @@ function SkillsCard({ station }: { station: StationDef }) {
       <div style={{
         fontFamily: 'var(--font-mono), ui-monospace, monospace',
         fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase',
-        color: '#00ffff', marginBottom: 18,
+        color: station.color, marginBottom: 18,
         textShadow: 'var(--eyebrow-shadow)',
       }}>
         Technologies I work with
@@ -854,7 +859,7 @@ function SkillsCard({ station }: { station: StationDef }) {
       <h2 style={{
         ...heading,
         fontSize: '2.2rem',
-        color: '#ffffff',
+        color: 'rgb(var(--text-primary))',
         marginBottom: 18,
       }}>
         6 Years of Craft
@@ -862,7 +867,7 @@ function SkillsCard({ station }: { station: StationDef }) {
 
       <p style={{
         fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
-        fontSize: '0.95rem', lineHeight: 1.7, color: '#a0a0b0',
+        fontSize: '0.95rem', lineHeight: 1.7, color: 'rgb(var(--text-primary) / 0.7)',
         margin: '0 0 26px', maxWidth: 480,
       }}>
         From pixel-perfect React interfaces to real-time WebRTC video platforms — I build things that work at scale. Specialized across frontend, mobile, and live-communication systems.
@@ -875,7 +880,7 @@ function SkillsCard({ station }: { station: StationDef }) {
             fontFamily: 'var(--font-mono), ui-monospace, monospace',
             fontSize: 12, letterSpacing: '0.06em',
           }}>
-            <span style={{ color: '#ffffff' }}>{s.label}</span>
+            <span style={{ color: 'rgb(var(--text-primary))' }}>{s.label}</span>
             <span style={{
               flex: 1, margin: '0 10px', overflow: 'hidden',
               color: 'rgb(var(--text-primary) / 0.25)',
@@ -883,7 +888,7 @@ function SkillsCard({ station }: { station: StationDef }) {
             }}>
               ················································
             </span>
-            <span style={{ color: '#00ffff' }}>{s.value}</span>
+            <span style={{ color: station.color }}>{s.value}</span>
           </div>
         ))}
       </div>
@@ -1135,27 +1140,6 @@ function ContactCard({ station }: { station: StationDef }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline icons
 // ─────────────────────────────────────────────────────────────────────────────
-
-function SoundIcon({ active, color }: { active: boolean; color: string }) {
-  const heights = [6, 10, 14, 10, 6]
-  return (
-    <svg width="22" height="14" viewBox="0 0 22 14" aria-hidden="true">
-      {heights.map((h, i) => (
-        <rect
-          key={i} x={i * 4 + 1} y={(14 - h) / 2}
-          width={2} height={h} rx={1}
-          fill={active ? color : 'rgb(var(--text-primary) / 0.4)'}
-        >
-          {active && (
-            <animate attributeName="height"
-              values={`${h};${h * 0.4};${h}`}
-              dur={`${0.7 + i * 0.15}s`} repeatCount="indefinite" />
-          )}
-        </rect>
-      ))}
-    </svg>
-  )
-}
 
 function MouseScrollIcon({ color }: { color: string }) {
   return (
