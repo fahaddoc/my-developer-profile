@@ -3,6 +3,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Sora, Inter, JetBrains_Mono } from 'next/font/google'
 import { GoogleAnalytics } from '@next/third-parties/google'
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import Script from 'next/script'
 import { SmoothScroll } from '@/components/providers/SmoothScroll'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
@@ -135,6 +137,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </ProjectDrawerProvider>
         </ThemeProvider>
         {gaId ? <GoogleAnalytics gaId={gaId} /> : null}
+        {/* Vercel Web Analytics + Speed Insights — visitor counts & vitals
+            show up in the Vercel dashboard (Analytics tab) once enabled. */}
+        <Analytics />
+        <SpeedInsights />
         <Script src="https://leflux.xrlabs.app/embed.js" strategy="afterInteractive" />
       </body>
     </html>
