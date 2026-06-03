@@ -13,7 +13,7 @@
 // integration with main portfolio.
 
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import gsap from 'gsap'
@@ -129,7 +129,7 @@ export const STATIONS: StationDef[] = [
     tagline:   'Senior Software Engineer — React, Next.js, Flutter, WebRTC. Real-time experiences from Karachi, Pakistan.',
     color:     '#5EEAD4',
     imageSrc:  '/images/shah-fahad-sticker.png',
-    subtitle:    'WELCOME TO MY TUNNEL',
+    subtitle:    'WELCOME TO MY SPACE',
     closer:      ['LET\'S BUILD', 'SOMETHING AMAZING'],
     traitsLeft:  ['PASSIONATE', 'ABOUT BUILDING', 'DIGITAL EXPERIENCES'],
     traitsRight: ['CLEAN CODE', 'PERFORMANCE', 'INNOVATION'],
@@ -1386,6 +1386,30 @@ function ProximityGate({
 // ─────────────────────────────────────────────────────────────────────────────
 // Public component — Canvas + scroll wiring + tunnel + stations
 // ─────────────────────────────────────────────────────────────────────────────
+// RenderDriver — with the Canvas in frameloop="demand", this is the ONLY thing
+// that pumps frames. It caps rendering to ~36fps (the scene is slow/ambient, so
+// 60fps just heats the GPU) and fully PAUSES when the tab is hidden — no wasted
+// GPU/CPU while the page is in a background tab. All scene animations are
+// time-based (delta / clock.elapsedTime), so a lower frame rate stays correct.
+function RenderDriver({ fps = 36 }: { fps?: number }) {
+  const invalidate = useThree((s) => s.invalidate)
+  useEffect(() => {
+    let raf = 0
+    let last = 0
+    const minDelta = 1000 / fps
+    const loop = (t: number) => {
+      raf = requestAnimationFrame(loop)
+      if (typeof document !== 'undefined' && document.hidden) return
+      if (t - last < minDelta) return
+      last = t
+      invalidate()
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [invalidate, fps])
+  return null
+}
+
 export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset } = {}) {
   // Remount the Canvas (fresh WebGL context) when the GPU drops the context.
   // We cap retries so a hard GPU failure doesn't loop forever.
@@ -1476,6 +1500,9 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         // Canvas unmount+remount (WebGL context teardown + whole-scene rebuild)
         // on every toggle → a multi-hundred-ms main-thread block = the "jerk".
         key={canvasKey}
+        // On-demand: RenderDriver pumps frames at a capped FPS and stops when
+        // the tab is hidden (huge heat/battery saver vs the default 'always').
+        frameloop="demand"
         camera={{ fov: 70, near: 0.05, far: 400, position: [0, 0, 0] }}
         // DPR locked to 1. Retina 2× would 4× the framebuffer pixel count for
         // marginal gain on a glowy scene. Single biggest GPU-memory win.
@@ -1495,6 +1522,8 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
           gl.domElement.addEventListener('webglcontextlost', handler)
         }}
       >
+        <RenderDriver fps={36} />
+
         {/* Scene clear color — WebGL would otherwise paint black over the
             themed wrap div on every frame. */}
         <color attach="background" args={[bgColor]} />

@@ -8,15 +8,6 @@
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 
-import { Navbar } from '@/components/layout/Navbar'
-import { Footer } from '@/components/layout/Footer'
-import { Hero } from '@/components/sections/Hero'
-import { About } from '@/components/sections/About'
-import { Projects } from '@/components/sections/Projects'
-import { Experience } from '@/components/sections/Experience'
-import { Skills } from '@/components/sections/Skills'
-import { Contact } from '@/components/sections/Contact'
-
 import { useQualityLevel } from '@/components/r3f/useQualityLevel'
 import { QualityToggle } from '@/components/r3f/QualityToggle'
 import { TunnelAnchors, useTunnelLoop } from '@/components/r3f/TunnelScrollRails'
@@ -30,12 +21,19 @@ const TunnelHUD = dynamic(
   () => import('@/components/r3f/TunnelHUD').then((m) => m.TunnelHUD),
   { ssr: false },
 )
+const MobileSpace = dynamic(() => import('@/components/mobile/MobileSpace'), { ssr: false })
 
 export default function AppShell() {
   const [eligible, setEligible] = useState<boolean | null>(null)
   const quality = useQualityLevel()
 
   useEffect(() => {
+    // Manual override for previewing either experience on any device:
+    // ?view=mobile forces the MobileSpace path, ?view=tunnel forces the 3D one.
+    const forced = new URLSearchParams(window.location.search).get('view')
+    if (forced === 'mobile') { setEligible(false); return }
+    if (forced === 'tunnel') { setEligible(true); return }
+
     const mql     = window.matchMedia('(min-width: 1024px) and (hover: hover)')
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     setEligible(mql.matches && !reduced)
@@ -147,18 +145,8 @@ function TunnelMode({
 }
 
 function ClassicMode() {
-  return (
-    <>
-      <Navbar />
-      <main className="overflow-x-hidden w-full">
-        <Hero />
-        <About />
-        <Projects />
-        <Experience />
-        <Skills />
-        <Contact />
-      </main>
-      <Footer />
-    </>
-  )
+  // Mobile / touch / reduced-capability — the rebuilt "space" experience that
+  // matches the desktop tunnel identity (starfield, station rail, planets,
+  // mini-nebula hero, project constellation). Replaces the old neon sections.
+  return <MobileSpace />
 }

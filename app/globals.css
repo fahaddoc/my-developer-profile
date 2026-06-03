@@ -40,6 +40,9 @@
   --eyebrow-shadow: none;
   --body-shadow:    none;
 
+  /* Mobile "space" accent — the #5EEAD4 teal identity from the desktop tunnel */
+  --mob-accent: 94 234 212;
+
   color-scheme: dark;
 }
 
@@ -69,6 +72,9 @@
   --heading-shadow: 0 3px 18px rgb(15 23 42 / 0.18), 0 1px 3px rgb(15 23 42 / 0.10);
   --eyebrow-shadow: 0 1px 6px rgb(15 23 42 / 0.18);
   --body-shadow:    0 1px 4px rgb(15 23 42 / 0.10);
+
+  /* Darker teal so the accent stays legible on the white mobile background */
+  --mob-accent: 13 148 136;
 
   color-scheme: light;
 }

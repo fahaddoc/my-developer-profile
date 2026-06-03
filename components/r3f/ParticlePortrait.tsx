@@ -236,6 +236,12 @@ export function ParticlePortrait({
     const FRAME_MS = 1000 / 40
     let lastDraw = 0
     const tick = (now: number) => {
+      // Pause all particle work while the tab is hidden — no point burning CPU
+      // animating a canvas nobody is looking at.
+      if (typeof document !== 'undefined' && document.hidden) {
+        rafRef.current = requestAnimationFrame(tick)
+        return
+      }
       if (now - lastDraw < FRAME_MS) {
         rafRef.current = requestAnimationFrame(tick)
         return

@@ -21,6 +21,7 @@ import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
 import { lenisInstance } from '@/components/providers/SmoothScroll'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { experience, projects } from '@/data/projects'
+import { testimonials } from '@/data/testimonials'
 
 // Lenis hijacks native scroll, so el.scrollIntoView({behavior:'smooth'})
 // gets cancelled mid-animation. Use lenis.scrollTo when available so the
@@ -356,10 +357,13 @@ function HeroSidePhoto({ progress, accent }: { progress: number; accent: string 
 // of the box (≈ screen centre); the hub + node thumbnails ring the RIGHT, so
 // nodes stay clear of the card (min x ≈ 52%).
 const CN_HUB   = { x: 58, y: 50 }
+// Depth cloud — nodes scattered around the card at varying DEPTH (d: 0..1).
+// Closer (higher d) = bigger, brighter, on top; farther = smaller, dimmer.
+// Kept off the card's centre (it spans ~43–73% x) — clustered left / top / bottom / right.
 const CN_NODES = [
-  { x: 86, y: 50 }, { x: 79, y: 23 }, { x: 63, y: 9 },
-  { x: 44, y: 14 }, { x: 32, y: 36 }, { x: 32, y: 64 },
-  { x: 44, y: 86 }, { x: 63, y: 91 }, { x: 79, y: 77 },
+  { x: 88, y: 30, d: 0.95 }, { x: 92, y: 64, d: 0.55 }, { x: 78, y: 86, d: 0.85 },
+  { x: 70, y: 12, d: 0.5 },  { x: 30, y: 22, d: 0.7 },  { x: 17, y: 52, d: 1.0 },
+  { x: 27, y: 82, d: 0.55 }, { x: 46, y: 91, d: 0.8 },  { x: 50, y: 8,  d: 0.45 },
 ]
 // Autoplay cadence. A literal quarter-second strobes too fast to read the card,
 // so it sits at a readable pace — tweak this single value to taste.
@@ -444,10 +448,13 @@ function ProjectsConstellation({ progress }: { progress: number }) {
         opacity: ambient, transition: 'opacity 220ms',
       }} />
 
-      {/* node thumbnails — each node is a mini project card wired to the hub */}
+      {/* node thumbnails — a DEPTH CLOUD: each node's size + opacity + stacking
+          comes from its depth `d`, so they read as floating at different distances */}
       {CN_NODES.map((n, i) => {
         const it = pool[i]
         const on = i === active
+        const w  = Math.round(50 + n.d * 52)        // 50–102px wide by depth
+        const baseOp = 0.4 + n.d * 0.6              // farther = dimmer
         return (
           <button key={it.id}
             onMouseEnter={() => { setActive(i); setPaused(true) }}
@@ -457,14 +464,14 @@ function ProjectsConstellation({ progress }: { progress: number }) {
             style={{
               position: 'absolute', left: `${n.x}%`, top: `${n.y}%`,
               transform: 'translate(-50%,-50%)',
-              width: 76, height: 58, padding: 0, border: 'none', background: 'transparent',
-              cursor: 'pointer', zIndex: on ? 6 : 2,
+              width: w, height: Math.round(w * 0.76), padding: 0, border: 'none', background: 'transparent',
+              cursor: 'pointer', zIndex: on ? 12 : Math.round(n.d * 6) + 2,
             }}>
-            {/* scale layer */}
+            {/* depth layer — opacity + active pop */}
             <div style={{
               width: '100%', height: '100%',
-              opacity: (on ? 1 : 0.7) * ambient,
-              transform: `scale(${on ? 1.08 : 0.9})`,
+              opacity: (on ? 1 : baseOp) * ambient,
+              transform: `scale(${on ? 1.08 : 1})`,
               transition: 'opacity .25s, transform .35s cubic-bezier(.16,1,.3,1)',
             }}>
               {/* floating layer — gentle bob, desynced per node */}
@@ -505,7 +512,7 @@ function ProjectsConstellation({ progress }: { progress: number }) {
         // Glassmorphic — translucent dark tint + backdrop blur frosts the
         // nebula behind the card; the dark tint keeps text readable.
         background: 'linear-gradient(165deg, rgba(17,27,42,0.52) 0%, rgba(7,11,18,0.60) 100%)',
-        backdropFilter: 'blur(24px) saturate(165%)', WebkitBackdropFilter: 'blur(24px) saturate(165%)',
+        backdropFilter: 'blur(14px) saturate(160%)', WebkitBackdropFilter: 'blur(14px) saturate(160%)',
         border: `1px solid ${ACCENT}59`, borderRadius: 22,
         boxShadow: `0 34px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(94,234,212,0.12), 0 0 60px ${ACCENT}26, inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.3)`,
         overflow: 'hidden',
@@ -1084,26 +1091,66 @@ function ProjectsCard({ station }: { station: StationDef }) {
         fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase',
         color: hexAlpha(station.color, 0.7),
       }}>
-        → tap any thumbnail in the tunnel to open its case study
+        → tap any thumbnail in the space to open its case study
       </div>
     </>
   )
 }
 
 function ExperienceCard({ station }: { station: StationDef }) {
-  // The journey itself now renders as the right-side Orbital Trajectory
-  // (<ExperienceJourney/>); the left panel keeps just the intro copy.
+  // The journey renders as the right-side Orbital Trajectory; the left panel
+  // keeps the intro copy + a rotating real LinkedIn recommendation (social
+  // proof right where the career is shown).
+  const [ti, setTi] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTi((t) => (t + 1) % testimonials.length), 6000)
+    return () => clearInterval(id)
+  }, [])
+  const t = testimonials[ti]
+
   return (
     <>
       <div style={eyebrow(station.color)}>{station.subtitle}</div>
       <h2 style={heading}>{station.heading}</h2>
       <p style={tagline}>{station.tagline}</p>
-      <div style={{
-        marginTop: 18, fontFamily: 'var(--font-mono), monospace',
-        fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase',
-        color: hexAlpha(station.color, 0.7),
-      }}>
-        → follow the trajectory · newest role on top
+
+      {/* rotating recommendation */}
+      <style>{`@keyframes exp-quote { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <div
+        key={ti}
+        style={{
+          marginTop: 22, maxWidth: 460, padding: '15px 18px', borderRadius: 14,
+          background: 'rgb(var(--bg-surface) / 0.55)',
+          border: `1px solid ${hexAlpha(station.color, 0.28)}`,
+          boxShadow: `0 12px 30px rgba(0,0,0,0.35), 0 0 22px ${hexAlpha(station.color, 0.12)}`,
+          animation: 'exp-quote 500ms ease both',
+        }}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
+          fontFamily: 'var(--font-mono), monospace', fontSize: 9, letterSpacing: '0.22em',
+          textTransform: 'uppercase', color: station.color,
+        }}>
+          ★ Recommendation
+        </div>
+        <p style={{
+          margin: 0, fontSize: 13.5, lineHeight: 1.6,
+          color: 'rgb(var(--text-primary) / 0.86)',
+        }}>
+          &ldquo;{t.short}&rdquo;
+        </p>
+        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ width: 26, height: 1.5, background: station.color }} />
+          <div>
+            <div style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: 13, color: 'rgb(var(--text-primary))' }}>{t.name}</div>
+            <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 9.5, letterSpacing: '0.06em', color: 'rgb(var(--text-primary) / 0.5)', marginTop: 1 }}>{t.role}</div>
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 5 }}>
+            {testimonials.map((_, i) => (
+              <span key={i} style={{ width: i === ti ? 16 : 5, height: 5, borderRadius: 999, background: i === ti ? station.color : hexAlpha(station.color, 0.3), transition: 'all .3s' }} />
+            ))}
+          </div>
+        </div>
       </div>
     </>
   )

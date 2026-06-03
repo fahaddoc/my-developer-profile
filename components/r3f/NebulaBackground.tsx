@@ -103,7 +103,7 @@ function makeNebulaMaterial(opts: {
       }
       float fbm(vec2 p) {
         float v = 0.0; float amp = 0.55;
-        for (int i = 0; i < 5; i++) { v += amp * noise(p); p *= 2.05; amp *= 0.5; }
+        for (int i = 0; i < 3; i++) { v += amp * noise(p); p *= 2.05; amp *= 0.5; }
         return v;
       }
 
