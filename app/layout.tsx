@@ -67,23 +67,14 @@ export const metadata: Metadata = {
     firstName: 'Shah',
     lastName: 'Fahad',
     username: 'shahfahad',
-    images: [
-      {
-        url: '/og-image.png',
-        secureUrl: `${SITE_URL}/og-image.png`,
-        width: 1200,
-        height: 630,
-        type: 'image/png',
-        alt: `${AUTHOR.name} — ${AUTHOR.jobTitle}`,
-      },
-    ],
+    // og:image is provided by the dynamic app/opengraph-image.tsx route.
   },
   twitter: {
     card: 'summary_large_image',
     title: TITLE_DEFAULT,
     description: DESCRIPTION,
     creator: SOCIALS.twitterHandle || undefined,
-    images: ['/og-image.png'],
+    // twitter:image is provided by the dynamic app/twitter-image.tsx route.
   },
   robots: {
     index: true,
