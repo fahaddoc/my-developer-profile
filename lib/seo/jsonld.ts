@@ -114,6 +114,42 @@ export function projectSchema(p: Project) {
   }
 }
 
+export function faqSchema() {
+  const skillList = allSkills().join(', ')
+  const qa: [string, string][] = [
+    [
+      'Who is Shah Fahad?',
+      `Shah Fahad is a ${AUTHOR.jobTitle} based in ${AUTHOR.city}, ${AUTHOR.countryName}, with 6+ years of experience building real-time, high-performance web and mobile applications.`,
+    ],
+    [
+      'What technologies and skills does Shah Fahad have?',
+      `Shah Fahad works with ${skillList}. He specializes in React, Next.js, TypeScript, Flutter, WebRTC, and SignalR.`,
+    ],
+    [
+      'What does Shah Fahad specialize in?',
+      'Real-time and high-performance experiences — video conferencing (WebRTC/SignalR), modern hiring platforms, and cross-platform Flutter mobile apps that scale.',
+    ],
+    [
+      'What companies has Shah Fahad worked with?',
+      `Shah Fahad currently works at DigitalHire and has previously delivered projects for ${experience.slice(1).map((e) => e.company).join(', ')}.`,
+    ],
+    [
+      'Where is Shah Fahad located and is he available for work?',
+      `Shah Fahad is based in ${AUTHOR.city}, ${AUTHOR.countryName}, and is available for new opportunities, including remote roles. Reach him at ${AUTHOR.email}.`,
+    ],
+  ]
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    '@id': `${SITE_URL}/#faq`,
+    mainEntity: qa.map(([q, a]) => ({
+      '@type': 'Question',
+      name: q,
+      acceptedAnswer: { '@type': 'Answer', text: a },
+    })),
+  }
+}
+
 export function breadcrumbSchema(crumbs: { name: string; url: string }[]) {
   return {
     '@context': 'https://schema.org',
