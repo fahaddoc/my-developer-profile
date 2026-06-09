@@ -249,3 +249,17 @@ a:focus-visible {
   animation: station-heading-float 4.2s ease-in-out infinite;
   will-change: transform;
 }
+
+/* Project-page collage cards — gentle float. translateY only, so it composes
+   with the rotation set on each card's wrapper. */
+@keyframes proj-card-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+.proj-card-float {
+  animation: proj-card-float 5.5s ease-in-out infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .proj-card-float { animation: none; }
+}

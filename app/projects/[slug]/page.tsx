@@ -6,8 +6,7 @@ import { projects } from '@/data/projects'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { breadcrumbSchema, projectSchema } from '@/lib/seo/jsonld'
 import { SITE_URL, AUTHOR } from '@/lib/seo/site'
-import { Navbar } from '@/components/layout/Navbar'
-import { Footer } from '@/components/layout/Footer'
+import { StarfieldBackground } from '@/components/mobile/StarfieldBackground'
 
 export const dynamicParams = false
 
@@ -50,52 +49,19 @@ export async function generateMetadata(
       description,
       url,
       siteName: 'Shah Fahad',
-      images: [
-        {
-          url: project.image,
-          width: 1200,
-          height: 630,
-          alt: project.title,
-        },
-      ],
+      images: [{ url: project.image, width: 1200, height: 630, alt: project.title }],
       authors: [`${SITE_URL}`],
     },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: [project.image],
-    },
+    twitter: { card: 'summary_large_image', title, description, images: [project.image] },
   }
 }
 
-// ─── HUD corner bracket ──────────────────────────────────────────────────────
-function CornerBrackets() {
-  return (
-    <>
-      {(['tl', 'tr', 'bl', 'br'] as const).map((c) => {
-        const isTop  = c.startsWith('t')
-        const isLeft = c.endsWith('l')
-        return (
-          <span
-            key={c}
-            aria-hidden
-            className="pointer-events-none absolute w-5 h-5"
-            style={{
-              [isTop  ? 'top'  : 'bottom']: -1,
-              [isLeft ? 'left' : 'right']:  -1,
-              borderTop:    isTop  ? '1.5px solid rgb(94 234 212 / 0.7)' : undefined,
-              borderBottom: !isTop ? '1.5px solid rgb(94 234 212 / 0.7)' : undefined,
-              borderLeft:   isLeft ? '1.5px solid rgb(94 234 212 / 0.7)' : undefined,
-              borderRight: !isLeft ? '1.5px solid rgb(94 234 212 / 0.7)' : undefined,
-              boxShadow: '0 0 8px rgb(94 234 212 / 0.4)',
-            }}
-          />
-        )
-      })}
-    </>
-  )
-}
+// theme-adaptive teal identity (matches the tunnel / mobile-space accent)
+const A = 'rgb(var(--mob-accent))'
+const Aa = (a: number) => `rgb(var(--mob-accent) / ${a})`
+const TXT = 'rgb(var(--text-primary))'
+const SUB = 'rgb(var(--text-secondary))'
+const VIO = 'rgb(var(--accent-violet))'
 
 export default async function ProjectPage({ params }: { params: Promise<Params> }) {
   const { slug } = await params
@@ -108,342 +74,192 @@ export default async function ProjectPage({ params }: { params: Promise<Params> 
     { name: project.title, url: `${SITE_URL}/projects/${project.id}` },
   ])
 
-  const accent = project.color || '#5EEAD4'
-  const accentRgb = accent.replace('#', '').match(/.{2}/g)?.map(h => parseInt(h, 16)).join(',') || '94,234,212'
-  const idx = projects.findIndex(p => p.id === project.id)
+  const pc = project.color || '#5EEAD4'
+  const idx = projects.findIndex((p) => p.id === project.id)
   const seq = String(idx + 1).padStart(2, '0')
+  const mesh = `conic-gradient(from 210deg, ${pc}, ${A}, ${VIO}, ${pc})`
+  const related = projects.filter((p) => p.id !== project.id).slice(0, 4)
 
   return (
     <>
       <JsonLd data={projectSchema(project)} />
       <JsonLd data={breadcrumbs} />
 
-      {/* Nebula gradient background — matches tunnel scene aesthetic */}
-      <div
-        aria-hidden
-        className="fixed inset-0 pointer-events-none -z-10"
-        style={{
-          background: `
-            radial-gradient(ellipse at 18% 12%, rgba(${accentRgb},0.18) 0%, transparent 45%),
-            radial-gradient(ellipse at 82% 88%, rgba(${accentRgb},0.10) 0%, transparent 50%),
-            radial-gradient(ellipse at 50% 50%, rgba(13,89,115,0.25) 0%, rgba(3,10,30,0.85) 70%),
-            #03060f
-          `,
-        }}
-      />
+      <StarfieldBackground />
+      {/* per-project colour tint over the starfield */}
+      <div aria-hidden className="fixed inset-0 -z-[5] pointer-events-none" style={{ background: `radial-gradient(900px 600px at 80% -5%, ${pc}22, transparent 55%)` }} />
 
-      <Navbar />
+      {/* slim space chrome — back nav (no classic navbar) */}
+      <header className="fixed top-0 inset-x-0 z-30 flex items-center justify-between px-5 py-4" style={{ background: 'linear-gradient(rgb(var(--bg-base) / 0.7), transparent)' }}>
+        <Link href="/#projects" className="font-mono text-[11px] tracking-[0.18em] uppercase flex items-center gap-2 transition-colors" style={{ color: TXT }}>
+          <span style={{ color: A }}>←</span> Back to work
+        </Link>
+        <Link href="/" className="font-mono text-[11px] tracking-[0.18em] font-bold" style={{ color: TXT }}>SHAH FAHAD</Link>
+      </header>
 
-      <main className="min-h-screen pt-28 pb-24 px-6 relative">
-        <article className="max-w-content mx-auto">
+      <main className="relative z-10 min-h-screen px-5 sm:px-8 pt-24 pb-24 overflow-hidden">
+        <article className="max-w-5xl mx-auto">
 
-          {/* Breadcrumb — mono micro-text like tunnel HUD chrome */}
-          <nav
-            aria-label="Breadcrumb"
-            className="font-mono text-[10px] tracking-[0.3em] uppercase mb-8 flex items-center gap-3"
-            style={{ color: 'rgb(245 245 247 / 0.5)' }}
-          >
-            <Link href="/" className="hover:text-[var(--clr-accent)] transition-colors" style={{ ['--clr-accent' as string]: accent }}>
-              Home
-            </Link>
-            <span style={{ color: accent }}>·</span>
-            <Link href="/#projects" className="hover:text-[var(--clr-accent)] transition-colors" style={{ ['--clr-accent' as string]: accent }}>
-              Projects
-            </Link>
-            <span style={{ color: accent }}>·</span>
-            <span style={{ color: accent, textShadow: `0 0 10px rgba(${accentRgb},0.6)` }}>
-              {project.title}
-            </span>
-          </nav>
+          {/* giant ghost sequence number — editorial backdrop */}
+          <div aria-hidden className="pointer-events-none absolute -top-2 right-0 font-display font-extrabold leading-none select-none" style={{ fontSize: 'clamp(160px, 30vw, 360px)', color: Aa(0.04), letterSpacing: '-0.04em' }}>
+            {seq}
+          </div>
 
-          {/* Header — sequence number + station-style meta + huge display title */}
-          <header className="mb-12 relative">
-            <div className="flex items-center gap-4 mb-5">
-              <span
-                className="font-mono text-sm font-bold tracking-widest"
-                style={{ color: accent, textShadow: `0 0 12px rgba(${accentRgb},0.7)` }}
-              >
-                {seq}
-              </span>
-              <span aria-hidden className="h-px w-12" style={{ background: `linear-gradient(to right, rgb(${accentRgb}), transparent)` }} />
-              <span
-                className="font-mono text-[10px] tracking-[0.3em] uppercase"
-                style={{ color: 'rgb(245 245 247 / 0.55)' }}
-              >
-                {project.company} · {project.category} · {project.year}
+          {/* ── COLLAGE HERO ───────────────────────────────────────────── */}
+          <section className="relative mb-24">
+            {/* image block — rotated, mesh glow */}
+            <div className="relative ml-auto" style={{ width: 'min(100%, 660px)', transform: 'rotate(-2.5deg)' }}>
+              <div aria-hidden className="absolute -inset-5 rounded-[28px] -z-10" style={{ background: mesh, filter: 'blur(34px)', opacity: 0.55, transform: 'rotate(5deg)' }} />
+              <div className="relative aspect-video rounded-2xl overflow-hidden" style={{ border: `1px solid ${Aa(0.4)}`, boxShadow: `0 30px 80px rgba(0,0,0,0.5)` }}>
+                <Image src={project.image} alt={`${project.title} — ${project.tagline}`} fill priority className="object-cover" sizes="(max-width: 1024px) 100vw, 660px" />
+                <div aria-hidden className="absolute inset-0 mix-blend-overlay opacity-30" style={{ backgroundImage: `repeating-linear-gradient(to bottom, ${Aa(0.5)} 0 1px, transparent 1px 3px)` }} />
+              </div>
+              {/* sequence chip */}
+              <span className="absolute -top-4 -left-4 font-mono text-xs font-bold px-3 py-2 rounded-lg" style={{ color: '#05070d', background: A, transform: 'rotate(-6deg)', boxShadow: `0 0 24px ${Aa(0.6)}` }}>
+                {seq} / {String(projects.length).padStart(2, '0')}
               </span>
             </div>
 
-            <h1
-              className="font-display font-extrabold text-4xl md:text-6xl leading-[1.05] mb-6"
-              style={{
-                color: 'rgb(245 245 247)',
-                letterSpacing: '-0.02em',
-                textShadow: `0 0 30px rgba(${accentRgb},0.25)`,
-              }}
-            >
-              {project.title}
-            </h1>
+            {/* title card — overlaps the image, opposite tilt */}
+            <div className="relative -mt-20 sm:-mt-28 max-w-xl" style={{ transform: 'rotate(1.2deg)' }}>
+              <div className="proj-card-float p-6 sm:p-8 rounded-2xl" style={{ background: 'rgb(var(--bg-surface) / 0.72)', backdropFilter: 'blur(14px)', border: `1px solid ${Aa(0.22)}`, boxShadow: '0 24px 60px rgba(0,0,0,0.45)' }}>
+                <div className="font-mono text-[10px] tracking-[0.28em] uppercase mb-3" style={{ color: A }}>
+                  {project.company} · {project.category} · {project.year}
+                </div>
+                <h1 className="font-display font-extrabold leading-[0.98] mb-4" style={{ fontSize: 'clamp(36px, 7vw, 68px)', letterSpacing: '-0.03em', color: TXT }}>
+                  {project.title.split(' — ')[0]}
+                  <span style={{ color: A }}>.</span>
+                </h1>
+                <p className="text-base sm:text-lg leading-relaxed" style={{ color: SUB }}>{project.tagline}</p>
+              </div>
+            </div>
 
-            <p
-              className="text-lg md:text-xl max-w-3xl leading-relaxed"
-              style={{ color: 'rgb(245 245 247 / 0.72)' }}
-            >
-              {project.tagline}
+            {/* scattered tech chips */}
+            <div className="flex flex-wrap gap-3 mt-7 pl-1">
+              {project.tech.map((tech, i) => (
+                <span key={tech} className="font-mono text-[11px] px-3.5 py-2 rounded-full" style={{ color: '#cdeee7', background: Aa(0.07), border: `1px solid ${Aa(0.3)}`, transform: `rotate(${i % 2 ? 2.5 : -2.5}deg)` }}>
+                  {tech}
+                </span>
+              ))}
+            </div>
+          </section>
+
+          {/* ── OVERVIEW — editorial lead ──────────────────────────────── */}
+          <section className="mb-20 max-w-3xl">
+            <SectionLabel>Overview</SectionLabel>
+            <p className="font-display leading-[1.5]" style={{ fontSize: 'clamp(20px, 3vw, 30px)', color: TXT, letterSpacing: '-0.01em' }}>
+              {project.description}
             </p>
-          </header>
+          </section>
 
-          {/* Hero image — HUD-framed with corner brackets + glow border */}
-          <div className="relative mb-16">
-            <CornerBrackets />
-            <div
-              className="relative aspect-video rounded-xl overflow-hidden"
-              style={{
-                border: `1px solid rgba(${accentRgb},0.35)`,
-                boxShadow: `0 0 0 1px rgba(${accentRgb},0.08), 0 0 60px rgba(${accentRgb},0.18), inset 0 0 30px rgba(${accentRgb},0.08)`,
-                background: 'rgba(8,12,20,0.6)',
-              }}
-            >
-              <Image
-                src={project.image}
-                alt={`${project.title} — ${project.tagline}`}
-                fill
-                priority
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 1024px"
-              />
-              {/* subtle scanline overlay */}
-              <div
-                aria-hidden
-                className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-40"
-                style={{
-                  backgroundImage: `repeating-linear-gradient(to bottom, rgba(${accentRgb},0.12) 0, rgba(${accentRgb},0.12) 1px, transparent 1px, transparent 3px)`,
-                }}
-              />
+          {/* ── PROBLEM / SOLUTION — staggered collage cards ───────────── */}
+          <section className="mb-24 relative">
+            <div className="relative max-w-md mb-6 sm:mb-0" style={{ transform: 'rotate(-1deg)' }}>
+              <CollageCard tint={Aa(0.05)} delay={0.6}>
+                <SectionLabel>The Problem</SectionLabel>
+                <p className="leading-[1.75]" style={{ color: 'rgb(var(--text-primary) / 0.82)' }}>{project.problem}</p>
+              </CollageCard>
             </div>
-          </div>
-
-          {/* Body — content + aside */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-20">
-            <div className="lg:col-span-2 space-y-12">
-              <Section title="Overview" accent={accent} accentRgb={accentRgb}>
-                <p className="text-base md:text-lg leading-[1.75]" style={{ color: 'rgb(245 245 247 / 0.78)' }}>
-                  {project.description}
-                </p>
-              </Section>
-
-              <Section title="Problem" accent={accent} accentRgb={accentRgb}>
-                <p className="text-base md:text-lg leading-[1.75]" style={{ color: 'rgb(245 245 247 / 0.78)' }}>
-                  {project.problem}
-                </p>
-              </Section>
-
-              <Section title="Solution" accent={accent} accentRgb={accentRgb}>
-                <p className="text-base md:text-lg leading-[1.75]" style={{ color: 'rgb(245 245 247 / 0.78)' }}>
-                  {project.solution}
-                </p>
-              </Section>
-
-              <Section title="Key Features" accent={accent} accentRgb={accentRgb}>
-                <ul className="space-y-3">
-                  {project.features.map((f, i) => (
-                    <li
-                      key={f}
-                      className="flex gap-4 items-start p-3 rounded-lg"
-                      style={{
-                        background: `linear-gradient(140deg, rgba(${accentRgb},0.04), rgba(8,12,20,0.4))`,
-                        border: `1px solid rgba(${accentRgb},0.12)`,
-                      }}
-                    >
-                      <span
-                        className="font-mono text-[10px] mt-1 tabular-nums flex-shrink-0"
-                        style={{ color: accent, textShadow: `0 0 8px rgba(${accentRgb},0.7)` }}
-                      >
-                        {String(i + 1).padStart(2, '0')}
-                      </span>
-                      <span className="leading-relaxed" style={{ color: 'rgb(245 245 247 / 0.85)' }}>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Section>
+            <div className="relative max-w-md ml-auto sm:-mt-10" style={{ transform: 'rotate(1.4deg)' }}>
+              <CollageCard tint={`${pc}14`} border={`${pc}55`} delay={1.4}>
+                <div className="font-mono text-[10px] tracking-[0.28em] uppercase mb-3" style={{ color: pc }}>The Solution</div>
+                <p className="leading-[1.75]" style={{ color: 'rgb(var(--text-primary) / 0.82)' }}>{project.solution}</p>
+              </CollageCard>
             </div>
+          </section>
 
-            <aside className="space-y-8 lg:sticky lg:top-28 lg:self-start">
-              <Card accent={accent} accentRgb={accentRgb}>
-                <CardLabel accent={accent} accentRgb={accentRgb}>Tech Stack</CardLabel>
-                <div className="flex flex-wrap gap-2">
-                  {project.tech.map((t) => (
-                    <span
-                      key={t}
-                      className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest rounded"
-                      style={{
-                        color: 'rgb(245 245 247 / 0.85)',
-                        border: `1px solid rgba(${accentRgb},0.35)`,
-                        background: `rgba(${accentRgb},0.06)`,
-                      }}
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </Card>
-
-              <Card accent={accent} accentRgb={accentRgb}>
-                <CardLabel accent={accent} accentRgb={accentRgb}>Built By</CardLabel>
-                <p style={{ color: 'rgb(245 245 247 / 0.78)' }} className="leading-relaxed text-sm">
-                  <Link href="/" className="hover:underline" style={{ color: accent }}>
-                    {AUTHOR.name}
-                  </Link>{' '}
-                  — {AUTHOR.jobTitle}<br/>
-                  <span style={{ color: 'rgb(245 245 247 / 0.55)' }}>
-                    {AUTHOR.city}, {AUTHOR.countryName}
-                  </span>
-                </p>
-              </Card>
-
-              {(project.liveUrl || project.githubUrl) && (
-                <div className="space-y-2.5">
-                  {project.liveUrl && (
-                    <a
-                      href={project.liveUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full text-center px-4 py-3 rounded-lg font-mono text-[11px] tracking-[0.25em] uppercase font-bold transition-all hover:scale-[1.02]"
-                      style={{
-                        color: '#0A0A12',
-                        background: accent,
-                        boxShadow: `0 0 24px rgba(${accentRgb},0.45)`,
-                      }}
-                    >
-                      View Live →
-                    </a>
-                  )}
-                  {project.githubUrl && (
-                    <a
-                      href={project.githubUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full text-center px-4 py-3 rounded-lg font-mono text-[11px] tracking-[0.25em] uppercase font-bold transition-all"
-                      style={{
-                        color: accent,
-                        border: `1px solid rgba(${accentRgb},0.5)`,
-                        background: `rgba(${accentRgb},0.04)`,
-                      }}
-                    >
-                      View Source →
-                    </a>
-                  )}
-                </div>
-              )}
-            </aside>
-          </div>
-
-          {/* Related — tunnel-card-style grid */}
-          <section
-            className="pt-12"
-            style={{ borderTop: `1px solid rgba(${accentRgb},0.15)` }}
-          >
-            <div className="flex items-baseline gap-4 mb-8">
-              <span aria-hidden className="h-px w-16" style={{ background: `linear-gradient(to right, rgb(${accentRgb}), transparent)` }} />
-              <h2
-                className="font-mono text-[11px] tracking-[0.3em] uppercase"
-                style={{ color: accent, textShadow: `0 0 10px rgba(${accentRgb},0.5)` }}
-              >
-                More Case Studies
-              </h2>
-            </div>
-
-            <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {projects
-                .filter((p) => p.id !== project.id)
-                .slice(0, 4)
-                .map((p) => {
-                  const pAccent = p.color || '#5EEAD4'
-                  const pRgb = pAccent.replace('#', '').match(/.{2}/g)?.map(h => parseInt(h, 16)).join(',') || '94,234,212'
-                  return (
-                    <li key={p.id}>
-                      <Link
-                        href={`/projects/${p.id}`}
-                        className="block p-5 rounded-xl transition-all hover:-translate-y-0.5"
-                        style={{
-                          border: `1px solid rgba(${pRgb},0.2)`,
-                          background: `linear-gradient(140deg, rgba(${pRgb},0.04), rgba(8,12,20,0.5))`,
-                        }}
-                      >
-                        <span
-                          className="font-mono text-[10px] tracking-[0.3em] uppercase"
-                          style={{ color: pAccent, textShadow: `0 0 8px rgba(${pRgb},0.6)` }}
-                        >
-                          {p.company}
-                        </span>
-                        <p className="font-display font-bold text-lg mt-2" style={{ color: 'rgb(245 245 247)' }}>
-                          {p.title}
-                        </p>
-                        <p className="text-sm mt-1.5 line-clamp-2" style={{ color: 'rgb(245 245 247 / 0.65)' }}>
-                          {p.tagline}
-                        </p>
-                      </Link>
-                    </li>
-                  )
-                })}
+          {/* ── FEATURES — staggered list ──────────────────────────────── */}
+          <section className="mb-24 max-w-3xl">
+            <SectionLabel>Key Features</SectionLabel>
+            <ul className="mt-2 space-y-3">
+              {project.features.map((f, i) => (
+                <li key={f} className="flex gap-4 items-start p-4 rounded-xl" style={{
+                  background: 'rgb(var(--bg-surface) / 0.4)',
+                  border: `1px solid ${Aa(0.14)}`,
+                  marginLeft: `${(i % 3) * 18}px`,
+                  transform: `rotate(${i % 2 ? 0.5 : -0.5}deg)`,
+                }}>
+                  <span className="font-mono text-[11px] mt-1 flex-shrink-0" style={{ color: A }}>{String(i + 1).padStart(2, '0')}</span>
+                  <span className="leading-relaxed" style={{ color: 'rgb(var(--text-primary) / 0.85)' }}>{f}</span>
+                </li>
+              ))}
             </ul>
           </section>
 
+          {/* ── META + CTA ─────────────────────────────────────────────── */}
+          <section className="mb-24 flex flex-col sm:flex-row gap-5 items-start">
+            <CollageCard tint={Aa(0.05)} delay={0.3}>
+              <SectionLabel>Built By</SectionLabel>
+              <p className="leading-relaxed text-sm" style={{ color: SUB }}>
+                <Link href="/" className="hover:underline" style={{ color: A }}>{AUTHOR.name}</Link> — {AUTHOR.jobTitle}<br />
+                <span style={{ color: 'rgb(var(--text-secondary) / 0.7)' }}>{AUTHOR.city}, {AUTHOR.countryName}</span>
+              </p>
+            </CollageCard>
+            {(project.liveUrl || project.githubUrl) && (
+              <div className="flex flex-col gap-3 w-full sm:w-auto">
+                {project.liveUrl && (
+                  <a href={project.liveUrl} target="_blank" rel="noopener noreferrer" className="text-center px-6 py-3.5 rounded-xl font-mono text-[11px] tracking-[0.2em] uppercase font-bold transition-transform hover:scale-[1.03]" style={{ color: '#05070d', background: A, boxShadow: `0 0 28px ${Aa(0.45)}` }}>
+                    View Live ↗
+                  </a>
+                )}
+                {project.githubUrl && (
+                  <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className="text-center px-6 py-3.5 rounded-xl font-mono text-[11px] tracking-[0.2em] uppercase font-bold" style={{ color: A, border: `1px solid ${Aa(0.5)}`, background: Aa(0.04) }}>
+                    View Source ↗
+                  </a>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* ── RELATED — collage grid ─────────────────────────────────── */}
+          <section className="pt-12" style={{ borderTop: `1px solid ${Aa(0.15)}` }}>
+            <SectionLabel>More Case Studies</SectionLabel>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-2">
+              {related.map((p, i) => {
+                const rpc = p.color || '#5EEAD4'
+                return (
+                  <li key={p.id} style={{ transform: `rotate(${i % 2 ? 0.8 : -0.8}deg)` }}>
+                    <Link href={`/projects/${p.id}`} className="block p-5 rounded-xl transition-transform hover:-translate-y-1" style={{ background: 'rgb(var(--bg-surface) / 0.45)', border: `1px solid ${Aa(0.16)}` }}>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: rpc, boxShadow: `0 0 10px ${rpc}` }} />
+                        <span className="font-mono text-[10px] tracking-[0.24em] uppercase" style={{ color: A }}>{p.company}</span>
+                      </div>
+                      <p className="font-display font-bold text-lg" style={{ color: TXT }}>{p.title.split(' — ')[0]}</p>
+                      <p className="text-sm mt-1.5 leading-snug" style={{ color: SUB }}>{p.tagline}</p>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+
+          <div className="mt-20 text-center font-mono text-[10px]" style={{ color: 'rgb(var(--text-secondary) / 0.6)' }}>
+            © 2026 Shah Fahad · built in space
+          </div>
         </article>
       </main>
-
-      <Footer />
     </>
   )
 }
 
-// ─── Section + Card helpers ─────────────────────────────────────────────────
-function Section({ title, accent, accentRgb, children }: {
-  title: string; accent: string; accentRgb: string; children: React.ReactNode
-}) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <section>
-      <div className="flex items-center gap-3 mb-5">
-        <span aria-hidden className="h-px w-10" style={{ background: `linear-gradient(to right, rgb(${accentRgb}), transparent)` }} />
-        <h2
-          className="font-mono text-[11px] tracking-[0.3em] uppercase"
-          style={{ color: accent, textShadow: `0 0 10px rgba(${accentRgb},0.5)` }}
-        >
-          {title}
-        </h2>
-      </div>
-      {children}
-    </section>
-  )
-}
-
-function Card({ accent, accentRgb, children }: {
-  accent: string; accentRgb: string; children: React.ReactNode
-}) {
-  void accent
-  return (
-    <div
-      className="p-5 rounded-xl relative"
-      style={{
-        border: `1px solid rgba(${accentRgb},0.18)`,
-        background: `linear-gradient(140deg, rgba(${accentRgb},0.04), rgba(8,12,20,0.5))`,
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-      }}
-    >
-      {children}
+    <div className="flex items-center gap-3 mb-5">
+      <span aria-hidden className="h-px w-10" style={{ background: `linear-gradient(to right, ${A}, transparent)` }} />
+      <h2 className="font-mono text-[11px] tracking-[0.28em] uppercase" style={{ color: A }}>{children}</h2>
     </div>
   )
 }
 
-function CardLabel({ accent, accentRgb, children }: {
-  accent: string; accentRgb: string; children: React.ReactNode
-}) {
+function CollageCard({ tint, border, delay = 0, children }: { tint: string; border?: string; delay?: number; children: React.ReactNode }) {
   return (
-    <div
-      className="font-mono text-[10px] tracking-[0.3em] uppercase mb-3"
-      style={{ color: accent, textShadow: `0 0 8px rgba(${accentRgb},0.6)` }}
-    >
+    <div className="proj-card-float p-6 rounded-2xl w-full" style={{
+      background: `linear-gradient(150deg, ${tint}, rgb(var(--bg-surface) / 0.5))`,
+      border: `1px solid ${border || Aa(0.18)}`,
+      backdropFilter: 'blur(10px)',
+      boxShadow: '0 18px 50px rgba(0,0,0,0.35)',
+      animationDelay: `${delay}s`,
+    }}>
       {children}
     </div>
   )
