@@ -127,7 +127,7 @@ export const STATIONS: StationDef[] = [
     t:         0.04,
     heading:   'Shah Fahad',
     tagline:   'Senior Software Engineer — React, Next.js, Flutter, WebRTC. Real-time experiences from Karachi, Pakistan.',
-    color:     '#5EEAD4',
+    color:     '#a3b48d',
     imageSrc:  '/images/shah-fahad-sticker.png',
     subtitle:    'WELCOME TO MY SPACE',
     closer:      ['LET\'S BUILD', 'SOMETHING AMAZING'],
@@ -142,7 +142,7 @@ export const STATIONS: StationDef[] = [
     t:         0.20,
     heading:   'Turning ideas into shipped products',
     tagline:   '6+ years · 4 companies · 9+ projects · 25+ clients. From MILETAP\'s real-time video platform to DigitalHire\'s hiring system.',
-    color:     '#5EEAD4',
+    color:     '#a3b48d',
     subtitle:    'FROM IDEAS TO PRODUCTS',
     closer:      ['6 YEARS', 'SHIPPING REAL-TIME'],
     traitsLeft:  ['DETAIL', 'CRAFT', 'CONSISTENCY'],
@@ -156,7 +156,7 @@ export const STATIONS: StationDef[] = [
     t:         0.35,
     heading:   'Tech I work with',
     tagline:   'Frontend, mobile, real-time, backend, 3D / creative, tooling. Specialised in React + Next.js + Flutter + WebRTC.',
-    color:     '#5EEAD4',
+    color:     '#a3b48d',
     subtitle:    'TECHNOLOGIES I WORK WITH',
     closer:      ['DEEP SPECIALTY', 'BROAD COVERAGE'],
     traitsLeft:  ['REACT', 'NEXT.JS', 'TYPESCRIPT'],
@@ -170,7 +170,7 @@ export const STATIONS: StationDef[] = [
     t:         0.55,
     heading:   'Featured work',
     tagline:   'Konnect.im video conferencing · DigitalHire SaaS · WhatsApp ChatBot Simulator · Agent Shah 3D portfolio game.',
-    color:     '#5EEAD4',
+    color:     '#a3b48d',
     cta:       { text: 'view case studies →', href: '#projects' },
     subtitle:    'FEATURED CASE STUDIES',
     closer:      ['10+ PROJECTS', 'LIVE IN PRODUCTION'],
@@ -185,7 +185,7 @@ export const STATIONS: StationDef[] = [
     t:         0.75,
     heading:   'Professional journey',
     tagline:   'DigitalHire (current) · MILETAP · E-Ocean · freelance & contract — frontend, real-time, mobile.',
-    color:     '#5EEAD4',
+    color:     '#a3b48d',
     subtitle:    'PROFESSIONAL JOURNEY',
     closer:      ['4 COMPANIES', '25+ CLIENTS'],
     traitsLeft:  ['STARTUPS', 'ENTERPRISE', 'AGENCIES'],
@@ -199,7 +199,7 @@ export const STATIONS: StationDef[] = [
     t:         0.90,
     heading:   "Let's build something",
     tagline:   'hello@shahfahad.dev · open to senior frontend & real-time roles, full-time and contract.',
-    color:     '#5EEAD4',
+    color:     '#a3b48d',
     cta:       { text: 'book a 15-min call →', href: 'https://cal.com/shahfahad' },
     subtitle:    'LET\'S TALK',
     closer:      ['OPEN FOR', 'NEW ROLES'],
@@ -262,7 +262,7 @@ export function nearestStation(progress: number): StationDef {
 // for one draw call regardless of count.
 // ─────────────────────────────────────────────────────────────────────────────
 function Tunnel({
-  curve, ringCount, dotColor = '#5EEAD4',
+  curve, ringCount, dotColor = '#a3b48d',
 }: {
   curve:     THREE.CatmullRomCurve3
   ringCount: number
@@ -419,7 +419,7 @@ const PLANETS: Record<string, PlanetConfig> = {
     colorBright: '#a8f0f0',
     bands:       0.10,
     noiseScale:  3.5,
-    rimStrength: 0.8,
+    rimStrength: 0.45,
     radius:      1.45,
     offset:      [-1.7,  0.4, -2.3],
     spinSpeed:   0.10,
@@ -438,10 +438,10 @@ const PLANETS: Record<string, PlanetConfig> = {
   skills: {     // cyan crystalline core — small dense orb
     colorDeep:   '#031826',
     colorMid:    '#0d7a8a',
-    colorBright: '#00ffff',
+    colorBright: '#9fd8d2',
     bands:       0.0,
     noiseScale:  5.0,
-    rimStrength: 0.85,
+    rimStrength: 0.45,
     radius:      1.15,
     offset:      [-1.6,  0.4, -2.2],
     spinSpeed:   0.08,
@@ -711,7 +711,7 @@ function Particles({
       <pointsMaterial
         size={0.12}
         sizeAttenuation
-        color="#5EEAD4"
+        color="#a3b48d"
         map={texture ?? undefined}
         transparent
         opacity={0.75}
@@ -1429,9 +1429,9 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
     return () => mo.disconnect()
   }, [])
 
-  const bgColor    = isLight ? '#f1f5f9' : '#05050A'
+  const bgColor    = isLight ? '#f1f5f9' : '#0d0e12'
   const fogColor   = bgColor
-  const dotColor   = isLight ? '#0e7490' : '#5EEAD4'
+  const dotColor   = isLight ? '#0e7490' : '#a3b48d'
   const ambientI   = isLight ? 0.9      : 0.4
   const pointLightI = isLight ? 0.6     : 1.5
 

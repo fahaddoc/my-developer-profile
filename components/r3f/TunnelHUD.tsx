@@ -399,7 +399,7 @@ function ProjectsConstellation({ progress }: { progress: number }) {
 
   if (dist > 0.11) return null
 
-  const ACCENT   = '#5EEAD4'
+  const ACCENT   = '#a3b48d'
   const catLabel = (c: string) =>
     c === 'mobile' ? 'MOBILE' : c === 'realtime' ? 'REAL-TIME' : 'WEB'
   const openDrawer = (id: string) =>
@@ -433,7 +433,7 @@ function ProjectsConstellation({ progress }: { progress: number }) {
         {CN_NODES.map((n, i) => (
           <line key={i}
             x1={`${CN_HUB.x}%`} y1={`${CN_HUB.y}%`} x2={`${n.x}%`} y2={`${n.y}%`}
-            stroke={i === active ? ACCENT : 'rgba(94,234,212,0.16)'}
+            stroke={i === active ? ACCENT : 'rgba(163,180,141,0.16)'}
             strokeWidth={i === active ? 1.5 : 0.8}
             strokeDasharray={i === active ? '0' : '3 5'}
             style={{ transition: 'stroke .35s, stroke-width .35s' }} />
@@ -478,7 +478,7 @@ function ProjectsConstellation({ progress }: { progress: number }) {
               <div style={{
                 position: 'relative', width: '100%', height: '100%',
                 borderRadius: 11, overflow: 'hidden', background: '#0a0e1a',
-                border: on ? `1.5px solid ${ACCENT}` : '1px solid rgba(94,234,212,0.26)',
+                border: on ? `1.5px solid ${ACCENT}` : '1px solid rgba(163,180,141,0.26)',
                 boxShadow: on
                   ? `0 0 24px ${ACCENT}99, 0 12px 28px rgba(0,0,0,0.6)`
                   : '0 8px 20px rgba(0,0,0,0.5)',
@@ -514,7 +514,7 @@ function ProjectsConstellation({ progress }: { progress: number }) {
         background: 'linear-gradient(165deg, rgba(17,27,42,0.52) 0%, rgba(7,11,18,0.60) 100%)',
         backdropFilter: 'blur(14px) saturate(160%)', WebkitBackdropFilter: 'blur(14px) saturate(160%)',
         border: `1px solid ${ACCENT}59`, borderRadius: 22,
-        boxShadow: `0 34px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(94,234,212,0.12), 0 0 60px ${ACCENT}26, inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.3)`,
+        boxShadow: `0 34px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(163,180,141,0.12), 0 0 60px ${ACCENT}26, inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.3)`,
         overflow: 'hidden',
       }}>
         <style>{`
@@ -590,7 +590,7 @@ function ProjectsConstellation({ progress }: { progress: number }) {
                 <span key={t} style={{
                   fontFamily: 'var(--font-mono), monospace', fontSize: 8.5,
                   color: 'rgba(255,255,255,0.82)', padding: '3px 8px', borderRadius: 999,
-                  border: '1px solid rgba(94,234,212,0.28)', background: 'rgba(94,234,212,0.05)',
+                  border: '1px solid rgba(163,180,141,0.28)', background: 'rgba(163,180,141,0.05)',
                 }}>{t}</span>
               ))}
             </div>
@@ -631,7 +631,7 @@ function ExperienceJourney({ progress }: { progress: number }) {
   const near    = opacity > 0.4
   if (dist > 0.08) return null
 
-  const ACCENT = '#5EEAD4'
+  const ACCENT = '#a3b48d'
   const jour   = experience.slice(0, 4)
 
   return (
@@ -713,7 +713,7 @@ function ContactOrbit({ progress }: { progress: number }) {
   const near      = opacity > 0.4
   if (dist > 0.08) return null
 
-  const ACCENT = '#5EEAD4'
+  const ACCENT = '#a3b48d'
   const open   = () => window.dispatchEvent(new Event('contact-drawer-open'))
 
   return (
@@ -798,7 +798,7 @@ function AboutStory({ progress }: { progress: number }) {
   const near    = opacity > 0.4
   if (dist > 0.08) return null
 
-  const ACCENT = '#5EEAD4'
+  const ACCENT = '#a3b48d'
 
   return (
     <div
@@ -813,7 +813,7 @@ function AboutStory({ progress }: { progress: number }) {
     >
       <style>{`@keyframes about-cursor { 0%,49%{opacity:1} 50%,100%{opacity:0} }`}</style>
       {/* title bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 14px', borderBottom: '1px solid rgba(94,234,212,0.16)', background: 'rgba(94,234,212,0.04)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 14px', borderBottom: '1px solid rgba(163,180,141,0.16)', background: 'rgba(163,180,141,0.04)' }}>
         <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f56' }} />
         <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }} />
         <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#27c93f' }} />
