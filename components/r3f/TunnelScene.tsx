@@ -414,9 +414,9 @@ interface PlanetConfig {
 
 const PLANETS: Record<string, PlanetConfig> = {
   hero: {       // aqua water world
-    colorDeep:   '#2f343a',
-    colorMid:    '#5e656b',
-    colorBright: '#9aa1a6',
+    colorDeep:   '#06334a',
+    colorMid:    '#0e89a3',
+    colorBright: '#a8f0f0',
     bands:       0.10,
     noiseScale:  3.5,
     rimStrength: 0.45,
@@ -425,9 +425,9 @@ const PLANETS: Record<string, PlanetConfig> = {
     spinSpeed:   0.10,
   },
   about: {      // mars-like rocky
-    colorDeep:   '#383430',
-    colorMid:    '#6b655c',
-    colorBright: '#a49c90',
+    colorDeep:   '#3a1408',
+    colorMid:    '#c25a26',
+    colorBright: '#f0a468',
     bands:       0.0,
     noiseScale:  6.0,
     rimStrength: 0.30,
@@ -436,9 +436,9 @@ const PLANETS: Record<string, PlanetConfig> = {
     spinSpeed:   0.06,
   },
   skills: {     // cyan crystalline core — small dense orb
-    colorDeep:   '#33363a',
-    colorMid:    '#62666a',
-    colorBright: '#9ea2a4',
+    colorDeep:   '#031826',
+    colorMid:    '#0d7a8a',
+    colorBright: '#9fd8d2',
     bands:       0.0,
     noiseScale:  5.0,
     rimStrength: 0.45,
@@ -447,9 +447,9 @@ const PLANETS: Record<string, PlanetConfig> = {
     spinSpeed:   0.08,
   },
   projects: {   // violet gas giant w/ tilted ring
-    colorDeep:   '#35323b',
-    colorMid:    '#645f6a',
-    colorBright: '#a09aa6',
+    colorDeep:   '#28084a',
+    colorMid:    '#7a3fc8',
+    colorBright: '#e8caff',
     bands:       0.85,
     noiseScale:  3.0,
     rimStrength: 0.55,
@@ -459,9 +459,9 @@ const PLANETS: Record<string, PlanetConfig> = {
     ringTilt:    0.45,
   },
   experience: { // ice giant — neptune
-    colorDeep:   '#2f343c',
-    colorMid:    '#5e6570',
-    colorBright: '#99a0aa',
+    colorDeep:   '#0a2240',
+    colorMid:    '#3a7fb8',
+    colorBright: '#d4ecff',
     bands:       0.30,
     noiseScale:  4.5,
     rimStrength: 0.50,
@@ -470,9 +470,9 @@ const PLANETS: Record<string, PlanetConfig> = {
     spinSpeed:   0.07,
   },
   contact: {    // Earth — blue oceans, green continents, white clouds, polar caps
-    colorDeep:   '#34382f',   // deep ocean
-    colorMid:    '#62665a',   // surface ocean blue
-    colorBright: '#a0a596',   // continental green
+    colorDeep:   '#062a5a',   // deep ocean
+    colorMid:    '#1a6fb8',   // surface ocean blue
+    colorBright: '#3e9c54',   // continental green
     bands:       0.0,
     noiseScale:  4.2,
     rimStrength: 0.55,        // atmospheric blue rim glow
@@ -565,7 +565,8 @@ function Planet({ stationId, opacityRef }: {
         vec3 L = normalize(vec3(0.58, 0.42, 0.50));
         float ndl = dot(N, L);
         float diff = smoothstep(-0.80, 0.60, ndl);
-        vec3 col = mix(uColorDeep, uColorBright, diff);
+        vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.0, 0.5, diff));
+        col = mix(col, uColorBright, smoothstep(0.55, 1.0, diff) * 0.85);
 
         gl_FragColor = vec4(col, uOpacity);
       }

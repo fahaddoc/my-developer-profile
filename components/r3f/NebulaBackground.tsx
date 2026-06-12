@@ -149,11 +149,11 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
   // Dark-mode palette per user spec — teal/cyan family (matches the website's
   // existing accent system).
   const innerMat = useMemo(() => makeNebulaMaterial({
-    colorDeep:      isLight ? '#dde9ee' : '#181a20',  // vec3(0.02, 0.07, 0.18)
-    colorMid:       isLight ? '#aed3da' : '#2c303a',  // vec3(0.08, 0.32, 0.48)
-    colorBright:    isLight ? '#1a8ea0' : '#535b52',  // vec3(0.05, 0.85, 0.92)
+    colorDeep:      isLight ? '#dde9ee' : '#141519',  // vec3(0.02, 0.07, 0.18)
+    colorMid:       isLight ? '#aed3da' : '#1f232a',  // vec3(0.08, 0.32, 0.48)
+    colorBright:    isLight ? '#1a8ea0' : '#363b38',  // vec3(0.05, 0.85, 0.92)
     alpha:          isLight ? 0.78 : 1.00,
-    brightStrength: isLight ? 0.55 : 0.88,
+    brightStrength: isLight ? 0.55 : 0.55,
     uvScaleX:       4.0,
     uvScaleY:       2.5,
     scrollA:        [ 0.022,  0.031],
@@ -162,11 +162,11 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
   }), [isLight])
 
   const outerMat = useMemo(() => makeNebulaMaterial({
-    colorDeep:      isLight ? '#e9eff5' : '#121319',  // vec3(0.01, 0.04, 0.12)
-    colorMid:       isLight ? '#bcd9e2' : '#24272f',  // vec3(0.06, 0.22, 0.38)
-    colorBright:    isLight ? '#4ea1ac' : '#454b42',  // vec3(0.15, 0.65, 0.80)
+    colorDeep:      isLight ? '#e9eff5' : '#0f1015',  // vec3(0.01, 0.04, 0.12)
+    colorMid:       isLight ? '#bcd9e2' : '#1a1d23',  // vec3(0.06, 0.22, 0.38)
+    colorBright:    isLight ? '#4ea1ac' : '#2b302b',  // vec3(0.15, 0.65, 0.80)
     alpha:          isLight ? 0.55 : 0.92,
-    brightStrength: isLight ? 0.40 : 0.66,
+    brightStrength: isLight ? 0.40 : 0.42,
     uvScaleX:       2.4,
     uvScaleY:       1.6,
     scrollA:        [ 0.009,  0.013],
@@ -206,7 +206,7 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
       </mesh>
       {/* Starfield — drei Stars, inside the camera-following group so it always
           surrounds the camera and fills the view at every station. */}
-      <Stars radius={18} depth={34} count={1900} factor={3.2} saturation={0} fade speed={0.1} />
+      <Stars radius={18} depth={34} count={2300} factor={3.6} saturation={0} fade speed={0.1} />
     </group>
   )
 }
