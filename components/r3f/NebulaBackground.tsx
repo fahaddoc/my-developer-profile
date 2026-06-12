@@ -14,6 +14,7 @@
 
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { Stars } from '@react-three/drei'
 import * as THREE from 'three'
 
 interface NebulaBackgroundProps {
@@ -203,6 +204,8 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
       <mesh material={innerMat}>
         <sphereGeometry args={[50, 20, 14]} />
       </mesh>
+      {/* Surrounding starfield — drei Stars, fills the void like the reference */}
+      <Stars radius={20} depth={32} count={1500} factor={3.5} saturation={0} fade speed={0.2} />
     </group>
   )
 }

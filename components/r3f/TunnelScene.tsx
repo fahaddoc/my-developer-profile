@@ -558,18 +558,18 @@ function Planet({ stationId, opacityRef }: {
       }
 
       void main() {
-        // Smooth ceramic shading — a single fixed key light gives a soft
-        // terminator (the gallery look). No surface noise, no bands, no clouds.
+        // Proper matte diffuse — one key light from the upper-right, a soft
+        // terminator and an ambient floor so the shadow side reads (not black).
+        // No fresnel rim: edges fall into shadow naturally, like the reference.
         vec3 N = normalize(vNormalView);
-        vec3 L = normalize(vec3(0.45, 0.55, 0.70));
-        float diff = pow(clamp(dot(N, L), 0.0, 1.0), 0.85);
+        vec3 L = normalize(vec3(0.62, 0.50, 0.45));
+        float ndl = dot(N, L);
+        float diff = smoothstep(-0.45, 0.85, ndl);
 
-        vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.05, 0.55, diff));
-        col = mix(col, uColorBright, smoothstep(0.62, 1.0, diff) * 0.45);
-
-        // Restrained fresnel rim — premium edge, not a neon glow
-        float rim = pow(1.0 - max(0.0, N.z), 3.0);
-        col += uColorBright * rim * uRimStrength * 0.5;
+        float shade = 0.32 + 0.68 * diff;
+        vec3 col = uColorMid * shade;
+        col = mix(col, uColorDeep, (1.0 - diff) * 0.35);
+        col = mix(col, uColorBright, smoothstep(0.78, 1.0, diff) * 0.25);
 
         gl_FragColor = vec4(col, uOpacity);
       }
@@ -689,12 +689,12 @@ function Particles({
   return (
     <points geometry={geometry}>
       <pointsMaterial
-        size={0.12}
+        size={0.15}
         sizeAttenuation
-        color="#a3b48d"
+        color="#e7ecf2"
         map={texture ?? undefined}
         transparent
-        opacity={0.75}
+        opacity={0.92}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
         toneMapped={false}
