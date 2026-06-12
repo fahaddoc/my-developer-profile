@@ -111,18 +111,13 @@ function makeNebulaMaterial(opts: {
         // Triplanar fbm on view direction — sample on 3 cardinal planes and
         // blend by axis dominance. Avoids the atan2 seam an equirectangular
         // mapping leaves along +X on the sphere back.
-        vec3 d = vDir * uUvScale.x;
-        float n1 = fbm(d.xy + uScrollA * uTime);
-        float n2 = fbm(d.zy * 1.3 + uScrollB * uTime);
-        float n3 = fbm(d.xz * 1.5 + uScrollA * uTime * 0.6);
+        // Smooth gradient wash — no clouds. A vertical gradient plus a soft
+        // off-centre glow give premium depth without any FBM texture.
+        float t = vDir.y * 0.5 + 0.5;
+        float glow = pow(max(0.0, 1.0 - distance(vDir.xy, vec2(0.32, 0.14))), 2.5);
 
-        vec3 absD = pow(abs(vDir), vec3(2.0));
-        float total = absD.x + absD.y + absD.z + 1e-5;
-        float n = (n1 * absD.z + n2 * absD.x + n3 * absD.y) / total;
-        n = pow(n, 1.05);
-
-        vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.10, 0.55, n));
-        col = mix(col, uColorBright, smoothstep(0.40, 0.95, n) * uBrightStrength);
+        vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.0, 0.7, t));
+        col = mix(col, uColorBright, smoothstep(0.45, 1.0, t) * uBrightStrength + glow * uBrightStrength * 0.6);
 
         float pulse = 1.0 - uPulseDepth + uPulseDepth * (0.5 + 0.5 * sin(uTime * 0.45));
         gl_FragColor = vec4(col, uAlpha * pulse);

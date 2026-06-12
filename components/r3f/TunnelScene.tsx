@@ -558,38 +558,18 @@ function Planet({ stationId, opacityRef }: {
       }
 
       void main() {
-        vec3 absN = pow(abs(vLocalNormal), vec3(2.0));
-        float total = absN.x + absN.y + absN.z + 1e-5;
+        // Smooth ceramic shading — a single fixed key light gives a soft
+        // terminator (the gallery look). No surface noise, no bands, no clouds.
+        vec3 N = normalize(vNormalView);
+        vec3 L = normalize(vec3(0.45, 0.55, 0.70));
+        float diff = pow(clamp(dot(N, L), 0.0, 1.0), 0.85);
 
-        // Surface fbm
-        vec3 p = vLocalPos * uNoiseScale + vec3(uTime * 0.02, 0.0, uTime * 0.014);
-        float surface = triplanar(p, absN, total);
+        vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.05, 0.55, diff));
+        col = mix(col, uColorBright, smoothstep(0.62, 1.0, diff) * 0.45);
 
-        // Bands — latitude with noise distortion
-        float bandPattern = 0.5 + 0.5 * sin(vLatitude * 7.0 + surface * 3.5);
-        float pattern = mix(surface, bandPattern, uBands);
-
-        vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.25, 0.7, pattern));
-        col = mix(col, uColorBright, smoothstep(0.65, 0.92, pattern) * 0.55);
-
-        // Polar ice caps — brighten near the poles (high |latitude| component).
-        // Driven by the y component of the LOCAL normal so the cap rotates
-        // with the sphere properly.
-        float polarMask = smoothstep(0.78, 0.96, abs(vLocalNormal.y));
-        col = mix(col, vec3(0.92, 0.96, 1.0), polarMask * uPolarCap);
-
-        // Cloud layer — second fbm at different scale, scrolls faster than
-        // surface so clouds drift over the planet.
-        if (uCloudCover > 0.01) {
-          vec3 cp = vLocalPos * uNoiseScale * 0.65 + vec3(uTime * 0.05, 0.0, uTime * 0.03);
-          float cloud = triplanar(cp, absN, total);
-          cloud = smoothstep(0.52, 0.85, cloud);
-          col = mix(col, vec3(1.0), cloud * uCloudCover * 0.75);
-        }
-
-        // Fresnel rim — soft glow at silhouette
-        float rim = pow(1.0 - max(0.0, vNormalView.z), 2.0);
-        col += uColorBright * rim * uRimStrength;
+        // Restrained fresnel rim — premium edge, not a neon glow
+        float rim = pow(1.0 - max(0.0, N.z), 3.0);
+        col += uColorBright * rim * uRimStrength * 0.5;
 
         gl_FragColor = vec4(col, uOpacity);
       }
