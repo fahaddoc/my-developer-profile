@@ -414,9 +414,9 @@ interface PlanetConfig {
 
 const PLANETS: Record<string, PlanetConfig> = {
   hero: {       // aqua water world
-    colorDeep:   '#06334a',
-    colorMid:    '#0e89a3',
-    colorBright: '#a8f0f0',
+    colorDeep:   '#2f343a',
+    colorMid:    '#5e656b',
+    colorBright: '#9aa1a6',
     bands:       0.10,
     noiseScale:  3.5,
     rimStrength: 0.45,
@@ -425,9 +425,9 @@ const PLANETS: Record<string, PlanetConfig> = {
     spinSpeed:   0.10,
   },
   about: {      // mars-like rocky
-    colorDeep:   '#3a1408',
-    colorMid:    '#c25a26',
-    colorBright: '#f0a468',
+    colorDeep:   '#383430',
+    colorMid:    '#6b655c',
+    colorBright: '#a49c90',
     bands:       0.0,
     noiseScale:  6.0,
     rimStrength: 0.30,
@@ -436,9 +436,9 @@ const PLANETS: Record<string, PlanetConfig> = {
     spinSpeed:   0.06,
   },
   skills: {     // cyan crystalline core — small dense orb
-    colorDeep:   '#031826',
-    colorMid:    '#0d7a8a',
-    colorBright: '#9fd8d2',
+    colorDeep:   '#33363a',
+    colorMid:    '#62666a',
+    colorBright: '#9ea2a4',
     bands:       0.0,
     noiseScale:  5.0,
     rimStrength: 0.45,
@@ -447,9 +447,9 @@ const PLANETS: Record<string, PlanetConfig> = {
     spinSpeed:   0.08,
   },
   projects: {   // violet gas giant w/ tilted ring
-    colorDeep:   '#28084a',
-    colorMid:    '#7a3fc8',
-    colorBright: '#e8caff',
+    colorDeep:   '#35323b',
+    colorMid:    '#645f6a',
+    colorBright: '#a09aa6',
     bands:       0.85,
     noiseScale:  3.0,
     rimStrength: 0.55,
@@ -459,9 +459,9 @@ const PLANETS: Record<string, PlanetConfig> = {
     ringTilt:    0.45,
   },
   experience: { // ice giant — neptune
-    colorDeep:   '#0a2240',
-    colorMid:    '#3a7fb8',
-    colorBright: '#d4ecff',
+    colorDeep:   '#2f343c',
+    colorMid:    '#5e6570',
+    colorBright: '#99a0aa',
     bands:       0.30,
     noiseScale:  4.5,
     rimStrength: 0.50,
@@ -470,9 +470,9 @@ const PLANETS: Record<string, PlanetConfig> = {
     spinSpeed:   0.07,
   },
   contact: {    // Earth — blue oceans, green continents, white clouds, polar caps
-    colorDeep:   '#062a5a',   // deep ocean
-    colorMid:    '#1a6fb8',   // surface ocean blue
-    colorBright: '#3e9c54',   // continental green
+    colorDeep:   '#34382f',   // deep ocean
+    colorMid:    '#62665a',   // surface ocean blue
+    colorBright: '#a0a596',   // continental green
     bands:       0.0,
     noiseScale:  4.2,
     rimStrength: 0.55,        // atmospheric blue rim glow
@@ -558,18 +558,14 @@ function Planet({ stationId, opacityRef }: {
       }
 
       void main() {
-        // Proper matte diffuse — one key light from the upper-right, a soft
-        // terminator and an ambient floor so the shadow side reads (not black).
-        // No fresnel rim: edges fall into shadow naturally, like the reference.
+        // Smooth matte gradient — a single soft key light from the upper-right
+        // gives an even deep->bright terminator, exactly like the reference.
+        // No noise, no rim: just a clean Lambert wash on stone.
         vec3 N = normalize(vNormalView);
-        vec3 L = normalize(vec3(0.62, 0.50, 0.45));
+        vec3 L = normalize(vec3(0.58, 0.42, 0.50));
         float ndl = dot(N, L);
-        float diff = smoothstep(-0.45, 0.85, ndl);
-
-        float shade = 0.32 + 0.68 * diff;
-        vec3 col = uColorMid * shade;
-        col = mix(col, uColorDeep, (1.0 - diff) * 0.35);
-        col = mix(col, uColorBright, smoothstep(0.78, 1.0, diff) * 0.25);
+        float diff = smoothstep(-0.80, 0.60, ndl);
+        vec3 col = mix(uColorDeep, uColorBright, diff);
 
         gl_FragColor = vec4(col, uOpacity);
       }
@@ -1409,7 +1405,7 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
     return () => mo.disconnect()
   }, [])
 
-  const bgColor    = isLight ? '#f1f5f9' : '#0d0e12'
+  const bgColor    = isLight ? '#f1f5f9' : '#111217'
   const fogColor   = bgColor
   const dotColor   = isLight ? '#0e7490' : '#a3b48d'
   const ambientI   = isLight ? 0.9      : 0.4
