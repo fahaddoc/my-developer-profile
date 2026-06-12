@@ -204,8 +204,9 @@ export function NebulaBackground({ isLight, accent }: NebulaBackgroundProps) {
       <mesh material={innerMat}>
         <sphereGeometry args={[50, 20, 14]} />
       </mesh>
-      {/* Surrounding starfield — drei Stars, fills the void like the reference */}
-      <Stars radius={20} depth={32} count={1500} factor={3.5} saturation={0} fade speed={0.2} />
+      {/* Starfield — drei Stars, inside the camera-following group so it always
+          surrounds the camera and fills the view at every station. */}
+      <Stars radius={18} depth={34} count={1900} factor={3.2} saturation={0} fade speed={0.1} />
     </group>
   )
 }

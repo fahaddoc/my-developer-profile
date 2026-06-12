@@ -667,37 +667,37 @@ function Particles({
   // Static plain points — geometry built once, no per-frame work, no custom
   // shader, no constellation lines (dropped the O(n²) line-pair search and
   // the second BufferGeometry). All saved CPU / GPU time.
+  void curve // positions are world-space, independent of the path
   const geometry = useMemo(() => {
     const positions = new Float32Array(count * 3)
     for (let i = 0; i < count; i++) {
-      const t = Math.random()
-      const p = curve.getPointAt(t)
-      const angle  = Math.random() * Math.PI * 2
-      const radius = 0.5 + Math.random() * 2.5
-      positions[i * 3 + 0] = p.x + Math.cos(angle) * radius
-      positions[i * 3 + 1] = p.y + Math.sin(angle) * radius
-      positions[i * 3 + 2] = p.z
+      // Static world-space box wrapping the whole corridor (path: z 0..-190).
+      positions[i * 3 + 0] = (Math.random() - 0.5) * 100   // x ±50
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 100   // y ±50
+      positions[i * 3 + 2] = 25 - Math.random() * 250      // z +25 .. -225
     }
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geo.computeBoundingSphere()
     return geo
-  }, [curve, count])
+  }, [count])
   useEffect(() => () => geometry.dispose(), [geometry])
 
   const texture = useMemo(() => getSparkleTexture(), [])
 
   return (
-    <points geometry={geometry}>
+    <points geometry={geometry} frustumCulled={false}>
       <pointsMaterial
-        size={0.15}
-        sizeAttenuation
-        color="#e7ecf2"
+        size={2.4}
+        sizeAttenuation={false}
+        color="#eef2f7"
         map={texture ?? undefined}
         transparent
-        opacity={0.92}
+        opacity={0.95}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
         toneMapped={false}
+        fog={false}
         alphaTest={0.02}
       />
     </points>
@@ -1515,6 +1515,7 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         {/* Cosmic nebula + stars wrap the camera — paints first so the rest
             of the scene sits on top. */}
         <NebulaBackground isLight={isLight} accent={dotColor} />
+
 
         <Tunnel curve={curve} ringCount={preset.tubeSegments} dotColor={dotColor} />
 
