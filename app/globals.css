@@ -43,6 +43,18 @@
   /* Mobile "space" accent — the #5EEAD4 teal identity from the desktop tunnel */
   --mob-accent: 94 234 212;
 
+  /* Open-source / achievement surfaces use the sage-graphite identity (#a3b48d)
+     from the gallery-in-space look, so the Flutter pages read as one theme. */
+  --os-accent: 163 180 141;
+
+  /* Flutter brand blue + chip foreground — theme-aware so they stay AA in light mode */
+  --flutter-accent: 84 197 248;   /* #54C5F8 */
+  --chip-fg:        205 238 231;  /* #cdeee7 */
+
+  /* Git status colors (merged / added / removed) — bright on the dark bg */
+  --status-merged:  63 185 80;
+  --status-removed: 248 81 73;
+
   color-scheme: dark;
 }
 
@@ -75,6 +87,17 @@
 
   /* Darker teal so the accent stays legible on the white mobile background */
   --mob-accent: 13 148 136;
+
+  /* Sage reads too pale on white — use a darker teal-green that clears AA (~5:1). */
+  --os-accent: 15 118 110;
+
+  /* Darker Flutter blue + near-black chip text so both clear AA on white. */
+  --flutter-accent: 14 116 144;   /* #0e7490 — ~5.5:1 on white */
+  --chip-fg:        15  23  42;   /* text-primary dark */
+
+  /* Darker git status colors so merged/added/removed text hits WCAG AA on white */
+  --status-merged:  22 101 52;
+  --status-removed: 185 28 28;
 
   color-scheme: light;
 }

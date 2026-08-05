@@ -6,8 +6,11 @@
 // passing tunnel rings.
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { FaGithub, FaLinkedinIn, FaEnvelope, FaPhone } from 'react-icons/fa6'
 import type { IconType } from 'react-icons'
+import { contributions } from '@/data/open-source'
+import { FlutterLogo, GitHubLogo, MergedGlyph } from '@/components/featured/BrandLogos'
 import {
   STATIONS,
   nearestStation,
@@ -299,7 +302,10 @@ function StationOverlay({ station, progress }: { station: StationDef; progress: 
       key={station.id}
       style={{
         position: 'fixed',
-        left:     '11vw',
+        // The left nav rail is a fixed ~160px-wide column (longest label
+        // "EXPERIENCE"). 11vw alone is only ~158px on a 1440 screen, so the
+        // card collides with the nav labels there — clamp to a hard 190px floor.
+        left:     'max(190px, 11vw)',
         top:      '50%',
         transform: 'translateY(-50%)',
         zIndex:   30,
@@ -371,15 +377,18 @@ const CN_AUTOPLAY_MS = 2600
 
 function ProjectsConstellation({ progress }: { progress: number }) {
   const PROJECTS_T = STATIONS.find((s) => s.id === 'projects')?.t ?? 0.55
-  const dist    = Math.abs(progress - PROJECTS_T)
-  // Tight band around the PROJECTS station so the whole constellation has fully
-  // faded out BEFORE the camera reaches the neighbouring stations (skills 0.35
-  // / experience 0.75) — no bleed into the next section. Card stays fully
-  // opaque mid-dwell (a dark panel ghosts the instant its opacity dips), the
-  // ambient lines / nodes / glow fade on a slightly narrower ramp.
-  const cardOp  = Math.max(0, Math.min(1, (0.105 - dist) / 0.035))
-  const ambient = Math.max(0, Math.min(1, (0.095 - dist) / 0.04))
-  const near    = cardOp > 0.4
+  const OSS_T      = STATIONS.find((s) => s.id === 'opensource')?.t ?? 0.63
+  const mid        = (PROJECTS_T + OSS_T) / 2   // 0.59 — where the OSS card takes over
+  const dist       = Math.abs(progress - PROJECTS_T)
+  // ASYMMETRIC fade. The SKILLS side (0.35) is far, so give a generous approach
+  // there. The OSS side (0.63) is close, so HARD-cut: the constellation must be
+  // fully gone by `mid` (0.59), BEFORE the OSS station card appears — otherwise
+  // the projects cards bleed into OSS (they did in the 0.59–0.62 handoff zone).
+  const base       = Math.max(0, Math.min(1, (0.11 - dist) / 0.04))
+  const rightClamp = progress <= PROJECTS_T ? 1 : Math.max(0, Math.min(1, (mid - progress) / 0.025))
+  const cardOp     = Math.min(base, rightClamp)
+  const ambient    = Math.min(Math.max(0, Math.min(1, (0.10 - dist) / 0.045)), rightClamp)
+  const near       = cardOp > 0.4
 
   const pool = [...projects]
     .sort((a, b) => Number(b.featured ?? false) - Number(a.featured ?? false))
@@ -397,7 +406,7 @@ function ProjectsConstellation({ progress }: { progress: number }) {
     return () => clearInterval(id)
   }, [near, paused, pool.length])
 
-  if (dist > 0.11) return null
+  if (progress > mid || dist > 0.11) return null
 
   const ACCENT   = '#5EEAD4'
   const catLabel = (c: string) =>
@@ -840,6 +849,7 @@ function renderCard(s: StationDef) {
     case 'about':      return <AboutCard      station={s} />
     case 'skills':     return <SkillsCard     station={s} />
     case 'projects':   return <ProjectsCard   station={s} />
+    case 'opensource': return <OpenSourceCard station={s} />
     case 'experience': return <ExperienceCard station={s} />
     case 'contact':    return <ContactCard    station={s} />
   }
@@ -1092,6 +1102,75 @@ function ProjectsCard({ station }: { station: StationDef }) {
         color: hexAlpha(station.color, 0.7),
       }}>
         → tap any thumbnail in the space to open its case study
+      </div>
+    </>
+  )
+}
+
+function OpenSourceCard({ station }: { station: StationDef }) {
+  // Flutter blue lives ONLY inside this card (the planet/label stay sage).
+  const FLUTTER = '#54C5F8'
+  const MERGED  = '#3fb950'
+  const c = contributions[0]
+  const meta = `${c.repo} · #${c.prNumber} · ${c.displayDate} · +${c.additions}/−${c.deletions}`
+
+  return (
+    <>
+      <div style={eyebrow(station.color)}>{station.subtitle}</div>
+      <h2 style={{ ...heading, marginBottom: 18 }}>{station.heading}</h2>
+
+      {/* logos + merged pill row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, pointerEvents: 'none' }}>
+        <FlutterLogo size={26} style={{ color: FLUTTER }} title="Flutter" />
+        <GitHubLogo size={24} style={{ color: 'rgb(var(--text-primary) / 0.85)' }} title="GitHub" />
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '4px 11px', borderRadius: 999,
+          border: `1px solid ${hexAlpha(MERGED, 0.5)}`,
+          background: hexAlpha(MERGED, 0.12),
+          fontFamily: 'var(--font-mono), ui-monospace, monospace',
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.16em',
+          textTransform: 'uppercase', color: MERGED,
+        }}>
+          <MergedGlyph size={13} style={{ color: MERGED }} />
+          Merged
+        </span>
+      </div>
+
+      {/* PR title */}
+      <p style={{
+        fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
+        fontSize: 18, fontWeight: 700, lineHeight: 1.3, letterSpacing: '-0.01em',
+        color: 'rgb(var(--text-primary))', margin: '0 0 10px', maxWidth: 480,
+      }}>
+        {c.prTitle}
+      </p>
+
+      {/* meta line */}
+      <div style={{
+        fontFamily: 'var(--font-mono), ui-monospace, monospace',
+        fontSize: 12, letterSpacing: '0.04em',
+        color: 'rgb(var(--text-primary) / 0.6)', margin: '0 0 24px',
+      }}>
+        {meta}
+      </div>
+
+      {/* actions */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+        <a
+          href={c.prUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={ctaBtn(station.color)}
+        >
+          View Pull Request <span style={{ fontSize: 13 }}>↗</span>
+        </a>
+        <Link
+          href={`/achievements/${c.id}`}
+          style={ctaBtnGhost(station.color)}
+        >
+          Read case study <span style={{ fontSize: 13 }}>→</span>
+        </Link>
       </div>
     </>
   )

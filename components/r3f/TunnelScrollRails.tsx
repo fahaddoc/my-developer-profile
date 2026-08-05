@@ -18,6 +18,7 @@ const ANCHORS = [
   { id: 'about',      topVh: beforeT(0.20) },
   { id: 'skills',     topVh: beforeT(0.35) },
   { id: 'projects',   topVh: beforeT(0.55) },
+  { id: 'opensource', topVh: beforeT(0.63) },
   { id: 'experience', topVh: beforeT(0.75) },
   { id: 'contact',    topVh: beforeT(0.90) },
 ]

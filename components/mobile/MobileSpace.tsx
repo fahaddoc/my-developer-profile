@@ -13,6 +13,7 @@ import { StarfieldBackground } from '@/components/mobile/StarfieldBackground'
 import { projects, experience, skills } from '@/data/projects'
 import { testimonials } from '@/data/testimonials'
 import type { Project } from '@/data/projects'
+import { FeaturedAchievement } from '@/components/featured/FeaturedAchievement'
 
 // ── theme-adaptive accent helpers ─────────────────────────────────────────────
 const A = 'rgb(var(--mob-accent))'
@@ -21,7 +22,7 @@ const TXT = 'rgb(var(--text-primary))'
 const SUB = 'rgb(var(--text-secondary))'
 const VIO = 'rgb(var(--accent-violet))'
 
-const STATIONS = ['Intro', 'About', 'Skills', 'Work', 'Exp', 'Contact']
+const STATIONS = ['Intro', 'About', 'Skills', 'Work', 'Open Source', 'Exp', 'Contact']
 
 // About narrative — mirrors the desktop/classic About story cards.
 const STORY = [
@@ -123,8 +124,9 @@ export default function MobileSpace() {
         <Station n={1} setRef={setStationRef(1)}><About active={active === 1} /></Station>
         <Station n={2} setRef={setStationRef(2)}><Skills active={active === 2} /></Station>
         <Station n={3} setRef={setStationRef(3)}><Work active={active === 3} onOpen={setOpenProject} /></Station>
-        <Station n={4} setRef={setStationRef(4)}><Exp active={active === 4} /></Station>
-        <Station n={5} setRef={setStationRef(5)}><Contact active={active === 5} /></Station>
+        <Station n={4} setRef={setStationRef(4)}><FeaturedAchievement active={active === 4} n={5} /></Station>
+        <Station n={5} setRef={setStationRef(5)}><Exp active={active === 5} /></Station>
+        <Station n={6} setRef={setStationRef(6)}><Contact active={active === 6} /></Station>
       </div>
 
       {openProject && <ProjectSheet project={openProject} onClose={() => setOpenProject(null)} />}
@@ -463,7 +465,7 @@ function Exp({ active }: { active: boolean }) {
   const t = testimonials[ti]
   return (
     <div>
-      <StationHead active={active} n={5} label="Experience">The <span style={{ color: A }}>journey</span></StationHead>
+      <StationHead active={active} n={6} label="Experience">The <span style={{ color: A }}>journey</span></StationHead>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 18 }}>
         {experience.map((e, i) => (
           <div key={e.id} style={{ display: 'flex', gap: 12 }}>
@@ -510,7 +512,7 @@ function Contact({ active }: { active: boolean }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
       <div style={{ alignSelf: 'center', marginBottom: 22 }}><Planet size={70} active={active} /></div>
-      <StationHead active={active} n={6} label="Contact">Let&apos;s <span style={{ color: A }}>connect</span></StationHead>
+      <StationHead active={active} n={7} label="Contact">Let&apos;s <span style={{ color: A }}>connect</span></StationHead>
       <p style={{ fontSize: 14, lineHeight: 1.6, color: SUB, marginTop: 12 }}>Open to opportunities and interesting problems. Reach out anywhere.</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18, width: '100%' }}>
         {links.map((l) => (

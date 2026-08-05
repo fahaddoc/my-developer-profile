@@ -12,6 +12,7 @@
 // not hidden keyword stuffing.
 
 import { projects, experience, skills } from '@/data/projects'
+import { contributions } from '@/data/open-source'
 import { AUTHOR } from '@/lib/seo/site'
 
 export function SeoContent() {
@@ -68,6 +69,36 @@ export function SeoContent() {
                 <p>{p.tagline}</p>
                 <p>{p.description}</p>
                 <p>Built with: {p.tech.join(', ')}.</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section>
+          <h2>Open Source Contributions</h2>
+          <p>
+            Shah Fahad contributes to open source as a React and Flutter developer, with two pull
+            requests merged into the{' '}
+            <a href="https://github.com/flutter/flutter">official Flutter repository</a>{' '}
+            (<code>flutter/flutter</code>): one that improved the &ldquo;setState() called after
+            dispose()&rdquo; diagnostic message, and one that documented the super call order for{' '}
+            <code>State.didChangeDependencies</code>. See all{' '}
+            <a href="/open-source">open-source contributions</a>.
+          </p>
+          <ul>
+            {contributions.map((c) => (
+              <li key={c.id}>
+                <h3>
+                  <a href={`/achievements/${c.id}`}>{c.title}</a> — {c.prTitle} ({c.displayDate})
+                </h3>
+                <p>{c.summary}</p>
+                <p>
+                  Merged pull request:{' '}
+                  <a href={c.prUrl}>
+                    {c.repo} #{c.prNumber}
+                  </a>
+                  . Built with: {c.tech.join(', ')}.
+                </p>
               </li>
             ))}
           </ul>

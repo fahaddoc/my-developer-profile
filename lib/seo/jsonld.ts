@@ -1,4 +1,5 @@
 import { projects, experience, skills, type Project } from '@/data/projects'
+import { contributions, type Contribution } from '@/data/open-source'
 import { SITE_URL, SITE_NAME, AUTHOR, sameAsLinks } from './site'
 
 const abs = (path: string) => (path.startsWith('http') ? path : `${SITE_URL}${path.startsWith('/') ? '' : '/'}${path}`)
@@ -147,6 +148,72 @@ export function faqSchema() {
       name: q,
       acceptedAnswer: { '@type': 'Answer', text: a },
     })),
+  }
+}
+
+// ── open source ───────────────────────────────────────────────────────────────
+
+/**
+ * TechArticle for a single contribution case study (/achievements/[slug]).
+ * The article is authored by the Person and points at the merged PR as its
+ * discussionUrl / mentioned SoftwareSourceCode.
+ */
+export function techArticleSchema(c: Contribution) {
+  const url = `${SITE_URL}/achievements/${c.id}`
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    '@id': `${url}#techarticle`,
+    headline: `${c.title} — ${c.prTitle}`,
+    name: c.title,
+    description: c.summary,
+    url,
+    image: abs(`/achievements/${c.id}/opengraph-image`),
+    datePublished: c.mergedOn ?? c.openedOn,
+    dateModified: c.mergedOn ?? c.openedOn,
+    inLanguage: 'en',
+    author: { '@id': `${SITE_URL}/#person` },
+    publisher: { '@id': `${SITE_URL}/#person` },
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+    keywords: c.keywords.join(', '),
+    about: c.tech.map((t) => ({ '@type': 'Thing', name: t })),
+    proficiencyLevel: 'Expert',
+    discussionUrl: c.prUrl,
+    mentions: {
+      '@type': 'SoftwareSourceCode',
+      name: c.prTitle,
+      codeRepository: c.repoUrl,
+      programmingLanguage: c.language,
+      url: c.prUrl,
+    },
+  }
+}
+
+/** CollectionPage + ItemList for the /open-source hub. Scales with `contributions`. */
+export function openSourceCollectionSchema() {
+  const url = `${SITE_URL}/open-source`
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    '@id': `${url}#collection`,
+    url,
+    name: `Open Source Contributions by ${AUTHOR.name}`,
+    description: `Open-source contributions by ${AUTHOR.name}, ${AUTHOR.jobTitle} — including ${
+      contributions.filter((c) => c.status === 'merged').length
+    } pull requests merged into the official Flutter repository (flutter/flutter).`,
+    inLanguage: 'en',
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+    about: { '@id': `${SITE_URL}/#person` },
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: contributions.length,
+      itemListElement: contributions.map((c, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: `${SITE_URL}/achievements/${c.id}`,
+        name: `${c.title} — ${c.prTitle}`,
+      })),
+    },
   }
 }
 

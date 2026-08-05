@@ -34,10 +34,15 @@ export function Navbar() {
 
   const handleNavClick = (href: string) => {
     setMenuOpen(false)
-    // Imperative scroll used here (not <a href>) because we need to close the
-    // mobile menu as a side effect before navigating.
-    const el = document.querySelector(href)
-    if (el) el.scrollIntoView({ behavior: 'smooth' })
+    // Hash links scroll to an in-page section; route links (e.g. "/open-source")
+    // navigate. Passing a "/path" to querySelector throws (invalid selector), so
+    // branch on the href shape.
+    if (href.startsWith('#')) {
+      const el = document.querySelector(href)
+      if (el) el.scrollIntoView({ behavior: 'smooth' })
+    } else {
+      window.location.href = href
+    }
   }
 
   return (
