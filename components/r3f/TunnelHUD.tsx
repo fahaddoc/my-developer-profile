@@ -317,7 +317,7 @@ function StationOverlay({ station, progress }: { station: StationDef; progress: 
         color: 'rgb(var(--text-primary))',
       }}
     >
-      {renderCard(station)}
+      {renderCard(station, opacity > 0.4)}
     </div>
   )
 }
@@ -843,13 +843,13 @@ function AboutStory({ progress }: { progress: number }) {
   )
 }
 
-function renderCard(s: StationDef) {
+function renderCard(s: StationDef, near = true) {
   switch (s.id) {
     case 'hero':       return <HeroCard       station={s} />
     case 'about':      return <AboutCard      station={s} />
     case 'skills':     return <SkillsCard     station={s} />
     case 'projects':   return <ProjectsCard   station={s} />
-    case 'opensource': return <OpenSourceCard station={s} />
+    case 'opensource': return <OpenSourceCard station={s} near={near} />
     case 'experience': return <ExperienceCard station={s} />
     case 'contact':    return <ContactCard    station={s} />
   }
@@ -1107,17 +1107,51 @@ function ProjectsCard({ station }: { station: StationDef }) {
   )
 }
 
-function OpenSourceCard({ station }: { station: StationDef }) {
+// Long enough to read a PR title and its meta line before the next one comes
+// round. Shorter than this and the card reads as a flicker rather than a list.
+const OS_AUTOPLAY_MS = 7000
+
+function OpenSourceCard({ station, near }: { station: StationDef; near: boolean }) {
   // Flutter blue lives ONLY inside this card (the planet/label stay sage).
   const FLUTTER = '#54C5F8'
   const MERGED  = '#3fb950'
-  const c = contributions[0]
+
+  const [active, setActive] = useState(0)
+  const [paused, setPaused] = useState(false)
+
+  // Autoplay — only runs while the station is on screen and the visitor is not
+  // reading/hovering it, so the PR they are about to click does not slide away.
+  useEffect(() => {
+    if (!near || paused || contributions.length < 2) return
+    const id = setInterval(() => {
+      setActive((a) => (a + 1) % contributions.length)
+    }, OS_AUTOPLAY_MS)
+    return () => clearInterval(id)
+  }, [near, paused])
+
+  const c = contributions[active] ?? contributions[0]
   const meta = `${c.repo} · #${c.prNumber} · ${c.displayDate} · +${c.additions}/−${c.deletions}`
 
   return (
-    <>
+    <div
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+    >
+      <style>{`
+        @keyframes os-swap { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: translateY(0) } }
+        @keyframes os-bar  { from { width: 0% } to { width: 100% } }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes os-swap { from { opacity: 0 } to { opacity: 1 } }
+        }
+      `}</style>
+
       <div style={eyebrow(station.color)}>{station.subtitle}</div>
       <h2 style={{ ...heading, marginBottom: 18 }}>{station.heading}</h2>
+
+      {/* the rotating half of the card — keyed so each change replays the swap */}
+      <div key={c.id} style={{ animation: 'os-swap 480ms cubic-bezier(.16,1,.3,1) both' }}>
 
       {/* logos + merged pill row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, pointerEvents: 'none' }}>
@@ -1180,7 +1214,58 @@ function OpenSourceCard({ station }: { station: StationDef }) {
           Read case study <span style={{ fontSize: 13 }}>→</span>
         </Link>
       </div>
-    </>
+
+      </div>{/* /rotating half */}
+
+      {/* which of the merged PRs you are looking at, and how far off the next one is */}
+      {contributions.length > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 22, pointerEvents: 'auto' }}>
+          {contributions.map((item, i) => {
+            const isActive = i === active
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActive(i)}
+                aria-label={`Show ${item.repo} pull request #${item.prNumber}`}
+                aria-current={isActive}
+                style={{
+                  position: 'relative',
+                  width: isActive ? 46 : 22,
+                  height: 3,
+                  padding: 0,
+                  border: 'none',
+                  borderRadius: 999,
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  background: hexAlpha(station.color, isActive ? 0.22 : 0.3),
+                  transition: 'width 320ms cubic-bezier(.16,1,.3,1), background 220ms',
+                }}
+              >
+                {isActive && (
+                  <span
+                    key={`${item.id}-${paused}`}
+                    style={{
+                      position: 'absolute', inset: 0, display: 'block',
+                      background: station.color,
+                      width: paused ? '100%' : undefined,
+                      animation: paused || !near ? 'none' : `os-bar ${OS_AUTOPLAY_MS}ms linear forwards`,
+                    }}
+                  />
+                )}
+              </button>
+            )
+          })}
+          <span style={{
+            fontFamily: 'var(--font-mono), ui-monospace, monospace',
+            fontSize: 10, letterSpacing: '0.18em',
+            color: 'rgb(var(--text-primary) / 0.45)', marginLeft: 4,
+          }}>
+            {String(active + 1).padStart(2, '0')} / {String(contributions.length).padStart(2, '0')}
+          </span>
+        </div>
+      )}
+    </div>
   )
 }
 
