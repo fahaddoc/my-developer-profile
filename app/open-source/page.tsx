@@ -19,7 +19,7 @@ const FLUTTER_T = 'rgb(var(--flutter-accent))'  // Flutter blue for the logo/ico
 export const metadata: Metadata = {
   title: 'Open Source Contributions',
   description:
-    'Open-source contributions by Shah Fahad, a React and Flutter developer from Pakistan — including two pull requests merged into the official Flutter repository (flutter/flutter).',
+    'Open-source contributions by Shah Fahad, a React and Flutter developer from Pakistan — three merged pull requests across the official Flutter repository (flutter/flutter) and the Supabase Flutter SDK.',
   alternates: { canonical: '/open-source' },
   keywords: [
     'Flutter open source contributor',
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     type: 'website',
     title: 'Open Source Contributions — Shah Fahad',
     description:
-      'Contributing to the tools I build with — two pull requests merged into flutter/flutter.',
+      'Contributing to the tools I build with — merged pull requests in flutter/flutter and supabase/supabase-flutter.',
     url: `${SITE_URL}/open-source`,
     siteName: 'Shah Fahad',
   },
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Open Source Contributions — Shah Fahad',
     description:
-      'Two pull requests merged into flutter/flutter — a clearer setState()-after-dispose diagnostic, and the documented super call order for didChangeDependencies.',
+      'Three merged pull requests — a Postgres array parser in the Supabase Flutter SDK, a clearer setState()-after-dispose diagnostic, and the documented super call order for didChangeDependencies.',
   },
 }
 
@@ -85,9 +85,9 @@ export default function OpenSourcePage() {
           </h1>
           <p className="text-base sm:text-lg leading-relaxed max-w-2xl" style={{ color: SUB }}>
             I contribute to the tools I build with. As a React and Flutter developer from {AUTHOR.city}, {AUTHOR.countryName},
-            I have had {stats.merged === 1 ? 'a pull request' : `${stats.merged} pull requests`} merged into the
-            official Flutter repository (flutter/flutter) — most recently documenting a State lifecycle convention
-            that the framework had left unwritten since 2019.
+            I have had {stats.merged === 1 ? 'a pull request' : `${stats.merged} pull requests`} merged across the
+            official Flutter repository (flutter/flutter) and the Supabase Flutter SDK — most recently replacing a
+            comma-splitting shortcut that was quietly corrupting Postgres array values in realtime payloads.
           </p>
 
           {/* stats */}

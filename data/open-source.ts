@@ -80,6 +80,87 @@ export interface Contribution {
 
 export const contributions: Contribution[] = [
   {
+    id: 'supabase-flutter-postgres-array-parser',
+    title: 'Fixed silent data corruption in the Supabase Flutter SDK',
+    role: 'Open-source contribution',
+    org: 'Supabase',
+    project: 'Supabase Flutter SDK',
+    repo: 'supabase/supabase-flutter',
+    repoUrl: 'https://github.com/supabase/supabase-flutter',
+    status: 'merged',
+
+    prNumber: 1781,
+    prTitle: 'fix(realtime): parse Postgres array literals instead of splitting on commas',
+    prUrl: 'https://github.com/supabase/supabase-flutter/pull/1781',
+    mergeCommit: '89925f1',
+    mergeCommitUrl:
+      'https://github.com/supabase/supabase-flutter/commit/89925f1d5712f3dc8142f5833937663e4c794530',
+
+    openedOn: '2026-08-28',
+    mergedOn: '2026-08-28',
+    displayDate: 'August 28, 2026',
+
+    filesChanged: 2,
+    additions: 184,
+    deletions: 16,
+
+    language: 'Dart',
+    tech: ['Supabase', 'Dart', 'Flutter', 'PostgreSQL'],
+    area: [
+      'packages/supabase_realtime/lib/src/transformers.dart',
+      'packages/supabase_realtime/test/transformers_test.dart',
+    ],
+
+    summary:
+      'Replaced the Supabase Flutter SDK’s comma-splitting shortcut for Postgres array columns with a real parser, so realtime subscribers stop receiving quietly corrupted array values. Merged the same day it was opened.',
+    bullets: [
+      'Fixed Postgres array parsing in the realtime client of the Supabase Flutter SDK',
+      'A text[] value like {"a,b",c} used to arrive as three elements with stray quote characters; NULL elements arrived as the string "NULL", and nested arrays collapsed into nulls',
+      'Wrote a parser for the array literal itself — quoting, escapes, NULL elements and nested arrays — with eight tests covering the cases that were previously wrong',
+      'Merged into supabase/supabase-flutter, where the maintainer extended it with four follow-up commits',
+    ],
+
+    caseStudy: {
+      story:
+        'I was looking for a real defect in a well-maintained repository rather than a cosmetic one. In the Supabase Flutter SDK’s realtime client I found a function that turns a Postgres array column into a Dart list, and the code carried both a TODO and a warning from the maintainers saying the approach did not cover all edge cases. It turned out those edge cases were not rare, and they failed silently.',
+      problem:
+        'toArray() decoded a Postgres array literal by running json.decode on the array body and, when that threw, splitting the string on every comma. Any literal that is not also valid JSON went down the splitting path, so realtime payloads returned values that did not match the row. A text[] value of {"a,b",c} came back as three elements — "a, b" and c — with quote characters still attached. An unquoted NULL came back as the four character string "NULL" instead of a null element. An empty string element came back as the two quote characters. A two dimensional int4[] like {{1,2},{3,4}} came back as four nulls. Nothing threw and nothing logged, so an app just received the wrong data.',
+      changed: [
+        'Replaced both paths in packages/supabase_realtime/lib/src/transformers.dart with a parser for the literal Postgres actually sends: comma separated elements, optional double quotes where a backslash escapes the next character, whitespace around unquoted elements dropped, an unquoted NULL treated as the null element while a quoted "NULL" stays a string, and nested arrays keeping their shape.',
+        'Made a literal that does not parse return the raw string instead of data that looks structured but is not, so a future edge case surfaces as an obviously unparsed value rather than as silent corruption.',
+        'Added a toArray with quoting test group covering quoted commas, NULL against "NULL", empty string elements, nested arrays, escaped quotes and backslashes, quoted braces, whitespace handling and malformed literals.',
+        'My commit was 2 files, +184 / −16; the pull request merged at +244 / −14 after the maintainer’s follow-up commits.',
+      ],
+      codeBefore:
+        "// TODO: find a better solution to separate Postgres array data\ntry {\n  array = json.decode('[$trimmedValue]') as List;\n} catch (_) {\n  // WARNING: splitting on comma does not cover all edge cases\n  array = trimmedValue != '' ? trimmedValue.split(',') : [];\n}",
+      codeAfter:
+        "final elements = _parseArrayLiteral(value);\nif (elements == null) {\n  // Not a literal this parser understands, hand the raw value back rather\n  // than splitting it into something that looks like data but isn't.\n  return value;\n}\n\nreturn _convertElements(elements, type);",
+      review:
+        'The pull request was opened at 10:30 UTC with a before-and-after table showing each wrong value. An automated reviewer passed it within minutes, and in the afternoon the SDK’s maintainer took the branch directly instead of asking for changes: he restructured the parser into a class, added support for dimension decorations and the box type’s semicolon delimiter, made it reject literals Postgres could not have produced, and renamed a few identifiers. He approved at 15:43 UTC, the full CI matrix of 42 checks went green in about four minutes, and it was merged.',
+      merge:
+        'Merged into supabase/supabase-flutter on August 28, 2026 (merge commit 89925f1), five and a half hours after it was opened.',
+      whyItMatters:
+        'Realtime subscribers had no way to notice this. A crash gets reported; an array that quietly gains an element or turns a null into the word NULL just becomes a strange bug somewhere downstream, in whatever the app does with that list. The same shortcut still exists in the JavaScript client, which the pull request says plainly, and the offer to file the matching issue there stands.',
+      lessons: [
+        'A TODO left in a well-maintained repository is often a real, unclaimed defect. Reading the comment the maintainers wrote about their own code was what found this one.',
+        'Prove the bug before proposing the fix. Printing the current wrong output for each literal, then putting that table in the pull request, meant the reviewer never had to reconstruct the problem.',
+        'Leave “allow edits by maintainers” on. The maintainer pushed his refactor straight to the branch instead of opening a review round trip, which is a large part of why this merged in hours rather than weeks.',
+      ],
+    },
+
+    keywords: [
+      'Supabase contributor',
+      'Supabase Flutter SDK',
+      'open source Dart contribution',
+      'Postgres array parsing',
+      'supabase-flutter pull request',
+      'Flutter realtime',
+      'Dart parser',
+      'Shah Fahad Supabase',
+      'Flutter developer Pakistan',
+    ],
+  },
+  {
     id: 'flutter-didchangedependencies-docs',
     title: 'Documented a Flutter lifecycle convention',
     role: 'Open-source contribution',

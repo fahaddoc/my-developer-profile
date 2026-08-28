@@ -1121,7 +1121,15 @@ function OpenSourceCard({ station }: { station: StationDef }) {
 
       {/* logos + merged pill row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, pointerEvents: 'none' }}>
-        <FlutterLogo size={26} style={{ color: FLUTTER }} title="Flutter" />
+        {c.org === 'Flutter' ? (
+          <FlutterLogo size={26} style={{ color: FLUTTER }} title="Flutter" />
+        ) : (
+          <span style={{
+            fontFamily: 'var(--font-mono), ui-monospace, monospace',
+            fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: 'rgb(var(--text-primary) / 0.85)',
+          }}>{c.org}</span>
+        )}
         <GitHubLogo size={24} style={{ color: 'rgb(var(--text-primary) / 0.85)' }} title="GitHub" />
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
