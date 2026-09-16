@@ -365,7 +365,7 @@ function ProjectsGallery({ progress }: { progress: number }) {
   if (opacity < 0.01) return null
 
   return (
-    <div style={{ position: 'fixed', left: 'max(190px, 14vw)', right: '4vw', top: '50%', transform: 'translateY(-50%)', zIndex: 30, opacity, pointerEvents: opacity > 0.4 ? 'auto' : 'none', maxHeight: 'calc(100dvh - 150px)', overflowY: 'auto' }} data-lenis-prevent>
+    <div style={{ position: 'fixed', left: 'max(190px, 14vw)', right: '4vw', top: '50%', transform: 'translateY(-50%)', zIndex: 30, opacity, pointerEvents: opacity > 0.4 ? 'auto' : 'none' }}>
       <ProjectShowcase />
     </div>
   )
