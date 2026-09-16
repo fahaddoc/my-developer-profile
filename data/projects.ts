@@ -1,3 +1,5 @@
+import { engineeringDemos } from './engineering-demos'
+
 // data/projects.ts
 // Central data store for all portfolio content.
 // Update this file to change any project, experience, or skill data.
@@ -37,6 +39,7 @@ export interface SkillCategory {
 }
 
 export const projects: Project[] = [
+  ...engineeringDemos,
   {
     id: 'agent-shah-3d',
     title: 'Agent Shah — 3D Portfolio Game',

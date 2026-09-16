@@ -367,6 +367,7 @@ function Station({
           get exact per-letter coloring (troika colorRanges is unreliable via
           drei): the SECOND letter is white, every other letter is the site's
           primary accent. Tilts with the station group like the old 3D text. */}
+      {station.id !== 'projects' && (
       <Html
         position={[0, 2.35, 0.3]}
         center
@@ -397,6 +398,7 @@ function Station({
           ))}
         </div>
       </Html>
+      )}
 
       {/* Station content (calling card, stats, timeline, etc) is now rendered
           as flat HUD chrome via TunnelHUD <StationOverlay>, NOT in 3D space.
@@ -870,12 +872,12 @@ function ProjectTiles({
   stationT: number
   bob?:     boolean
 }) {
-  // 9 projects, featured first
+  // All projects remain reachable around the orbit, featured first.
   const pool = useMemo(() => {
     const sorted = [...projects].sort(
       (a, b) => Number(b.featured ?? false) - Number(a.featured ?? false),
     )
-    return sorted.slice(0, 9)
+    return sorted
   }, [])
 
   // ── Architecture per spec ─────────────────────────────────────────────

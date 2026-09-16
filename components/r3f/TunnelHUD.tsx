@@ -23,7 +23,8 @@ import { IntroMiniPlayer } from '@/components/r3f/IntroMiniPlayer'
 import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
 import { lenisInstance } from '@/components/providers/SmoothScroll'
 import { useTheme } from '@/components/providers/ThemeProvider'
-import { experience, projects } from '@/data/projects'
+import { experience } from '@/data/projects'
+import { ProjectShowcase } from '@/components/projects/ProjectShowcase'
 import { testimonials } from '@/data/testimonials'
 
 // Lenis hijacks native scroll, so el.scrollIntoView({behavior:'smooth'})
@@ -248,7 +249,7 @@ export function TunnelHUD() {
 
       {/* ─── right: projects grid (only fades in on PROJECTS) ─────────── */}
       <AboutStory progress={progress} />
-      <ProjectsConstellation progress={progress} />
+      <ProjectsGallery progress={progress} />
       <ExperienceJourney progress={progress} />
       <ContactOrbit progress={progress} />
 
@@ -352,271 +353,20 @@ function HeroSidePhoto({ progress, accent }: { progress: number; accent: string 
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ProjectsConstellation — projects rendered as glowing nodes wired to a central
-// hub on the right half of the screen. Autoplays through the projects; hovering
-// any node pins it (autoplay pauses) and surfaces its detail card. Click a node
-// or the CTA to open the full project drawer.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Node layout in % of the constellation box. The detail card sits on the LEFT
-// of the box (≈ screen centre); the hub + node thumbnails ring the RIGHT, so
-// nodes stay clear of the card (min x ≈ 52%).
-const CN_HUB   = { x: 58, y: 50 }
-// Depth cloud — nodes scattered around the card at varying DEPTH (d: 0..1).
-// Closer (higher d) = bigger, brighter, on top; farther = smaller, dimmer.
-// Kept off the card's centre (it spans ~43–73% x) — clustered left / top / bottom / right.
-const CN_NODES = [
-  { x: 88, y: 30, d: 0.95 }, { x: 92, y: 64, d: 0.55 }, { x: 78, y: 86, d: 0.85 },
-  { x: 70, y: 12, d: 0.5 },  { x: 30, y: 22, d: 0.7 },  { x: 17, y: 52, d: 1.0 },
-  { x: 27, y: 82, d: 0.55 }, { x: 46, y: 91, d: 0.8 },  { x: 50, y: 8,  d: 0.45 },
-]
-// Autoplay cadence. A literal quarter-second strobes too fast to read the card,
-// so it sits at a readable pace — tweak this single value to taste.
-const CN_AUTOPLAY_MS = 2600
-
-function ProjectsConstellation({ progress }: { progress: number }) {
-  const PROJECTS_T = STATIONS.find((s) => s.id === 'projects')?.t ?? 0.55
-  const OSS_T      = STATIONS.find((s) => s.id === 'opensource')?.t ?? 0.63
-  const mid        = (PROJECTS_T + OSS_T) / 2   // 0.59 — where the OSS card takes over
-  const dist       = Math.abs(progress - PROJECTS_T)
-  // ASYMMETRIC fade. The SKILLS side (0.35) is far, so give a generous approach
-  // there. The OSS side (0.63) is close, so HARD-cut: the constellation must be
-  // fully gone by `mid` (0.59), BEFORE the OSS station card appears — otherwise
-  // the projects cards bleed into OSS (they did in the 0.59–0.62 handoff zone).
-  const base       = Math.max(0, Math.min(1, (0.11 - dist) / 0.04))
-  const rightClamp = progress <= PROJECTS_T ? 1 : Math.max(0, Math.min(1, (mid - progress) / 0.025))
-  const cardOp     = Math.min(base, rightClamp)
-  const ambient    = Math.min(Math.max(0, Math.min(1, (0.10 - dist) / 0.045)), rightClamp)
-  const near       = cardOp > 0.4
-
-  const pool = [...projects]
-    .sort((a, b) => Number(b.featured ?? false) - Number(a.featured ?? false))
-    .slice(0, 9)
-
-  const [active, setActive] = useState(0)
-  const [paused, setPaused] = useState(false)
-
-  // Autoplay — only advances while the station is in view and not hovered.
-  useEffect(() => {
-    if (!near || paused) return
-    const id = setInterval(() => {
-      setActive((a) => (a + 1) % pool.length)
-    }, CN_AUTOPLAY_MS)
-    return () => clearInterval(id)
-  }, [near, paused, pool.length])
-
-  if (progress > mid || dist > 0.11) return null
-
-  const ACCENT   = '#5EEAD4'
-  const catLabel = (c: string) =>
-    c === 'mobile' ? 'MOBILE' : c === 'realtime' ? 'REAL-TIME' : 'WEB'
-  const openDrawer = (id: string) =>
-    window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: id }))
-
-  const p = pool[active]
+// A readable project gallery takes over the station, then fades before OSS.
+function ProjectsGallery({ progress }: { progress: number }) {
+  const projectT = STATIONS.find((station) => station.id === 'projects')!.t
+  const ossT = STATIONS.find((station) => station.id === 'opensource')!.t
+  const midpoint = (projectT + ossT) / 2
+  const distance = Math.abs(progress - projectT)
+  const approach = Math.max(0, Math.min(1, (0.11 - distance) / 0.04))
+  const departure = progress <= projectT ? 1 : Math.max(0, Math.min(1, (midpoint - progress) / 0.025))
+  const opacity = Math.min(approach, departure)
+  if (opacity < 0.01) return null
 
   return (
-    <div
-      onMouseLeave={() => setPaused(false)}
-      style={{
-        position: 'fixed',
-        right:    0,
-        top:      '50%',
-        transform: 'translateY(-50%)',
-        width:    'min(64vw, 980px)',
-        height:   'min(86vh, 700px)',
-        zIndex:   30,
-        pointerEvents: near ? 'auto' : 'none',
-      }}
-    >
-      <style>{`
-        @keyframes cn-pulse { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.85} 50%{transform:translate(-50%,-50%) scale(1.16);opacity:1} }
-        @keyframes cn-bar   { from{width:0%} to{width:100%} }
-        @keyframes cn-fade  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes cn-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-9px)} }
-      `}</style>
-
-      {/* connector lines hub → nodes */}
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: ambient, transition: 'opacity 220ms' }}>
-        {CN_NODES.map((n, i) => (
-          <line key={i}
-            x1={`${CN_HUB.x}%`} y1={`${CN_HUB.y}%`} x2={`${n.x}%`} y2={`${n.y}%`}
-            stroke={i === active ? ACCENT : 'rgba(94,234,212,0.16)'}
-            strokeWidth={i === active ? 1.5 : 0.8}
-            strokeDasharray={i === active ? '0' : '3 5'}
-            style={{ transition: 'stroke .35s, stroke-width .35s' }} />
-        ))}
-      </svg>
-
-      {/* centre energy glow behind the card — the card itself is the hub now */}
-      <div style={{
-        position: 'absolute', left: `${CN_HUB.x}%`, top: '50%', transform: 'translate(-50%,-50%)',
-        width: 420, height: 420, borderRadius: '50%', pointerEvents: 'none',
-        background: `radial-gradient(circle, ${ACCENT}24, transparent 70%)`,
-        opacity: ambient, transition: 'opacity 220ms',
-      }} />
-
-      {/* node thumbnails — a DEPTH CLOUD: each node's size + opacity + stacking
-          comes from its depth `d`, so they read as floating at different distances */}
-      {CN_NODES.map((n, i) => {
-        const it = pool[i]
-        const on = i === active
-        const w  = Math.round(50 + n.d * 52)        // 50–102px wide by depth
-        const baseOp = 0.4 + n.d * 0.6              // farther = dimmer
-        return (
-          <button key={it.id}
-            onMouseEnter={() => { setActive(i); setPaused(true) }}
-            onFocus={() => { setActive(i); setPaused(true) }}
-            onClick={() => openDrawer(it.id)}
-            aria-label={`Open ${it.title} case study`}
-            style={{
-              position: 'absolute', left: `${n.x}%`, top: `${n.y}%`,
-              transform: 'translate(-50%,-50%)',
-              width: w, height: Math.round(w * 0.76), padding: 0, border: 'none', background: 'transparent',
-              cursor: 'pointer', zIndex: on ? 12 : Math.round(n.d * 6) + 2,
-            }}>
-            {/* depth layer — opacity + active pop */}
-            <div style={{
-              width: '100%', height: '100%',
-              opacity: (on ? 1 : baseOp) * ambient,
-              transform: `scale(${on ? 1.08 : 1})`,
-              transition: 'opacity .25s, transform .35s cubic-bezier(.16,1,.3,1)',
-            }}>
-              {/* floating layer — gentle bob, desynced per node */}
-              <div style={{
-                position: 'relative', width: '100%', height: '100%',
-                borderRadius: 11, overflow: 'hidden', background: '#0a0e1a',
-                border: on ? `1.5px solid ${ACCENT}` : '1px solid rgba(94,234,212,0.26)',
-                boxShadow: on
-                  ? `0 0 24px ${ACCENT}99, 0 12px 28px rgba(0,0,0,0.6)`
-                  : '0 8px 20px rgba(0,0,0,0.5)',
-                transition: 'border-color .3s, box-shadow .3s',
-                animation: `cn-float ${(3.6 + (i % 3) * 0.9).toFixed(1)}s ease-in-out ${(-i * 0.6).toFixed(1)}s infinite`,
-              }}>
-                <img src={it.image} alt="" draggable={false}
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                <div style={{ position: 'absolute', inset: 0, background: on
-                  ? 'linear-gradient(180deg, rgba(5,8,16,0.04), rgba(5,8,16,0.42))'
-                  : 'linear-gradient(180deg, rgba(5,8,16,0.28), rgba(5,8,16,0.64))' }} />
-                <span style={{
-                  position: 'absolute', top: 4, left: 6,
-                  fontFamily: 'var(--font-mono), monospace', fontSize: 8.5, fontWeight: 700,
-                  letterSpacing: '0.1em', color: '#fff', textShadow: `0 0 6px ${ACCENT}, 0 1px 3px #000`,
-                }}>
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-              </div>
-            </div>
-          </button>
-        )
-      })}
-
-      {/* detail card — the centre hub itself. Nodes ring around it, connector
-          lines emanate from behind it. Opaque so nothing bleeds through. */}
-      <div style={{
-        position: 'absolute', left: `${CN_HUB.x}%`, top: '50%', transform: 'translate(-50%,-50%)',
-        width: 300, zIndex: 7,
-        opacity: cardOp, transition: 'opacity 200ms',
-        // Glassmorphic — translucent dark tint + backdrop blur frosts the
-        // nebula behind the card; the dark tint keeps text readable.
-        background: 'linear-gradient(165deg, rgba(17,27,42,0.52) 0%, rgba(7,11,18,0.60) 100%)',
-        backdropFilter: 'blur(14px) saturate(160%)', WebkitBackdropFilter: 'blur(14px) saturate(160%)',
-        border: `1px solid ${ACCENT}59`, borderRadius: 22,
-        boxShadow: `0 34px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(94,234,212,0.12), 0 0 60px ${ACCENT}26, inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.3)`,
-        overflow: 'hidden',
-      }}>
-        <style>{`
-          .cn-cta { transition: filter .25s, box-shadow .25s, transform .2s; }
-          .cn-cta:hover { filter: brightness(1.08); box-shadow: 0 10px 26px ${ACCENT}55; transform: translateY(-1px); }
-          .cn-cta:active { transform: translateY(0); }
-          .cn-cta .cn-arr { display: inline-block; transition: transform .25s; }
-          .cn-cta:hover .cn-arr { transform: translateX(5px); }
-          @keyframes cn-mesh { to { transform: rotate(360deg); } }
-        `}</style>
-
-        {/* autoplay progress bar */}
-        <div style={{ height: 3, background: 'rgba(255,255,255,0.06)' }}>
-          <div
-            key={`${active}-${paused}`}
-            style={{
-              height: '100%', background: `linear-gradient(90deg, ${ACCENT}, #38bdf8)`,
-              width: paused ? '100%' : '0%', boxShadow: `0 0 8px ${ACCENT}`,
-              animation: paused ? 'none' : `cn-bar ${CN_AUTOPLAY_MS}ms linear forwards`,
-              opacity: paused ? 0.4 : 1,
-            }} />
-        </div>
-
-        <div key={p.id} style={{ opacity: 1, animation: 'cn-fade .4s ease' }}>
-          {/* gradient-mesh cover — a rotating conic gradient (per-project colour
-              → accent) instead of a screenshot. */}
-          <div style={{ position: 'relative', height: 92, overflow: 'hidden' }}>
-            <div style={{
-              position: 'absolute', inset: '-60%',
-              background: `conic-gradient(from 0deg, ${p.color}, ${ACCENT}, #a78bfa, ${p.color})`,
-              filter: 'blur(16px)', animation: 'cn-mesh 7s linear infinite',
-            }} />
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(10,16,26,0) 45%, rgba(11,17,28,0.62) 100%)' }} />
-            <span style={{
-              position: 'absolute', top: 12, left: 13, padding: '4px 9px', borderRadius: 6,
-              background: 'rgba(7,11,18,0.55)', backdropFilter: 'blur(4px)',
-              border: `1px solid ${ACCENT}40`,
-              fontFamily: 'var(--font-mono), monospace', fontSize: 8, fontWeight: 700,
-              letterSpacing: '0.16em', color: '#fff',
-            }}>{catLabel(p.category)} · {p.year}</span>
-            <span style={{
-              position: 'absolute', top: 12, right: 14,
-              fontFamily: 'var(--font-mono), monospace', fontSize: 11, fontWeight: 700,
-              letterSpacing: '0.1em', color: '#fff', textShadow: '0 1px 6px rgba(0,0,0,0.6)',
-            }}>
-              {String(active + 1).padStart(2, '0')}
-              <span style={{ opacity: 0.5 }}> / {String(pool.length).padStart(2, '0')}</span>
-            </span>
-          </div>
-
-          {/* body */}
-          <div style={{ padding: '14px 15px 15px' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6,
-              fontFamily: 'var(--font-mono), monospace', fontSize: 8.5,
-              letterSpacing: '0.16em', color: ACCENT,
-            }}>
-              <span style={{ width: 14, height: 1.5, background: ACCENT, boxShadow: `0 0 6px ${ACCENT}` }} />
-              {p.company.toUpperCase()}
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-display), sans-serif', fontWeight: 800,
-              fontSize: 19, lineHeight: 1.08, letterSpacing: '-0.015em', color: '#fff',
-            }}>{p.title.split(' — ')[0]}</div>
-            <p style={{
-              marginTop: 8,
-              fontSize: 11.5, lineHeight: 1.5, color: 'rgba(255,255,255,0.62)',
-              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-            }}>{p.tagline}</p>
-
-            <div style={{ marginTop: 11, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {(p.tech ?? []).slice(0, 3).map((t) => (
-                <span key={t} style={{
-                  fontFamily: 'var(--font-mono), monospace', fontSize: 8.5,
-                  color: 'rgba(255,255,255,0.82)', padding: '3px 8px', borderRadius: 999,
-                  border: '1px solid rgba(94,234,212,0.28)', background: 'rgba(94,234,212,0.05)',
-                }}>{t}</span>
-              ))}
-            </div>
-
-            <button
-              className="cn-cta"
-              onClick={() => openDrawer(p.id)}
-              style={{
-                marginTop: 13, width: '100%', padding: '10px 0', borderRadius: 10,
-                background: `linear-gradient(135deg, ${ACCENT} 0%, #38bdf8 100%)`,
-                color: '#05070d', border: 'none', cursor: 'pointer',
-                fontFamily: 'var(--font-mono), monospace', fontSize: 10, fontWeight: 700,
-                letterSpacing: '0.15em',
-              }}>VIEW CASE STUDY <span className="cn-arr">→</span></button>
-          </div>
-        </div>
-      </div>
+    <div style={{ position: 'fixed', left: 'max(190px, 14vw)', right: '4vw', top: '50%', transform: 'translateY(-50%)', zIndex: 30, opacity, pointerEvents: opacity > 0.4 ? 'auto' : 'none' }}>
+      <ProjectShowcase />
     </div>
   )
 }
@@ -848,7 +598,7 @@ function renderCard(s: StationDef, near = true) {
     case 'hero':       return <HeroCard       station={s} />
     case 'about':      return <AboutCard      station={s} />
     case 'skills':     return <SkillsCard     station={s} />
-    case 'projects':   return <ProjectsCard   station={s} />
+    case 'projects':   return null
     case 'opensource': return <OpenSourceCard station={s} near={near} />
     case 'experience': return <ExperienceCard station={s} />
     case 'contact':    return <ContactCard    station={s} />
@@ -1085,23 +835,6 @@ function AboutCard({ station }: { station: StationDef }) {
             borderRadius: 3,
           }}>{t}</span>
         ))}
-      </div>
-    </>
-  )
-}
-
-function ProjectsCard({ station }: { station: StationDef }) {
-  return (
-    <>
-      <div style={eyebrow(station.color)}>{station.subtitle}</div>
-      <h2 style={heading}>{station.heading}</h2>
-      <p style={tagline}>{station.tagline}</p>
-      <div style={{
-        fontFamily: 'var(--font-mono), monospace',
-        fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase',
-        color: hexAlpha(station.color, 0.7),
-      }}>
-        → tap any thumbnail in the space to open its case study
       </div>
     </>
   )

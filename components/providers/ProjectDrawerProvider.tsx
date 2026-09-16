@@ -335,6 +335,12 @@ function PanelBody({ project, onClose }: { project: Project; onClose: () => void
         </div>
       )}
 
+      {project.githubUrl && (
+        <div style={{ marginBottom: 22 }}>
+          <NeonButton href={project.githubUrl} kind="ghost">VIEW SOURCE ON GITHUB ↗</NeonButton>
+        </div>
+      )}
+
       {/* Problem */}
       {project.problem && (
         <Group label="THE PROBLEM">
