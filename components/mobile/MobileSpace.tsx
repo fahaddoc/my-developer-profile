@@ -416,8 +416,10 @@ function Skills({ active }: { active: boolean }) {
 }
 
 function Work({ active, onOpen }: { active: boolean; onOpen: (p: Project) => void }) {
-  const nodes = projects.slice(0, NODE_XY.length)
-  const path = NODE_XY.map(([x, y]) => `${x},${y}`).join(' ')
+  const [page, setPage] = useState(0)
+  const pages = Math.ceil(projects.length / NODE_XY.length)
+  const nodes = projects.slice(page * NODE_XY.length, (page + 1) * NODE_XY.length)
+  const path = NODE_XY.slice(0, nodes.length).map(([x, y]) => `${x},${y}`).join(' ')
   return (
     <div>
       <StationHead active={active} n={4} label="Work">Selected <span style={{ color: A }}>work</span></StationHead>
@@ -443,7 +445,7 @@ function Work({ active, onOpen }: { active: boolean; onOpen: (p: Project) => voi
               }}
             >
               <span style={{ position: 'absolute', left: '50%', top: 'calc(100% + 3px)', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono), monospace', fontSize: 7.5, color: SUB, pointerEvents: 'none' }}>
-                {p.company}
+                {p.githubUrl ? p.title : p.company}
               </span>
             </button>
           )
@@ -452,6 +454,11 @@ function Work({ active, onOpen }: { active: boolean; onOpen: (p: Project) => voi
       <div style={{ textAlign: 'center', fontFamily: 'var(--font-mono), monospace', fontSize: 10, color: SUB, marginTop: 14, letterSpacing: '0.1em' }}>
         ✦ tap a node to open its case study
       </div>
+      <nav aria-label="Project pages" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, marginTop: 20 }}>
+        <button style={ctaGhost} disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
+        <span aria-live="polite" style={{ color: SUB, fontSize: 12 }}>{page + 1} / {pages}</span>
+        <button style={ctaGhost} disabled={page === pages - 1} onClick={() => setPage(page + 1)}>Next</button>
+      </nav>
     </div>
   )
 }
@@ -590,6 +597,9 @@ function ProjectSheet({ project, onClose }: { project: Project; onClose: () => v
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
           {project.liveUrl && (
             <a href={project.liveUrl} target="_blank" rel="noopener noreferrer" style={{ ...ctaPrimary, flex: 1, textAlign: 'center' }}>Live ↗</a>
+          )}
+          {project.githubUrl && (
+            <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" style={{ ...ctaPrimary, flex: 1, textAlign: 'center' }}>GitHub ↗</a>
           )}
           <button onClick={onClose} style={{ ...ctaGhost, flex: project.liveUrl ? 0 : 1 }}>Close</button>
         </div>

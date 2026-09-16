@@ -870,12 +870,12 @@ function ProjectTiles({
   stationT: number
   bob?:     boolean
 }) {
-  // 9 projects, featured first
+  // All projects remain reachable around the orbit, featured first.
   const pool = useMemo(() => {
     const sorted = [...projects].sort(
       (a, b) => Number(b.featured ?? false) - Number(a.featured ?? false),
     )
-    return sorted.slice(0, 9)
+    return sorted
   }, [])
 
   // ── Architecture per spec ─────────────────────────────────────────────

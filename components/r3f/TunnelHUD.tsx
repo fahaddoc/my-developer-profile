@@ -390,9 +390,10 @@ function ProjectsConstellation({ progress }: { progress: number }) {
   const ambient    = Math.min(Math.max(0, Math.min(1, (0.10 - dist) / 0.045)), rightClamp)
   const near       = cardOp > 0.4
 
-  const pool = [...projects]
-    .sort((a, b) => Number(b.featured ?? false) - Number(a.featured ?? false))
-    .slice(0, 9)
+  const [page, setPage] = useState(0)
+  const sorted = [...projects].sort((a, b) => Number(b.featured ?? false) - Number(a.featured ?? false))
+  const pages = Math.ceil(sorted.length / CN_NODES.length)
+  const pool = sorted.slice(page * CN_NODES.length, (page + 1) * CN_NODES.length)
 
   const [active, setActive] = useState(0)
   const [paused, setPaused] = useState(false)
@@ -439,7 +440,7 @@ function ProjectsConstellation({ progress }: { progress: number }) {
 
       {/* connector lines hub → nodes */}
       <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: ambient, transition: 'opacity 220ms' }}>
-        {CN_NODES.map((n, i) => (
+        {CN_NODES.slice(0, pool.length).map((n, i) => (
           <line key={i}
             x1={`${CN_HUB.x}%`} y1={`${CN_HUB.y}%`} x2={`${n.x}%`} y2={`${n.y}%`}
             stroke={i === active ? ACCENT : 'rgba(94,234,212,0.16)'}
@@ -459,7 +460,7 @@ function ProjectsConstellation({ progress }: { progress: number }) {
 
       {/* node thumbnails — a DEPTH CLOUD: each node's size + opacity + stacking
           comes from its depth `d`, so they read as floating at different distances */}
-      {CN_NODES.map((n, i) => {
+      {CN_NODES.slice(0, pool.length).map((n, i) => {
         const it = pool[i]
         const on = i === active
         const w  = Math.round(50 + n.d * 52)        // 50–102px wide by depth
@@ -614,6 +615,11 @@ function ProjectsConstellation({ progress }: { progress: number }) {
                 fontFamily: 'var(--font-mono), monospace', fontSize: 10, fontWeight: 700,
                 letterSpacing: '0.15em',
               }}>VIEW CASE STUDY <span className="cn-arr">→</span></button>
+            <nav aria-label="Project pages" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 12, color: '#fff', fontSize: 12 }}>
+              <button disabled={page === 0} onClick={() => { setActive(0); setPage(page - 1) }}>← Previous</button>
+              <span aria-live="polite">{page + 1} / {pages}</span>
+              <button disabled={page === pages - 1} onClick={() => { setActive(0); setPage(page + 1) }}>Next →</button>
+            </nav>
           </div>
         </div>
       </div>
