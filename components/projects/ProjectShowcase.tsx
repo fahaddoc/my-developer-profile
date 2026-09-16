@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, type PointerEvent } from 'react'
 import { projects, type Project } from '@/data/projects'
 import styles from './ProjectShowcase.module.css'
 
@@ -52,7 +52,7 @@ export function ProjectShowcase() {
         </div>
 
         <aside className={styles.library} aria-label="Browse projects">
-          <div className={styles.libraryHeading}><h3>Project library</h3><span>{matches.length} projects</span></div>
+          <div className={styles.libraryHeading}><h3>Project library</h3><span>{matches.length} {matches.length === 1 ? 'project' : 'projects'}</span></div>
           <label className={styles.search}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="m15 15 5 5" /></svg>
             <input aria-label="Search projects" placeholder="Find a project or technology" value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); setSelectedId('') }} />
@@ -84,12 +84,25 @@ export function ProjectShowcase() {
 
 function ProjectSpotlight({ project }: { project: Project }) {
   const category = categories.find((item) => item.id === project.category)?.label
+  function tilt(event: PointerEvent<HTMLElement>) {
+    if (event.pointerType !== 'mouse' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const x = (event.clientX - bounds.left) / bounds.width - 0.5
+    const y = (event.clientY - bounds.top) / bounds.height - 0.5
+    event.currentTarget.style.setProperty('--tilt-x', `${-y * 5}deg`)
+    event.currentTarget.style.setProperty('--tilt-y', `${x * 6}deg`)
+  }
+
+  function resetTilt(event: PointerEvent<HTMLElement>) {
+    event.currentTarget.style.setProperty('--tilt-x', '0deg')
+    event.currentTarget.style.setProperty('--tilt-y', '0deg')
+  }
+
   return (
-    <article className={styles.spotlight} style={{ '--project-color': project.color } as CSSProperties}>
-      <div className={styles.preview}>
-        <div className={styles.previewBar}><span className={styles.windowDots} aria-hidden="true"><i /><i /><i /></span><span>{project.title.split(' — ')[0]}</span><span>{category} / {project.year}</span></div>
-        <div className={styles.previewImage}><img src={project.image} alt={`${project.title} project cover`} /></div>
-      </div>
+    <article onPointerMove={tilt} onPointerLeave={resetTilt} className={styles.spotlight} style={{ '--project-color': project.color } as CSSProperties}>
+      <img className={styles.cardBackdrop} src={project.image} alt="" />
+      <div className={styles.cardShade} aria-hidden="true" />
+      <div className={styles.cardTop}><span>{category}</span><span>{project.year}</span></div>
       <div className={styles.details}>
         <p className={styles.company}>{project.company}</p>
         <h3>{project.title.split(' — ')[0]}</h3>
