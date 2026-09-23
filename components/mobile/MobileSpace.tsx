@@ -26,13 +26,13 @@ const STATIONS = ['Intro', 'About', 'Skills', 'Work', 'Open Source', 'Exp', 'Con
 
 // About narrative — mirrors the desktop/classic About story cards.
 const STORY = [
-  { label: 'Career', heading: 'The Professional Path', body: "6+ years building products people actually use — from MILETAP's real-time video platform to DigitalHire's modern hiring system. 4 companies, 9+ projects, 25+ clients." },
+  { label: 'Career', heading: 'The Professional Path', body: "8+ years building products people actually use — from MILETAP's real-time video platform to DigitalHire's modern hiring system. 4 companies, 9+ projects, 25+ clients." },
   { label: 'Passion', heading: 'What Drives Me', body: 'Real-time is where I come alive. WebRTC, SignalR, live video — the moment two people connect through infrastructure I built, that rush never gets old.' },
   { label: 'Human', heading: 'Behind the Code', body: "I debug best at 2am. I've shipped code that ran during a live TV broadcast. Based in Karachi — where the chai is strong and the internet is character-building." },
   { label: 'Vision', heading: "Where I'm Heading", body: 'AI-native interfaces, collaborative real-time tools, software that feels alive — making the interface between human and machine disappear.' },
 ]
 const STATS = [
-  { v: '6+', l: 'Years' }, { v: '9+', l: 'Projects' }, { v: '4+', l: 'Companies' }, { v: '25+', l: 'Clients' },
+  { v: '8+', l: 'Years' }, { v: '9+', l: 'Projects' }, { v: '4+', l: 'Companies' }, { v: '25+', l: 'Clients' },
 ]
 
 // Deterministic constellation coordinates (one per project, % of the field).

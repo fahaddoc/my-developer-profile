@@ -112,7 +112,7 @@ export async function renderOgImage(): Promise<ImageResponse> {
               <div key={s} style={chip}>{s}</div>
             ))}
           </div>
-          <div style={{ display: 'flex', fontSize: 26, color: SUB, marginTop: 34 }}>6+ years · DigitalHire · Karachi, PK</div>
+          <div style={{ display: 'flex', fontSize: 26, color: SUB, marginTop: 34 }}>8+ years · DigitalHire · Karachi, PK</div>
         </div>
 
         {/* right — photo + glow */}

@@ -35,7 +35,7 @@ interface Particle {
 // Full intro — 7 paragraphs separated by \n. Each paragraph is word-wrapped
 // inside the canvas; font auto-shrinks until every line fits.
 const DEFAULT_INTRO = [
-  "Hi, I'm Shah Fahad — a Senior Software Engineer based in Karachi, Pakistan, with over 6 years of experience building real-time web and mobile applications that scale.",
+  "Hi, I'm Shah Fahad — a Senior Software Engineer based in Karachi, Pakistan, with over 8 years of experience building real-time web and mobile applications that scale.",
   "I specialize in React, Next.js, TypeScript, Flutter, and WebRTC — crafting high-performance products across fintech, healthcare, and live-communication domains.",
   "Currently at DigitalHire, I lead frontend development for a modern hiring platform — building reusable component libraries, complex application flows, and optimizing for exceptional user experience.",
   "Before that, at MILETAP, I built Konnect.im — an enterprise-grade real-time video conferencing platform with screen sharing, live chat, and participant management, powered by WebRTC and SignalR.",

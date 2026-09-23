@@ -39,7 +39,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 const TITLE_DEFAULT = `${AUTHOR.name} — ${AUTHOR.jobTitle} | React, Next.js, Flutter, WebRTC`
-const DESCRIPTION = `${AUTHOR.name} — ${AUTHOR.jobTitle} in ${AUTHOR.city}, ${AUTHOR.countryName} with 6+ years building real-time web and mobile applications. Expert in React, Next.js, TypeScript, Flutter, WebRTC, and SignalR. Available for opportunities.`
+const DESCRIPTION = `${AUTHOR.name} — ${AUTHOR.jobTitle} in ${AUTHOR.city}, ${AUTHOR.countryName} with 8+ years building real-time web and mobile applications. Expert in React, Next.js, TypeScript, Flutter, WebRTC, and SignalR. Available for opportunities.`
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

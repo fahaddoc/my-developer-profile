@@ -112,7 +112,7 @@ export function FlipPhotoCard({ accent, width = 220 }: FlipPhotoCardProps) {
           // lines let the particles form large, readable letters.
           intro={
             "Hi, I'm Shah Fahad — Senior Software Engineer.\n" +
-            "6+ years building real-time products that scale.\n" +
+            "8+ years building real-time products that scale.\n" +
             "React · Next.js · Flutter · WebRTC.\n" +
             "Karachi, Pakistan."
           }

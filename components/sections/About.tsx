@@ -240,7 +240,7 @@ const paths = [
     bg:       'bg-accent-violet/10',
     textCol:  'text-accent-violet',
     heading:  'The Professional Path',
-    body:     "6+ years building products people actually use — from MILETAP's real-time video platform to DigitalHire's modern hiring system. 4 companies, 9+ projects, 25+ clients. Every line of code taught me something I couldn't find in any tutorial.",
+    body:     "8+ years building products people actually use — from MILETAP's real-time video platform to DigitalHire's modern hiring system. 4 companies, 9+ projects, 25+ clients. Every line of code taught me something I couldn't find in any tutorial.",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
         <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
@@ -303,7 +303,7 @@ const techStack = [
 ]
 
 const quickFacts = [
-  { value: '6+',      label: 'Years Experience' },
+  { value: '8+',      label: 'Years Experience' },
   { value: '9+',      label: 'Projects Shipped'  },
   { value: '4+',      label: 'Companies'          },
   { value: 'Karachi', label: 'Pakistan'            },

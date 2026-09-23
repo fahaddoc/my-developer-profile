@@ -107,7 +107,7 @@ export const projects: Project[] = [
     title: 'Konnect.im — Video Conferencing',
     company: 'MILETAP',
     category: 'realtime',
-    year: '2024',
+    year: '2021',
     featured: true,
     tagline: 'Enterprise-grade real-time video conferencing platform',
     description:
@@ -134,7 +134,7 @@ export const projects: Project[] = [
     title: 'WhatsApp ChatBot Simulator',
     company: 'E-OCEAN',
     category: 'web',
-    year: '2024',
+    year: '2021',
     featured: true,
     tagline: 'Visual flow builder for designing and testing WhatsApp bots',
     description:
@@ -215,7 +215,7 @@ export const projects: Project[] = [
     title: 'Kistpay Admin Portal',
     company: 'KISTPAY',
     category: 'web',
-    year: '2023',
+    year: '2022',
     featured: false,
     tagline: 'Installment management dashboard with payment analytics',
     description:
@@ -323,7 +323,7 @@ export const projects: Project[] = [
     title: 'Leave Management System',
     company: 'DR. RUTH K.M. PFAU CIVIL HOSPITAL',
     category: 'web',
-    year: '2019',
+    year: '2018',
     featured: false,
     tagline: 'Employee leave application and approval workflow',
     description:
@@ -362,30 +362,30 @@ export const experience: Experience[] = [
     tech: ['React.js', 'Next.js', 'TypeScript'],
   },
   {
+    id: 'kistpay',
+    role: 'React.js / Front-End Developer',
+    company: 'Kistpay',
+    period: 'Jan 2022 – Dec 2022',
+    current: false,
+    bullets: [
+      'Built the complete admin portal for a Shariah-compliant BNPL fintech platform in React, Redux and Tailwind CSS',
+      'Delivered installment management, role-based access control and real-time analytics dashboards',
+      'Reworked data fetching and component memoization, cutting perceived load time on key dashboards',
+    ],
+    tech: ['React.js', 'Redux', 'Tailwind CSS'],
+  },
+  {
     id: 'miletap',
-    role: 'Senior Frontend Developer',
-    company: 'MILETAP / E-OCEAN',
-    period: '2020 – 2024',
+    role: 'React.js Developer',
+    company: 'Miletap',
+    period: 'Nov 2018 – Dec 2021',
     current: false,
     bullets: [
       'Developed Konnect.im — real-time video conferencing platform using WebRTC and SignalR',
-      'Built WhatsApp ChatBot Simulator with visual drag-and-drop flow builder',
       'Architected real-time messaging and communication infrastructure',
+      'Worked part-time for E-OCEAN and Entertech Solutions over the same period, alongside the full-time role — E-OCEAN’s WhatsApp ChatBot Simulator came out of that',
     ],
     tech: ['React.js', 'WebRTC', 'SignalR'],
-  },
-  {
-    id: 'freelance',
-    role: 'Full-Stack Developer',
-    company: 'Freelance & Contract',
-    period: '2018 – 2020',
-    current: false,
-    bullets: [
-      'Delivered 10+ custom web and mobile applications for clients across Pakistan',
-      'Specialized in Flutter mobile apps with PHP/MySQL backend',
-      'Built service booking platforms with live tracking and payment integration (Helpers App)',
-    ],
-    tech: ['Flutter', 'PHP', 'MySQL'],
   },
   {
     id: 'career-start',
@@ -395,6 +395,7 @@ export const experience: Experience[] = [
     current: false,
     bullets: [
       'Started professional journey mastering modern JavaScript, React and web fundamentals',
+      'Built the Leave Management System for Civil Hospital Karachi in PHP, MySQL, Bootstrap and jQuery',
       'Developed internal tools and web applications for local businesses',
     ],
     tech: ['JavaScript', 'React', 'HTML/CSS'],

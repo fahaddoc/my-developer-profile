@@ -22,7 +22,7 @@ export function SeoContent() {
         <h1>Shah Fahad — Senior Software Engineer (React, Next.js, Flutter, WebRTC)</h1>
         <p>
           Shah Fahad is a Senior Software Engineer based in {AUTHOR.city}, {AUTHOR.countryName}, with
-          6+ years of experience building real-time, high-performance web and mobile applications. He
+          8+ years of experience building real-time, high-performance web and mobile applications. He
           specializes in React, Next.js, TypeScript, Flutter, WebRTC, and SignalR — from
           enterprise video-conferencing platforms to modern hiring systems and cross-platform mobile
           apps. He is currently a Software Engineer at DigitalHire and is available for new

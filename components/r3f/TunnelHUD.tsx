@@ -544,7 +544,7 @@ function ContactOrbit({ progress }: { progress: number }) {
 // ─────────────────────────────────────────────────────────────────────────────
 const ABOUT_STORY_LINES = [
   "I'm a software engineer from Karachi, Pakistan.",
-  "6+ years building real-time products people actually use —",
+  "8+ years building real-time products people actually use —",
   "from MILETAP's video conferencing to DigitalHire's hiring system.",
   "Clean code, real performance, interfaces that feel alive.",
 ]
@@ -790,7 +790,7 @@ function HeroCard({ station }: { station: StationDef }) {
 
 function AboutCard({ station }: { station: StationDef }) {
   const stats = [
-    { v: '6+',  l: 'YEARS'     },
+    { v: '8+',  l: 'YEARS'     },
     { v: '4',   l: 'COMPANIES' },
     { v: '9+',  l: 'PROJECTS'  },
     { v: '25+', l: 'CLIENTS'   },
@@ -801,7 +801,7 @@ function AboutCard({ station }: { station: StationDef }) {
       <div style={eyebrow(station.color)}>{station.subtitle}</div>
       <h2 style={heading}>{station.heading}</h2>
       <p style={tagline}>
-        6+ years building products people actually use — from MILETAP&apos;s
+        8+ years building products people actually use — from MILETAP&apos;s
         real-time video platform to DigitalHire&apos;s hiring system.
       </p>
       <div style={{

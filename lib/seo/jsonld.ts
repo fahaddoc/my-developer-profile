@@ -18,7 +18,7 @@ export function personSchema() {
     givenName: 'Shah',
     familyName: 'Fahad',
     jobTitle: AUTHOR.jobTitle,
-    description: `${AUTHOR.jobTitle} with 6+ years of experience building real-time web and mobile applications. Specializing in React, Next.js, TypeScript, Flutter, WebRTC, and SignalR.`,
+    description: `${AUTHOR.jobTitle} with 8+ years of experience building real-time web and mobile applications. Specializing in React, Next.js, TypeScript, Flutter, WebRTC, and SignalR.`,
     url: SITE_URL,
     image: abs(AUTHOR.image),
     email: `mailto:${AUTHOR.email}`,
@@ -120,7 +120,7 @@ export function faqSchema() {
   const qa: [string, string][] = [
     [
       'Who is Shah Fahad?',
-      `Shah Fahad is a ${AUTHOR.jobTitle} based in ${AUTHOR.city}, ${AUTHOR.countryName}, with 6+ years of experience building real-time, high-performance web and mobile applications.`,
+      `Shah Fahad is a ${AUTHOR.jobTitle} based in ${AUTHOR.city}, ${AUTHOR.countryName}, with 8+ years of experience building real-time, high-performance web and mobile applications.`,
     ],
     [
       'What technologies and skills does Shah Fahad have?',

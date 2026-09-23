@@ -141,7 +141,7 @@ export const STATIONS: StationDef[] = [
     short:     'ABOUT',
     t:         0.20,
     heading:   'Turning ideas into shipped products',
-    tagline:   '6+ years · 4 companies · 9+ projects · 25+ clients. From MILETAP\'s real-time video platform to DigitalHire\'s hiring system.',
+    tagline:   '8+ years · 4 companies · 9+ projects · 25+ clients. From MILETAP\'s real-time video platform to DigitalHire\'s hiring system.',
     color:     '#5EEAD4',
     subtitle:    'FROM IDEAS TO PRODUCTS',
     closer:      ['6 YEARS', 'SHIPPING REAL-TIME'],

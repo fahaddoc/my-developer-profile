@@ -8,7 +8,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { SectionBackground } from '@/components/ui/SectionBackground'
 
 const stats = [
-  { value: '6+',  label: 'Years'     },
+  { value: '8+',  label: 'Years'     },
   { value: '9+',  label: 'Projects'  },
   { value: '4+',  label: 'Companies' },
   { value: '25+', label: 'Clients'   },
