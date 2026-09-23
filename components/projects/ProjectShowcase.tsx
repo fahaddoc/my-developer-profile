@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type CSSProperties, type PointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type PointerEvent } from 'react'
 import { projects, type Project } from '@/data/projects'
 import styles from './ProjectShowcase.module.css'
 
@@ -11,23 +11,72 @@ const categories = [
   { id: 'realtime', label: 'Real-time' },
 ] as const
 const PAGE_SIZE = 5
+/** One slide per project. The library page flips with it, so every project gets its turn. */
+const AUTOPLAY_MS = 1500
 
 export function ProjectShowcase() {
   const [category, setCategory] = useState<string>('all')
   const [query, setQuery] = useState('')
-  const [page, setPage] = useState(0)
   const [selectedId, setSelectedId] = useState(projects[0].id)
-  const matches = projects.filter((project) =>
-    (category === 'all' || project.category === category) &&
-    `${project.title} ${project.company} ${project.tech.join(' ')}`.toLowerCase().includes(query.trim().toLowerCase()),
+  // The slideshow runs until the visitor drives the gallery themselves; hovering
+  // only pauses it, so reading a card never costs you the card.
+  const [autoplay, setAutoplay] = useState(true)
+  const [paused, setPaused] = useState(false)
+  const [reduced, setReduced] = useState(false)
+  // Bumped every time the timer (re)starts so the progress bar can restart with it.
+  const [cycle, setCycle] = useState(0)
+
+  const matches = useMemo(
+    () => projects.filter((project) =>
+      (category === 'all' || project.category === category) &&
+      `${project.title} ${project.company} ${project.tech.join(' ')}`.toLowerCase().includes(query.trim().toLowerCase()),
+    ),
+    [category, query],
   )
+
+  // `page` is derived, not stored — the selected project is always the one on screen,
+  // so the page that contains it is the page to show.
+  const selectedIndex = Math.max(0, matches.findIndex((project) => project.id === selectedId))
+  const page = Math.floor(selectedIndex / PAGE_SIZE)
   const pages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE))
   const visibleProjects = matches.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
-  const selected = matches.find((project) => project.id === selectedId) ?? matches[0]
+  const selected = matches[selectedIndex]
 
-  function changePage(nextPage: number) {
-    setPage(nextPage)
-    setSelectedId(matches[nextPage * PAGE_SIZE].id)
+  const slideshow = autoplay && !reduced && matches.length > 1
+  const running = slideshow && !paused
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const sync = () => setReduced(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
+  useEffect(() => {
+    if (!running) return
+    setCycle((value) => value + 1)
+    const timer = window.setInterval(() => {
+      setSelectedId((current) => {
+        const index = matches.findIndex((project) => project.id === current)
+        return matches[(index + 1) % matches.length].id
+      })
+    }, AUTOPLAY_MS)
+    return () => window.clearInterval(timer)
+    // Deliberately not keyed on `selectedId`: the timer keeps its own steady cadence.
+  }, [running, matches])
+
+  /** Any deliberate use of the controls hands the gallery over to the visitor. */
+  const take = useCallback((id: string) => {
+    setAutoplay(false)
+    setSelectedId(id)
+  }, [])
+
+  function reset() {
+    setQuery('')
+    setCategory('all')
+    setSelectedId(projects[0].id)
+    setAutoplay(true)
   }
 
   return (
@@ -40,13 +89,19 @@ export function ProjectShowcase() {
         <p className={styles.note}>Web platforms, mobile experiences<br />and experiments worth opening.</p>
       </header>
 
-      <div className={styles.workspace}>
+      <div
+        className={styles.workspace}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onFocusCapture={() => setPaused(true)}
+        onBlurCapture={() => setPaused(false)}
+      >
         <div className={styles.stage}>
-          {selected ? <ProjectSpotlight key={selected.id} project={selected} /> : (
+          {selected ? <ProjectSpotlight key={selected.id} project={selected} onOpen={() => setAutoplay(false)} /> : (
             <div className={styles.empty}>
               <h3>No matching projects</h3>
               <p>Try a project name or a technology like React or Flutter.</p>
-              <button onClick={() => { setQuery(''); setCategory('all'); setPage(0); setSelectedId(projects[0].id) }}>Show all work</button>
+              <button onClick={reset}>Show all work</button>
             </div>
           )}
         </div>
@@ -55,26 +110,37 @@ export function ProjectShowcase() {
           <div className={styles.libraryHeading}><h3>Project library</h3><span>{matches.length} {matches.length === 1 ? 'project' : 'projects'}</span></div>
           <label className={styles.search}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="m15 15 5 5" /></svg>
-            <input aria-label="Search projects" placeholder="Find a project or technology" value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); setSelectedId('') }} />
+            <input aria-label="Search projects" placeholder="Find a project or technology" value={query} onChange={(event) => { setAutoplay(false); setQuery(event.target.value); setSelectedId('') }} />
           </label>
           <div className={styles.filters} aria-label="Project categories">
             {categories.map((item) => (
-              <button key={item.id} aria-pressed={category === item.id} onClick={() => { setCategory(item.id); setPage(0); setSelectedId('') }}>{item.label}</button>
+              <button key={item.id} aria-pressed={category === item.id} onClick={() => { setAutoplay(false); setCategory(item.id); setSelectedId('') }}>{item.label}</button>
             ))}
           </div>
           <div className={styles.projectList}>
-            {visibleProjects.map((project) => (
-              <button key={project.id} className={styles.projectRow} aria-pressed={selected?.id === project.id} onClick={() => setSelectedId(project.id)} aria-label={`Preview ${project.title}`}>
-                <img src={project.image} alt="" />
-                <span className={styles.rowText}><strong>{project.title.split(' — ')[0]}</strong><span>{project.tech.slice(0, 2).join(' / ')}</span></span>
-                <span className={styles.rowArrow} aria-hidden="true">↗</span>
-              </button>
-            ))}
+            {visibleProjects.map((project) => {
+              const active = selected?.id === project.id
+              return (
+                <button key={project.id} className={styles.projectRow} aria-pressed={active} onClick={() => take(project.id)} aria-label={`Preview ${project.title}`}>
+                  <img src={project.image} alt="" />
+                  <span className={styles.rowText}><strong>{project.title.split(' — ')[0]}</strong><span>{project.tech.slice(0, 2).join(' / ')}</span></span>
+                  <span className={styles.rowArrow} aria-hidden="true">↗</span>
+                  {active && slideshow && (
+                    <span
+                      key={`${project.id}-${cycle}`}
+                      aria-hidden="true"
+                      className={paused ? `${styles.rowProgress} ${styles.rowProgressPaused}` : styles.rowProgress}
+                      style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
+                    />
+                  )}
+                </button>
+              )
+            })}
           </div>
           <nav className={styles.pagination} aria-label="Project pages">
-            <button aria-label="Previous project page" disabled={page === 0} onClick={() => changePage(page - 1)}>←</button>
-            <span aria-live="polite">{matches.length ? page + 1 : 0} <span>/ {matches.length ? pages : 0}</span></span>
-            <button aria-label="Next project page" disabled={page + 1 >= pages} onClick={() => changePage(page + 1)}>→</button>
+            <button aria-label="Previous project page" disabled={page === 0} onClick={() => take(matches[(page - 1) * PAGE_SIZE].id)}>←</button>
+            <span aria-live={running ? 'off' : 'polite'}>{matches.length ? page + 1 : 0} <span>/ {matches.length ? pages : 0}</span></span>
+            <button aria-label="Next project page" disabled={page + 1 >= pages} onClick={() => take(matches[(page + 1) * PAGE_SIZE].id)}>→</button>
           </nav>
         </aside>
       </div>
@@ -82,7 +148,7 @@ export function ProjectShowcase() {
   )
 }
 
-function ProjectSpotlight({ project }: { project: Project }) {
+function ProjectSpotlight({ project, onOpen }: { project: Project; onOpen: () => void }) {
   const category = categories.find((item) => item.id === project.category)?.label
   function tilt(event: PointerEvent<HTMLElement>) {
     if (event.pointerType !== 'mouse' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
@@ -109,7 +175,7 @@ function ProjectSpotlight({ project }: { project: Project }) {
         <p className={styles.tagline}>{project.tagline}</p>
         <div className={styles.technologies}>{project.tech.map((tech) => <span key={tech}>{tech}</span>)}</div>
         <div className={styles.actions}>
-          <button className={styles.primaryAction} onClick={() => window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: project.id }))}>Explore case study <span aria-hidden="true">↗</span></button>
+          <button className={styles.primaryAction} onClick={() => { onOpen(); window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: project.id })) }}>Explore case study <span aria-hidden="true">↗</span></button>
           {project.githubUrl && <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">Source code <span aria-hidden="true">↗</span></a>}
           {project.liveUrl && <a href={project.liveUrl} target="_blank" rel="noopener noreferrer">Visit project <span aria-hidden="true">↗</span></a>}
         </div>
