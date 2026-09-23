@@ -41,6 +41,38 @@ export interface SkillCategory {
 export const projects: Project[] = [
   ...engineeringDemos,
   {
+    id: 'as-saqib',
+    title: 'AS Saqib — Perfume Storefront',
+    company: 'Freelance client · AS Saqib Perfume Fragrance',
+    category: 'web',
+    year: '2026',
+    featured: true,
+    tagline: 'Live Pakistani e-commerce storefront — cash on delivery, orders over WhatsApp',
+    description:
+      'A production storefront for a Pakistani perfume brand, live on the client\'s own domain. Twelve fragrances across men\'s and women\'s ranges, a full cart and checkout, and a cash-on-delivery order flow that hands the finished order to the shop over WhatsApp. Built on Next.js 16 and React 19, deployed on Vercel with DNS at Cloudflare.',
+    problem:
+      'The brand was selling entirely through Instagram and WhatsApp DMs. Every order arrived as a scattered conversation — the customer would ask the price, send an address in pieces, and the shop had to reassemble it by hand. There was no product catalogue, no delivery rules a customer could read, and no page to send anyone to. A conventional shop would have meant a payment gateway, a merchant account and a database, none of which the business wanted or needed for cash on delivery.',
+    solution:
+      'I built the catalogue as a static site and moved only the last step — the order itself — onto WhatsApp, which the shop already lives in. The cart is client-side in localStorage and syncs across tabs; checkout validates the Pakistani phone formats customers actually type; pressing "Place order" formats the whole basket, totals and delivery address into a single WhatsApp message and opens wa.me with it prefilled. Nothing is stored on a server, so there is no database, no API route and no running cost beyond hosting. Prices, delivery rules and contact details all sit in one config file the client can have changed in minutes.',
+    features: [
+      'Twelve products across men\'s and women\'s ranges, each with a statically generated detail page',
+      'Cart in localStorage via useSyncExternalStore — survives refresh, stays in sync across tabs',
+      'COD checkout that builds the full order into a prefilled WhatsApp message — no gateway, no database',
+      'Phone validation accepting 0300…, +92300…, 92300… and dashed or spaced variants',
+      'Delivery rules from one config: Rs 200 flat, free above Rs 3,000 — drives the ticker, cart progress bar, checkout and policy page',
+      'Build-time image pipeline: raw WhatsApp JPEGs to WebP, logo alpha derived from its own luminance',
+      'Product photography never cropped — fixed 3:4 frames with object-contain throughout',
+      'SEO built in: sitemap, robots, Organization JSON-LD, policy and about pages',
+      '30 automated checks over checkout validation and pricing, plus Playwright screenshot runs at three viewports',
+      'Shipped to assaqibscents.com — Cloudflare DNS to Vercel, www redirected to apex, Let\'s Encrypt TLS',
+    ],
+    tech: ['Next.js 16', 'React 19', 'TypeScript', 'Tailwind CSS v4', 'Vercel', 'Playwright'],
+    image: '/images/projects/as-saqib.jpg',
+    color: '#d4af37',
+    liveUrl: 'https://assaqibscents.com',
+    githubUrl: null,
+  },
+  {
     id: 'agent-shah-3d',
     title: 'Agent Shah — 3D Portfolio Game',
     company: 'Personal · Vibe Jam 2026',

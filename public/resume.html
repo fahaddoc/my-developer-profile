@@ -293,6 +293,14 @@
     margin-top: 2px;
     line-height: 1.45;
   }
+  .project-desc code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 8.8pt;
+    color: var(--ink);
+    background: #f3f4f6;
+    border-radius: 3px;
+    padding: 0 3px;
+  }
   .stack-row { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 3px 4px; }
   .stack-row .pill { font-size: 8.5pt; padding: 1px 6px; }
 
@@ -357,55 +365,56 @@
     }
 
     /* Header band — condense */
-    header.hero { padding: 11px 24px 9px; }
+    header.hero { padding: 9px 24px 8px; }
     h1 { font-size: 19pt; letter-spacing: -0.7px; }
     .role-tag { margin-top: 4px; padding: 1.5px 6px; font-size: 7pt; }
-    .tagline { margin-top: 5px; font-size: 8pt; line-height: 1.32; max-width: 440px; }
+    .tagline { margin-top: 4px; font-size: 7.7pt; line-height: 1.28; max-width: 430px; }
     .monogram { width: 36px; height: 36px; font-size: 10.5pt; border-radius: 8px; }
     .contact {
-      margin-top: 6px;
-      padding-top: 6px;
+      margin-top: 5px;
+      padding-top: 5px;
       gap: 0 10px;
       font-size: 7.2pt;
     }
     .contact .dot { width: 3px; height: 3px; }
 
     /* Body — tight padding, tight sections */
-    .body { padding: 9px 24px 10px; }
-    section { margin-top: 6px; }
-    h2 { font-size: 7.6pt; letter-spacing: 1.1px; margin-bottom: 4px; }
+    .body { padding: 5px 24px 2px; }
+    section { margin-top: 4px; }
+    h2 { font-size: 7.6pt; letter-spacing: 1.1px; margin-bottom: 3px; }
     h2::before { width: 12px; height: 1.5px; }
 
-    .summary { font-size: 8.2pt; line-height: 1.36; }
+    .summary { font-size: 7.9pt; line-height: 1.32; }
 
     /* Skills — smaller pills, tighter rows */
-    .skills-block { row-gap: 3px; column-gap: 9px; grid-template-columns: 58px 1fr; }
+    .skills-block { row-gap: 2px; column-gap: 9px; grid-template-columns: 58px 1fr; }
     .skills-block .label { font-size: 7.2pt; padding-top: 1.5px; }
     .pill-row { gap: 2px 3px; }
     .pill { font-size: 7pt; padding: 0.5px 5px; border-radius: 3px; }
 
     /* Experience entries */
-    .entry { margin-bottom: 4px; }
+    .entry { margin-bottom: 2px; }
     .entry-title { font-size: 8.8pt; }
     .entry-meta { font-size: 7.2pt; }
     .entry-sub { font-size: 7.6pt; margin-top: -1px; }
     .entry ul { margin-top: 1px; }
-    .entry li { font-size: 8pt; line-height: 1.32; padding-left: 10px; margin-bottom: 0; }
+    .entry li { font-size: 7.7pt; line-height: 1.28; padding-left: 9px; margin-bottom: 0; }
     .entry li::before { top: 6px; width: 3.5px; height: 3.5px; }
 
     /* Projects */
-    .project { margin-bottom: 3px; }
-    .project-name { font-size: 8.6pt; }
-    .project-kind { font-size: 7.4pt; }
-    .project-desc { font-size: 8pt; line-height: 1.3; margin-top: 0px; }
+    .project { margin-bottom: 1px; }
+    .project-name { font-size: 8.4pt; }
+    .project-kind { font-size: 7.2pt; }
+    .project-desc { font-size: 7.6pt; line-height: 1.26; margin-top: 0px; }
+    .project-desc code { font-size: 7.4pt; padding: 0 2px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .stack-row { margin-top: 1px; gap: 1px 3px; }
-    .stack-row .pill { font-size: 6.8pt; padding: 0 4.5px; }
+    .stack-row .pill { font-size: 6.6pt; padding: 0 4px; }
 
     /* Bottom meta band */
-    .meta-band { margin-top: 9px; padding-top: 7px; }
-    .meta-row { grid-template-columns: 92px 1fr; column-gap: 12px; padding: 1.5px 0; }
+    .meta-band { margin-top: 5px; padding-top: 4px; }
+    .meta-row { grid-template-columns: 92px 1fr; column-gap: 12px; padding: 1px 0; }
     .meta-label { font-size: 7.4pt; letter-spacing: 1.1px; }
-    .meta-content { font-size: 8.3pt; line-height: 1.4; }
+    .meta-content { font-size: 8pt; line-height: 1.34; }
     .meta-content .dot-sep { margin: 0 5px; }
 
     a { color: inherit; text-decoration: none; }
@@ -443,12 +452,11 @@
     <section>
       <h2>Summary</h2>
       <p class="summary">
-        <strong>Senior Frontend Engineer</strong> with <strong>6+ years</strong>
-        building scalable, real-time web and cross-platform mobile products.
-        Shipped React, Next.js, and Flutter applications across <strong>fintech,
-        healthcare, and live-communication</strong> domains — owning UI architecture,
-        WebRTC/SignalR integration, performance budgets, and design-system work
-        from concept to production.
+        <strong>Senior Frontend Engineer</strong> with <strong>6+ years</strong> shipping
+        React, Next.js, and Flutter products across <strong>fintech, healthcare, e-commerce,
+        and live communication</strong> — UI architecture, WebRTC/SignalR, performance, design systems.
+        <strong>Open-source contributor</strong>: merged pull requests in <strong>flutter/flutter</strong>
+        and <strong>supabase/supabase-flutter</strong>.
       </p>
     </section>
 
@@ -522,9 +530,9 @@
           <span class="loc">Karachi, Pakistan</span>
         </div>
         <ul>
-          <li><span class="impact">Owned web + mobile feature delivery</span> on a recruiting platform — shipped Next.js dashboards and Flutter Android/iOS apps from design hand-off through production release.</li>
-          <li><span class="impact">Improved Core Web Vitals</span> across critical recruiter flows; introduced reusable component patterns that cut UI duplication and shortened feature lead-time.</li>
-          <li>Integrated authentication, payment, and third-party APIs; partnered with design, product, and QA to keep weekly release cadence.</li>
+          <li><span class="impact">Owned web + mobile delivery</span> on a recruiting platform — Next.js dashboards and Flutter apps, hand-off through production release.</li>
+          <li><span class="impact">Improved Core Web Vitals</span> on critical recruiter flows; added reusable component patterns that cut UI duplication and lead-time.</li>
+          <li>Integrated auth, payment, and third-party APIs; partnered with design, product, and QA on a weekly release cadence.</li>
         </ul>
       </div>
 
@@ -538,9 +546,9 @@
           <span class="loc">Karachi, Pakistan</span>
         </div>
         <ul>
-          <li><span class="impact">Built the complete admin portal</span> for a Shariah-compliant BNPL fintech platform using React.js, Redux, and Tailwind CSS — used daily by operations and risk teams.</li>
+          <li><span class="impact">Built the complete admin portal</span> for a Shariah-compliant BNPL fintech platform in React, Redux, and Tailwind — used daily by operations and risk teams.</li>
           <li>Delivered installment management, role-based access control, and real-time analytics dashboards.</li>
-          <li>Improved data-fetching strategy and component memoization, reducing perceived load time on key dashboards.</li>
+          <li>Reworked data fetching and component memoization, cutting perceived load time on key dashboards.</li>
         </ul>
       </div>
 
@@ -554,9 +562,9 @@
           <span class="loc">Karachi (Remote / Part-Time)</span>
         </div>
         <ul>
-          <li><span class="impact">Shipped multiple production React apps</span> — Reap Agro (farmer-loan onboarding), Helpers (service booking), Khawateen Rozgar (women employment), and Konnect (real-time video calling).</li>
-          <li>Owned UI architecture with Redux and Tailwind CSS; introduced typed prop boundaries and shared design tokens across products.</li>
-          <li>Integrated <span class="impact">WebRTC + SignalR</span> for live video and messaging; partnered with backend on REST API contracts.</li>
+          <li><span class="impact">Shipped production React apps</span> — Reap Agro (farmer loans), Helpers (service booking), Khawateen Rozgar (women employment), Konnect (video).</li>
+          <li>Owned UI architecture with Redux and Tailwind; typed prop boundaries and shared design tokens.</li>
+          <li>Integrated <span class="impact">WebRTC + SignalR</span> for live video and messaging; owned REST API contracts with backend.</li>
         </ul>
       </div>
 
@@ -577,7 +585,46 @@
     </section>
 
     <section>
+      <h2>Open Source</h2>
+
+      <div class="project">
+        <div class="project-head">
+          <span class="project-name"><a href="https://github.com/supabase/supabase-flutter/pull/1781">supabase/supabase-flutter &mdash; PR #1781</a></span>
+          <span class="project-kind">merged Aug 2026</span>
+        </div>
+        <div class="project-desc">Replaced a comma split with a real Postgres array-literal parser in the realtime client, ending silent corruption of subscriber data. Merged the same day.</div>
+      </div>
+
+      <div class="project">
+        <div class="project-head">
+          <span class="project-name"><a href="https://github.com/flutter/flutter/pull/187294">flutter/flutter &mdash; PR #187294</a></span>
+          <span class="project-kind">merged Jul 2026</span>
+        </div>
+        <div class="project-desc">Extended the <code>setState()</code> called-after-dispose diagnostic to name its most common cause: an awaited Future resolving after the widget left the tree.</div>
+      </div>
+
+      <div class="project">
+        <div class="project-head">
+          <span class="project-name"><a href="https://github.com/flutter/flutter/pull/185945">flutter/flutter &mdash; PR #185945</a></span>
+          <span class="project-kind">merged Aug 2026</span>
+        </div>
+        <div class="project-desc">Documented the super-call convention for <code>State.didChangeDependencies</code>, closing flutter/flutter issue #28925 &mdash; open since 2019.</div>
+      </div>
+    </section>
+
+    <section>
       <h2>Selected Projects</h2>
+
+      <div class="project">
+        <div class="project-head">
+          <span class="project-name"><a href="https://assaqibscents.com">AS Saqib (assaqibscents.com)</a></span>
+          <span class="project-kind">live client e-commerce storefront</span>
+        </div>
+        <div class="project-desc">Live storefront for a Pakistani perfume brand &mdash; static catalogue, cross-tab cart, and a cash-on-delivery checkout that hands the finished order to WhatsApp. No gateway, no database; Cloudflare DNS + Vercel.</div>
+        <div class="stack-row">
+          <span class="pill">Next.js 16</span><span class="pill">React 19</span><span class="pill">TypeScript</span><span class="pill">Tailwind CSS</span><span class="pill">Vercel</span>
+        </div>
+      </div>
 
       <div class="project">
         <div class="project-head">
