@@ -38,8 +38,9 @@ export interface SkillCategory {
   skills: string[]
 }
 
-export const projects: Project[] = [
-  ...engineeringDemos,
+// Shipped work — client, employer and personal projects. Authored in any order;
+// the exported `projects` array below is what every surface actually reads.
+const shippedWork: Project[] = [
   {
     id: 'as-saqib',
     title: 'AS Saqib — Perfume Storefront',
@@ -345,6 +346,13 @@ export const projects: Project[] = [
     liveUrl: null,
     githubUrl: null,
   },
+]
+
+// Shipped work first, newest first; the AI-assisted demos sit at the end.
+// sort() is stable, so projects sharing a year keep the order they are written in.
+export const projects: Project[] = [
+  ...[...shippedWork].sort((a, b) => Number(b.year) - Number(a.year)),
+  ...engineeringDemos,
 ]
 
 export const experience: Experience[] = [
