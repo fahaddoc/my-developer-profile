@@ -105,7 +105,7 @@ export const projects: Project[] = [
   {
     id: 'konnect',
     title: 'Konnect.im — Video Conferencing',
-    company: 'MILETAP',
+    company: 'Miletap',
     category: 'realtime',
     year: '2021',
     featured: true,
@@ -159,9 +159,9 @@ export const projects: Project[] = [
   {
     id: 'helpers',
     title: 'Helpers — Service Booking App',
-    company: 'Freelance',
+    company: 'Miletap',
     category: 'mobile',
-    year: '2024',
+    year: '2020',
     featured: false,
     tagline: 'On-demand home services marketplace for Pakistan',
     description:
@@ -186,9 +186,9 @@ export const projects: Project[] = [
   {
     id: 'khawateen',
     title: 'Khawateen Rozgar Services',
-    company: 'EXACT',
+    company: 'Entertech Solutions',
     category: 'web',
-    year: '2023',
+    year: '2019',
     featured: false,
     tagline: 'Women\'s empowerment job portal for re-entering the workforce',
     description:
@@ -213,7 +213,7 @@ export const projects: Project[] = [
   {
     id: 'kistpay',
     title: 'Kistpay Admin Portal',
-    company: 'KISTPAY',
+    company: 'Kistpay',
     category: 'web',
     year: '2022',
     featured: false,
@@ -240,9 +240,9 @@ export const projects: Project[] = [
   {
     id: 'opd',
     title: 'OPD Entry Software',
-    company: 'KHADIM-E-INSANIYAT',
+    company: 'Freelance client · Khadim-e-Insaniyat',
     category: 'mobile',
-    year: '2023',
+    year: '2024',
     featured: false,
     tagline: 'Offline-first patient registration app for hospital OPDs',
     description:
@@ -267,9 +267,9 @@ export const projects: Project[] = [
   {
     id: 'reapagro',
     title: 'Reap Agro — Loan Management',
-    company: 'REAP AGRO',
+    company: 'Entertech Solutions',
     category: 'web',
-    year: '2023',
+    year: '2019',
     featured: false,
     tagline: 'Agricultural loan management system for farmers',
     description:
@@ -293,10 +293,10 @@ export const projects: Project[] = [
   },
   {
     id: 'screening',
-    title: 'Digital Display Manager',
-    company: 'SCREENING',
+    title: 'Screening — Digital Display Manager',
+    company: 'Miletap',
     category: 'web',
-    year: '2022',
+    year: '2020',
     featured: false,
     tagline: 'Content scheduling system for corporate digital signage',
     description:
@@ -381,9 +381,9 @@ export const experience: Experience[] = [
     period: 'Nov 2018 – Dec 2021',
     current: false,
     bullets: [
-      'Developed Konnect.im — real-time video conferencing platform using WebRTC and SignalR',
-      'Architected real-time messaging and communication infrastructure',
-      'Worked part-time for E-OCEAN and Entertech Solutions over the same period, alongside the full-time role — E-OCEAN’s WhatsApp ChatBot Simulator came out of that',
+      'Developed Konnect.im — real-time video conferencing platform using WebRTC and SignalR, and architected the real-time messaging infrastructure',
+      'Shipped Helpers (service booking) and Screening (digital signage) for Miletap',
+      'Worked part-time for E-OCEAN and Entertech Solutions over the same period — the WhatsApp ChatBot Simulator, Reap Agro and Khawateen Rozgar came out of that',
     ],
     tech: ['React.js', 'WebRTC', 'SignalR'],
   },
