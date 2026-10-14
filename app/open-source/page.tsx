@@ -19,7 +19,7 @@ const FLUTTER_T = 'rgb(var(--flutter-accent))'  // Flutter blue for the logo/ico
 export const metadata: Metadata = {
   title: 'Open Source Contributions',
   description:
-    'Open-source contributions by Shah Fahad, a React and Flutter developer from Pakistan — three merged pull requests across the official Flutter repository (flutter/flutter) and the Supabase Flutter SDK.',
+    'Open-source contributions by Shah Fahad, a React and Flutter developer from Pakistan — four merged pull requests across the official Flutter repository (flutter/flutter) and the Supabase Flutter SDK.',
   alternates: { canonical: '/open-source' },
   keywords: [
     'Flutter open source contributor',
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Open Source Contributions — Shah Fahad',
     description:
-      'Three merged pull requests — a Postgres array parser in the Supabase Flutter SDK, a clearer setState()-after-dispose diagnostic, and the documented super call order for didChangeDependencies.',
+      'Four merged pull requests across Flutter and Supabase, including clearer initState diagnostics, lifecycle documentation, and a Postgres array parser.',
   },
 }
 

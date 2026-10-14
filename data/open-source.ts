@@ -80,6 +80,72 @@ export interface Contribution {
 
 export const contributions: Contribution[] = [
   {
+    "id": "flutter-initstate-inherited-widget-diagnostic",
+    "title": "Clarified why initState cannot depend on inherited widgets",
+    "role": "Open-source contribution",
+    "org": "Flutter",
+    "project": "Flutter framework",
+    "repo": "flutter/flutter",
+    "repoUrl": "https://github.com/flutter/flutter",
+    "status": "merged",
+    "prNumber": 192727,
+    "prTitle": "Explain why initState() is too early to depend on an inherited widget",
+    "prUrl": "https://github.com/flutter/flutter/pull/192727",
+    "issueNumber": 105705,
+    "issueUrl": "https://github.com/flutter/flutter/issues/105705",
+    "mergeCommit": "d2e5f21",
+    "mergeCommitUrl": "https://github.com/flutter/flutter/commit/d2e5f21f77dd8226b372e3ffa5d5367eb824b1db",
+    "openedOn": "2026-09-14",
+    "mergedOn": "2026-10-13",
+    "displayDate": "October 13, 2026",
+    "filesChanged": 2,
+    "additions": 29,
+    "deletions": 13,
+    "language": "Dart",
+    "tech": [
+      "Flutter",
+      "Dart"
+    ],
+    "area": [
+      "packages/flutter/lib/src/widgets/framework.dart",
+      "packages/flutter/test/widgets/inherited_test.dart"
+    ],
+    "summary": "Clarified Flutter’s inherited-widget error and initState API documentation, explaining why dependency changes do not rerun initState, and strengthened the regression test for the diagnostic.",
+    "bullets": [
+      "Clarified the error raised when an inherited-widget dependency is accessed before initState completes",
+      "Explained that initState runs only once for each State object, while dependent widgets can rebuild when inherited values change",
+      "Updated the API documentation and strengthened the existing widget test to verify the error message",
+      "Merged into flutter/flutter on October 13, 2026"
+    ],
+    "caseStudy": {
+      "story": "Flutter issue #105705 reported confusing wording in an inherited-widget diagnostic. I updated the explanation in the error message and the initState API documentation, then expanded the existing test to check what the error actually tells developers.",
+      "problem": "The old error could be read as saying that a rebuilt dependent widget would not see an inherited-widget change. The distinction is that build can read the new value, but initState is called only once for each State object. A value read there is not refreshed by running initState again when dependencies change.",
+      "changed": [
+        "Reworded the ErrorDescription in StatefulElement to explain the one-time State initialization rather than implying that rebuilds cannot see updated inherited values.",
+        "Added the same explanation to State.initState documentation, retaining guidance to use didChangeDependencies.",
+        "Changed the ExpectFail test helper to pass through the caught error, then asserted the FlutterError type, diagnostic explanation and didChangeDependencies hint.",
+        "Changed 2 files, with 29 additions and 13 deletions."
+      ],
+      "codeBefore": "\"its dependent widgets are rebuilt. If the dependent widget's reference to \"\n\"the inherited widget is in a constructor or an initState() method, \"\n\"then the rebuilt dependent widget will not reflect the changes in the \"\n\"inherited widget.\"",
+      "codeAfter": "'its dependent widgets are rebuilt. The framework calls initState() only once for '\n'each State object and does not call it again for those rebuilds, so a value that '\n'initState() reads from an inherited widget is never updated when that inherited '\n'widget changes.'",
+      "review": "Review feedback asked for precision about what “once” means and how constructors relate to this assertion. The final wording specifies “for each State object” and focuses on the initState case; the test checks the diagnostic without whitespace normalization.",
+      "merge": "Merged into flutter/flutter on October 13, 2026 by auto-submit[bot], with merge commit d2e5f21.",
+      "whyItMatters": "An error message should explain the lifecycle rule accurately. This change helps developers distinguish a dependency-triggered rebuild from one-time initialization, without changing framework runtime behavior.",
+      "lessons": [
+        "Describe lifecycle guarantees precisely: once for each State object, not simply once.",
+        "Test the explanation in a diagnostic, not only whether an exception was thrown."
+      ]
+    },
+    "keywords": [
+      "Flutter contributor",
+      "Flutter initState",
+      "InheritedWidget",
+      "didChangeDependencies",
+      "Flutter framework diagnostics",
+      "Shah Fahad Flutter"
+    ]
+  },
+  {
     id: 'supabase-flutter-postgres-array-parser',
     title: 'Fixed silent data corruption in the Supabase Flutter SDK',
     role: 'Open-source contribution',

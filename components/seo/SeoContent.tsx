@@ -77,15 +77,15 @@ export function SeoContent() {
         <section>
           <h2>Open Source Contributions</h2>
           <p>
-            Shah Fahad contributes to open source as a React and Flutter developer, with three pull
+            Shah Fahad contributes to open source as a React and Flutter developer, with four pull
             requests merged upstream: one in the{' '}
             <a href="https://github.com/supabase/supabase-flutter">Supabase Flutter SDK</a>{' '}
             (<code>supabase/supabase-flutter</code>) that replaced a comma-splitting shortcut with a
-            real Postgres array parser, and two in the{' '}
+            real Postgres array parser, and three in the{' '}
             <a href="https://github.com/flutter/flutter">official Flutter repository</a>{' '}
             (<code>flutter/flutter</code>) — one that improved the &ldquo;setState() called after
             dispose()&rdquo; diagnostic message, and one that documented the super call order for{' '}
-            <code>State.didChangeDependencies</code>. See all{' '}
+            <code>State.didChangeDependencies</code>, and one that clarified why <code>initState</code> cannot depend on inherited widgets. See all{' '}
             <a href="/open-source">open-source contributions</a>.
           </p>
           <ul>
