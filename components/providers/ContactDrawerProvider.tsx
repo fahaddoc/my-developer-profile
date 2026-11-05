@@ -1,15 +1,17 @@
 'use client'
 
-// ContactDrawerProvider — floating holographic CONTACT panel. Same visual
-// language as ProjectDrawerProvider (right-side glass HUD on desktop, bottom
-// sheet on mobile). Contains a contact form that opens the user's email
-// client via mailto: when submitted (no backend required).
+// ContactDrawerProvider — the "Let's talk" drawer with the EmailJS form.
+//
+// Opened by useContactDrawer().open() or the window event
+// 'contact-drawer-open' (dispatched from the tunnel HUD). The shell (overlay,
+// panel, focus trap, motion) is the shared components/ui/Drawer, loaded on
+// first open so framer-motion stays out of the initial bundle. EmailJS is also
+// imported on submit only.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import emailjs from '@emailjs/browser'
-import { lenisInstance } from '@/components/providers/SmoothScroll'
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
+import { FaCircleExclamation } from 'react-icons/fa6'
+import styles from '@/components/ui/Drawer.module.css'
 
 interface CtxValue {
   isOpen: boolean
@@ -20,40 +22,39 @@ interface CtxValue {
 const Ctx = createContext<CtxValue>({ isOpen: false, open: () => {}, close: () => {} })
 export function useContactDrawer() { return useContext(Ctx) }
 
-const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1]
-const ACCENT = '#5EEAD4'
-const EMAIL  = 'hello@shahfahad.dev'
+const EMAIL = 'hello@shahfahad.dev'
+const CITY  = 'Karachi, Pakistan'
+
+const loadDrawer = () => import('@/components/ui/Drawer')
+const Drawer = dynamic(() => loadDrawer().then((m) => m.Drawer), { ssr: false })
+
+/** Warm the drawer chunk on idle, desktop pointers only (the mobile path
+ *  loads it on first open so it never pays for framer-motion up front). */
+function usePrefetchDrawer() {
+  useEffect(() => {
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
+    let idle = 0
+    const timer = window.setTimeout(() => {
+      const run = () => { loadDrawer().catch(() => {}) }
+      if ('requestIdleCallback' in window) idle = window.requestIdleCallback(run, { timeout: 4000 })
+      else run()
+    }, 6000)
+    return () => {
+      window.clearTimeout(timer)
+      if (idle && 'cancelIdleCallback' in window) window.cancelIdleCallback(idle)
+    }
+  }, [])
+}
 
 export function ContactDrawerProvider({ children }: { children: React.ReactNode }) {
-  const [open, setOpen]         = useState(false)
-  const [openCount, setCount]   = useState(0)
-  const [mounted, setMounted]   = useState(false)
-  const [isMobile, setMobile]   = useState(false)
+  const [open, setOpen]           = useState(false)
+  const [everOpened, setEverOpen] = useState(false)
+  const titleId = useId()
 
-  useEffect(() => { setMounted(true) }, [])
-  useEffect(() => {
-    const mql = window.matchMedia('(max-width: 768px)')
-    const sync = () => setMobile(mql.matches)
-    sync()
-    mql.addEventListener('change', sync)
-    return () => mql.removeEventListener('change', sync)
-  }, [])
+  usePrefetchDrawer()
 
-  const doOpen  = useCallback(() => { setOpen(true); setCount((c) => c + 1) }, [])
+  const doOpen  = useCallback(() => { setEverOpen(true); setOpen(true) }, [])
   const doClose = useCallback(() => setOpen(false), [])
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') doClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, doClose])
-
-  useEffect(() => {
-    if (!open) return
-    lenisInstance?.stop?.()
-    return () => { lenisInstance?.start?.() }
-  }, [open])
 
   useEffect(() => {
     const onOpen = () => doOpen()
@@ -66,140 +67,82 @@ export function ContactDrawerProvider({ children }: { children: React.ReactNode 
   return (
     <Ctx.Provider value={value}>
       {children}
-      {mounted && createPortal(<Panel open={open} onClose={doClose} isMobile={isMobile} openKey={openCount} />, document.body)}
+      {everOpened && (
+        <Drawer open={open} onClose={doClose} labelledBy={titleId} width={480}>
+          <ContactBody titleId={titleId} />
+        </Drawer>
+      )}
     </Ctx.Provider>
   )
 }
 
-function Panel({ open, onClose, isMobile, openKey }: {
-  open: boolean
-  onClose: () => void
-  isMobile: boolean
-  openKey: number
-}) {
-  return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            key="overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: EASE }}
-            onClick={onClose}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(2, 4, 10, 0.35)',
-              backdropFilter: 'blur(2px)',
-              WebkitBackdropFilter: 'blur(2px)',
-              zIndex: 999,
-              cursor: 'pointer',
-            }}
-          />
+// ─── Form ────────────────────────────────────────────────────────────────────
 
-          <motion.aside
-            key="panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Contact form"
-            data-lenis-prevent
-            onWheel={(e) => e.stopPropagation()}
-            onTouchMove={(e) => e.stopPropagation()}
-            initial={isMobile
-              ? { y: '100%', opacity: 0 }
-              : { x: 40, y: '-50%', opacity: 0, scale: 0.97 }}
-            animate={isMobile
-              ? { y: 0, opacity: 1 }
-              : { x: 0, y: '-50%', opacity: 1, scale: 1 }}
-            exit={isMobile
-              ? { y: '100%', opacity: 0 }
-              : { x: 40, y: '-50%', opacity: 0, scale: 0.97 }}
-            transition={{ duration: 0.55, ease: EASE }}
-            style={{
-              position: 'fixed',
-              ...(isMobile ? {
-                left: 0, right: 0, bottom: 0,
-                width: '100vw',
-                maxHeight: '85vh',
-                borderRadius: '20px 20px 0 0',
-              } : {
-                right: 24,
-                top: '50%',
-                width: 'min(480px, calc(100vw - 48px))',
-                maxHeight: 'calc(100vh - 48px)',
-                borderRadius: 18,
-              }),
-              background: `
-                radial-gradient(ellipse at 50% 0%, rgba(94,234,212,0.10) 0%, transparent 55%),
-                linear-gradient(180deg, rgba(10,14,22,0.72) 0%, rgba(6,8,14,0.68) 100%)
-              `,
-              backdropFilter: 'blur(18px) saturate(140%)',
-              WebkitBackdropFilter: 'blur(18px) saturate(140%)',
-              border: '1px solid rgba(94, 234, 212, 0.22)',
-              boxShadow: `
-                0 0 0 1px rgba(94,234,212,0.04),
-                0 20px 60px rgba(0,0,0,0.55),
-                0 0 80px rgba(94,234,212,0.08)
-              `,
-              zIndex: 1000,
-              overflowY: 'auto',
-              color: '#ffffff',
-              fontFamily: 'var(--font-body), system-ui, sans-serif',
-            }}
-          >
-            <div aria-hidden style={{
-              position: 'absolute', inset: 0, pointerEvents: 'none',
-              backgroundImage: `repeating-linear-gradient(
-                to bottom,
-                rgba(94,234,212,0.04) 0px,
-                rgba(94,234,212,0.04) 1px,
-                transparent 1px,
-                transparent 3px
-              )`,
-              mixBlendMode: 'overlay',
-              opacity: 0.5,
-              borderRadius: 'inherit',
-            }} />
+type FieldName = 'name' | 'email' | 'subject' | 'message'
+type Values = Record<FieldName, string>
+type Errors = Partial<Record<'name' | 'email' | 'message', string>>
+type Status = 'idle' | 'sending' | 'sent' | 'error'
 
-            {isMobile && (
-              <div aria-hidden style={{
-                position: 'sticky', top: 0,
-                display: 'flex', justifyContent: 'center', paddingTop: 10,
-              }}>
-                <span style={{
-                  width: 44, height: 4, borderRadius: 2,
-                  background: 'rgba(94,234,212,0.35)',
-                }} />
-              </div>
-            )}
+const EMPTY: Values = { name: '', email: '', subject: '', message: '' }
 
-            <ContactBody key={openKey} onClose={onClose} />
-          </motion.aside>
-        </>
-      )}
-    </AnimatePresence>
-  )
+// A half-written message survives closing the drawer by accident; it is
+// cleared only after a successful send.
+let draft: Values = { ...EMPTY }
+
+function validate(v: Values): Errors {
+  const e: Errors = {}
+  if (v.name.trim().length < 2) e.name = 'Add your name so I know who to reply to.'
+  const email = v.email.trim()
+  if (!email) e.email = 'Add your email so I can reply.'
+  else if (!/^\S+@\S+\.\S+$/.test(email)) e.email = 'That email address looks incomplete.'
+  if (v.message.trim().length < 5) e.message = 'Write a line or two about what you have in mind.'
+  return e
 }
 
-function ContactBody({ onClose }: { onClose: () => void }) {
-  const [name, setName]       = useState('')
-  const [email, setEmail]     = useState('')
-  const [subject, setSubject] = useState('')
-  const [message, setMessage] = useState('')
-  const [status, setStatus]   = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+function ContactBody({ titleId }: { titleId: string }) {
+  const [values, setValues]     = useState<Values>(() => draft)
+  const [attempted, setAttempt] = useState(false)
+  const [status, setStatus]     = useState<Status>('idle')
+  const [sentTo, setSentTo]     = useState('')
+  // Fine pointer: start in the first field. Touch: start on the heading, so
+  // the keyboard does not jump up over the sheet before it has slid in.
+  // Read synchronously: the Drawer moves focus in the same commit this body
+  // mounts in (this component only ever renders client-side, inside Drawer).
+  const [autofocusInput] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+  )
 
-  const canSubmit = status !== 'sending'
-    && name.trim().length > 1
-    && /^\S+@\S+\.\S+$/.test(email)
-    && message.trim().length > 4
+  const fieldRefs = {
+    name:    useRef<HTMLInputElement>(null),
+    email:   useRef<HTMLInputElement>(null),
+    message: useRef<HTMLTextAreaElement>(null),
+  }
+  const sentRef  = useRef<HTMLHeadingElement>(null)
+  const errorRef = useRef<HTMLDivElement>(null)
+  const baseId = useId()
+
+  useEffect(() => { draft = values }, [values])
+
+  const errors = attempted ? validate(values) : {}
+
+  const set = (k: FieldName) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const v = e.target.value
+    setValues((prev) => ({ ...prev, [k]: v }))
+    if (status === 'error') setStatus('idle')
+  }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!canSubmit) return
-    setStatus('sending')
+    if (status === 'sending') return
+    setAttempt(true)
+    const found = validate(values)
+    const firstBad = (['name', 'email', 'message'] as const).find((k) => found[k])
+    if (firstBad) {
+      fieldRefs[firstBad].current?.focus()
+      return
+    }
 
+    setStatus('sending')
     const serviceId  = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID
     const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID
     const publicKey  = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
@@ -207,229 +150,191 @@ function ContactBody({ onClose }: { onClose: () => void }) {
     if (!serviceId || !templateId || !publicKey) {
       console.error('[contact] EmailJS env vars missing — restart `npm run dev` after editing .env.local', { serviceId: !!serviceId, templateId: !!templateId, publicKey: !!publicKey })
       setStatus('error')
+      requestAnimationFrame(() => errorRef.current?.focus())
       return
     }
 
     try {
-      const res = await emailjs.send(
+      const { send } = await import('@emailjs/browser')
+      const name = values.name.trim()
+      const res = await send(
         serviceId,
         templateId,
         {
           from_name:  name,
-          from_email: email,
-          reply_to:   email,
-          subject:    subject.trim() || `New message from ${name}`,
-          message,
+          from_email: values.email.trim(),
+          reply_to:   values.email.trim(),
+          subject:    values.subject.trim() || `New message from ${name}`,
+          message:    values.message,
         },
         { publicKey },
       )
       console.info('[contact] EmailJS ok', res.status, res.text)
+      setSentTo(name.split(/\s+/)[0] ?? name)
       setStatus('sent')
-      setName(''); setEmail(''); setSubject(''); setMessage('')
+      setAttempt(false)
+      setValues({ ...EMPTY })
+      requestAnimationFrame(() => sentRef.current?.focus({ preventScroll: true }))
     } catch (err) {
       console.error('[contact] EmailJS send failed', err)
       setStatus('error')
+      requestAnimationFrame(() => errorRef.current?.focus())
     }
   }
-  const sent = status === 'sent'
+
+  const errId = (k: keyof Errors) => `${baseId}-${k}-error`
+  const sending = status === 'sending'
 
   return (
-    <div style={{ position: 'relative', padding: '22px 24px 28px' }}>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close"
-        style={{
-          position: 'absolute', top: 14, right: 14,
-          width: 30, height: 30,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(0,0,0,0.35)',
-          border: '1px solid rgba(94,234,212,0.22)',
-          borderRadius: 6,
-          color: '#fff',
-          fontSize: 18, lineHeight: 1, cursor: 'pointer',
-          transition: 'color 200ms, border-color 200ms, background 200ms',
-          zIndex: 2,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.color = ACCENT
-          e.currentTarget.style.borderColor = ACCENT
-          e.currentTarget.style.background = 'rgba(94,234,212,0.08)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.color = '#fff'
-          e.currentTarget.style.borderColor = 'rgba(94,234,212,0.22)'
-          e.currentTarget.style.background = 'rgba(0,0,0,0.35)'
-        }}
+    <div className={styles.contact}>
+      <h2
+        id={titleId}
+        className={`t-title ${styles.contactTitle} ${styles.focusTarget}`}
+        tabIndex={-1}
+        data-autofocus={autofocusInput || status === 'sent' ? undefined : ''}
       >
-        ×
-      </button>
-
-      <div style={{
-        fontFamily: 'var(--font-mono), ui-monospace, monospace',
-        fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase',
-        color: ACCENT, marginBottom: 10,
-        textShadow: '0 0 10px rgba(94,234,212,0.45)',
-      }}>
-        04 · CONTACT
-      </div>
-
-      <h2 style={{
-        fontFamily: 'var(--font-display), sans-serif',
-        fontWeight: 800, fontSize: 26, lineHeight: 1.15,
-        letterSpacing: '-0.01em',
-        margin: '0 0 8px 0', paddingRight: 32,
-      }}>
         Let&apos;s talk
       </h2>
-      <p style={{ color: 'rgba(245,245,247,0.72)', fontSize: 13, lineHeight: 1.6, margin: '0 0 18px 0' }}>
-        Drop a message and I&apos;ll reply within 24 hours. Open to senior frontend & real-time roles, full-time or contract.
+      <p className={`t-lead ${styles.contactLead}`}>
+        Tell me about the role or the project. I reply within 24 hours.
       </p>
 
-      {sent ? (
-        <div style={{
-          padding: '20px 18px',
-          borderRadius: 10,
-          border: '1px solid rgba(94,234,212,0.4)',
-          background: 'rgba(94,234,212,0.06)',
-          color: '#fff',
-        }}>
-          <div style={{
-            fontFamily: 'var(--font-mono), monospace',
-            fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase',
-            color: ACCENT, marginBottom: 8,
-          }}>MESSAGE SENT</div>
-          <p style={{ margin: '0 0 14px 0', fontSize: 13, lineHeight: 1.55 }}>
-            Thanks for reaching out — your message landed in my inbox.
-            I&apos;ll reply within 24 hours.
+      {status === 'sent' ? (
+        <div className={styles.sent} role="status">
+          <h3 ref={sentRef} tabIndex={-1} className={`t-subtitle ${styles.sentTitle} ${styles.focusTarget}`}>
+            Message sent.
+          </h3>
+          <p className={`t-lead ${styles.sentText}`}>
+            Thanks{sentTo ? `, ${sentTo}` : ''}. It&apos;s in my inbox, and you&apos;ll hear back within 24 hours.
           </p>
-          <button
-            type="button"
-            onClick={() => { setStatus('idle') }}
-            style={{
-              padding: '8px 12px',
-              fontFamily: 'var(--font-mono), monospace',
-              fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.2em', textTransform: 'uppercase',
-              color: ACCENT,
-              background: 'transparent',
-              border: '1px solid rgba(94,234,212,0.4)',
-              borderRadius: 6,
-              cursor: 'pointer',
-              transition: 'background 200ms, color 200ms',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(94,234,212,0.08)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-          >
-            Send another →
-          </button>
+          <div className={styles.sentAction}>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setStatus('idle')}>
+              Write another message
+            </button>
+          </div>
         </div>
       ) : (
-        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Field label="NAME">
+        <form className={styles.form} onSubmit={onSubmit} noValidate aria-busy={sending}>
+          <div className={styles.field}>
+            <label htmlFor={`${baseId}-name`} className={`t-label ${styles.label}`}>Name</label>
             <input
-              type="text" value={name} onChange={(e) => setName(e.target.value)}
-              placeholder="Your name" autoComplete="name" required
-              style={inputStyle}
+              ref={fieldRefs.name}
+              id={`${baseId}-name`}
+              className={styles.input}
+              type="text"
+              name="name"
+              autoComplete="name"
+              placeholder="Your name"
+              value={values.name}
+              onChange={set('name')}
+              required
+              aria-required="true"
+              aria-invalid={errors.name ? true : undefined}
+              aria-describedby={errors.name ? errId('name') : undefined}
+              data-autofocus={autofocusInput ? '' : undefined}
             />
-          </Field>
-          <Field label="EMAIL">
-            <input
-              type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com" autoComplete="email" required
-              style={inputStyle}
-            />
-          </Field>
-          <Field label="SUBJECT (OPTIONAL)">
-            <input
-              type="text" value={subject} onChange={(e) => setSubject(e.target.value)}
-              placeholder="What's this about?"
-              style={inputStyle}
-            />
-          </Field>
-          <Field label="MESSAGE">
-            <textarea
-              value={message} onChange={(e) => setMessage(e.target.value)}
-              placeholder="Tell me about your project / role / idea…"
-              rows={5} required
-              style={{ ...inputStyle, resize: 'vertical', minHeight: 110, fontFamily: 'inherit' }}
-            />
-          </Field>
+            {errors.name && <FieldError id={errId('name')}>{errors.name}</FieldError>}
+          </div>
 
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            style={{
-              marginTop: 6,
-              padding: '12px 16px',
-              fontFamily: 'var(--font-mono), ui-monospace, monospace',
-              fontSize: 11, fontWeight: 700,
-              letterSpacing: '0.22em', textTransform: 'uppercase',
-              color: '#ffffff',
-              background: canSubmit
-                ? 'linear-gradient(135deg, rgba(94,234,212,0.22), rgba(99,102,241,0.26))'
-                : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${canSubmit ? 'rgba(94,234,212,0.5)' : 'rgba(255,255,255,0.1)'}`,
-              borderRadius: 8,
-              cursor: canSubmit ? 'pointer' : 'not-allowed',
-              opacity: canSubmit ? 1 : 0.55,
-              boxShadow: canSubmit ? '0 0 28px rgba(94,234,212,0.22)' : 'none',
-              transition: 'background 220ms, box-shadow 220ms, border-color 220ms',
-            }}
-          >
-            {status === 'sending' ? 'Sending…' : 'Send Message →'}
-          </button>
+          <div className={styles.field}>
+            <label htmlFor={`${baseId}-email`} className={`t-label ${styles.label}`}>Email</label>
+            <input
+              ref={fieldRefs.email}
+              id={`${baseId}-email`}
+              className={styles.input}
+              type="email"
+              name="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="you@company.com"
+              value={values.email}
+              onChange={set('email')}
+              required
+              aria-required="true"
+              aria-invalid={errors.email ? true : undefined}
+              aria-describedby={errors.email ? errId('email') : undefined}
+            />
+            {errors.email && <FieldError id={errId('email')}>{errors.email}</FieldError>}
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor={`${baseId}-subject`} className={`t-label ${styles.label}`}>
+              Subject <span className={styles.optional}>(optional)</span>
+            </label>
+            <input
+              id={`${baseId}-subject`}
+              className={styles.input}
+              type="text"
+              name="subject"
+              placeholder="Senior frontend role, a Flutter app, a quick question"
+              value={values.subject}
+              onChange={set('subject')}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor={`${baseId}-message`} className={`t-label ${styles.label}`}>Message</label>
+            <textarea
+              ref={fieldRefs.message}
+              id={`${baseId}-message`}
+              className={`${styles.input} ${styles.textarea}`}
+              name="message"
+              rows={5}
+              placeholder="What are you building, and where could I help?"
+              value={values.message}
+              onChange={set('message')}
+              required
+              aria-required="true"
+              aria-invalid={errors.message ? true : undefined}
+              aria-describedby={errors.message ? errId('message') : undefined}
+            />
+            {errors.message && <FieldError id={errId('message')}>{errors.message}</FieldError>}
+          </div>
 
           {status === 'error' && (
-            <div style={{
-              padding: '10px 12px',
-              borderRadius: 8,
-              border: '1px solid rgba(248, 113, 113, 0.5)',
-              background: 'rgba(248, 113, 113, 0.08)',
-              color: '#fecaca',
-              fontSize: 12,
-              lineHeight: 1.5,
-            }}>
-              Couldn&apos;t send right now — please email me directly at <a href={`mailto:${EMAIL}`} style={{ color: ACCENT }}>{EMAIL}</a>.
+            <div ref={errorRef} className={`${styles.notice} ${styles.focusTarget}`} role="alert" tabIndex={-1}>
+              <FaCircleExclamation aria-hidden="true" focusable="false" />
+              <span>
+                That didn&apos;t send. Your message is still here, so you can try again, or email me
+                at{' '}
+                <a className={styles.inlineLink} href={`mailto:${EMAIL}`}>{EMAIL}</a>.
+              </span>
             </div>
           )}
 
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', marginTop: 8,
-            fontFamily: 'var(--font-mono), monospace', fontSize: 10,
-            letterSpacing: '0.22em', textTransform: 'uppercase',
-            color: 'rgba(245,245,247,0.55)',
-          }}>
-            <a href={`mailto:${EMAIL}`} style={{ color: ACCENT, textDecoration: 'none' }}>{EMAIL}</a>
-            <span>Karachi · Pakistan</span>
+          <div className={styles.actions}>
+            <button
+              type="submit"
+              className={`btn btn--primary ${styles.submit}`}
+              disabled={sending}
+              aria-disabled={sending || undefined}
+            >
+              {sending ? 'Sending…' : (<>Send message <span className="btn-arrow" aria-hidden="true">→</span></>)}
+            </button>
           </div>
+          <p className={styles.srOnly} role="status" aria-live="polite">
+            {sending ? 'Sending your message.' : ''}
+          </p>
         </form>
       )}
+
+      <div className={styles.contactFooter}>
+        <div className={styles.contactFooterRow}>
+          <a className={styles.footerLink} href={`mailto:${EMAIL}`}>{EMAIL}</a>
+          <span>{CITY}</span>
+        </div>
+      </div>
     </div>
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldError({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span style={{
-        fontFamily: 'var(--font-mono), monospace',
-        fontSize: 9, letterSpacing: '0.25em',
-        color: 'rgba(245,245,247,0.55)',
-      }}>{label}</span>
-      {children}
-    </label>
+    <p id={id} className={styles.fieldError}>
+      <FaCircleExclamation aria-hidden="true" focusable="false" />
+      <span>{children}</span>
+    </p>
   )
-}
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px 12px',
-  background: 'rgba(8,12,20,0.55)',
-  border: '1px solid rgba(94,234,212,0.18)',
-  borderRadius: 8,
-  color: '#ffffff',
-  fontSize: 13,
-  outline: 'none',
-  transition: 'border-color 180ms, box-shadow 180ms, background 180ms',
 }

@@ -20,20 +20,17 @@ export default function TunnelPreviewPage() {
       </main>
 
       <div
+        className="t-data"
         style={{
           position: 'fixed',
           bottom:   24,
           right:    24,
-          color:    'rgba(94,234,212,0.45)',
-          fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          fontSize: 10,
-          letterSpacing: '0.25em',
-          textTransform: 'uppercase',
+          color:    'rgb(var(--ink-3))',
           pointerEvents: 'none',
           zIndex: 50,
         }}
       >
-        preview · /tunnel
+        Preview · /tunnel
       </div>
     </>
   )

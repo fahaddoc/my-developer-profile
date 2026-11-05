@@ -1,0 +1,797 @@
+/* components/r3f/TunnelHUD.module.css
+   The desktop tunnel HUD (DESIGN.md §3–6). Tokens only. Hover, focus, the
+   station reveal and every reduced-motion path live here so none of it needs
+   JS style mutation. Shared by TunnelHUD, IntroMiniPlayer and FlipPhotoCard
+   (QualityToggle receives its class through the HUD's slot, so this sheet
+   stays in the desktop-only HUD chunk). */
+
+/* ─── Frame ─────────────────────────────────────────────────────────────────
+   Global .vignette (globals.css) sits above the canvas, below every HUD layer. */
+.vignetteLayer { z-index: var(--z-content); }
+
+/* ─── Top bar ───────────────────────────────────────────────────────────── */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-chrome);
+  height: 72px;
+  padding: 0 20px 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.wordmark {
+  pointer-events: auto;
+  padding: 10px 0;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-variation-settings: 'wdth' 125;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: rgb(var(--ink));
+  text-shadow: var(--body-shadow);
+}
+.wordmark:hover { color: rgb(var(--ink)); }
+
+.progress {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(140px, 14vw, 220px);
+  height: 2px;
+  border-radius: 2px;
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+  background: rgb(var(--line));
+}
+.progressFill {
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--accent));
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+
+.cluster {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* One quiet chrome button for Play intro, theme and quality. */
+.chromeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(var(--ink-2));
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  cursor: pointer;
+  text-shadow: var(--body-shadow);
+  transition:
+    color var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out);
+}
+.chromeBtn svg { flex: none; }
+.chromeBtn:hover { color: rgb(var(--ink)); background-color: rgb(var(--ink) / 0.07); }
+.chromeBtn:active { background-color: rgb(var(--ink) / 0.1); }
+.chromeBtn:focus-visible { border-radius: 999px; outline-offset: 2px; }
+.chromeQuiet { color: rgb(var(--ink-3)); }
+.chromeQuiet:hover { color: rgb(var(--ink)); }
+
+/* ─── Station rail ──────────────────────────────────────────────────────── */
+.rail {
+  position: fixed;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--z-chrome);
+}
+.railList {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* the spine: runs through every tick centre */
+.railList::before {
+  content: '';
+  position: absolute;
+  left: 15.5px;
+  top: 18px;
+  bottom: 18px;
+  width: 1px;
+  background: rgb(var(--line));
+}
+.railBtn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 36px;
+  padding: 0 12px 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(var(--ink-3));
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  text-shadow: var(--body-shadow);
+  transition: color var(--dur-1) var(--ease-out);
+}
+.tick {
+  position: relative;
+  flex: none;
+  width: 16px;
+  height: 2px;
+}
+.tick::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: rgb(var(--ink-3));
+  transform: scale(0.5, 0.5);
+  transition:
+    transform var(--dur-2) var(--ease-out),
+    background-color var(--dur-2) var(--ease-out);
+}
+.railBtn:hover,
+.railBtn:focus-visible { color: rgb(var(--ink)); }
+.railBtn:hover .tick::before { background: rgb(var(--ink-2)); transform: scale(0.75, 0.5); }
+.railBtn[aria-current='step'] { color: rgb(var(--ink)); }
+.railBtn[aria-current='step'] .tick::before { background: rgb(var(--accent)); transform: none; }
+
+/* ─── Bottom chrome ─────────────────────────────────────────────────────── */
+.socials {
+  position: fixed;
+  left: 22px;
+  bottom: 18px;
+  z-index: var(--z-chrome);
+  display: flex;
+  gap: 2px;
+}
+.socialLink {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  color: rgb(var(--ink-3));
+  transition:
+    color var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out);
+}
+.socialLink:hover { color: rgb(var(--ink)); background-color: rgb(var(--ink) / 0.07); }
+.socialLink:focus-visible { border-radius: 999px; }
+
+.scrollHint {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: var(--z-chrome);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: rgb(var(--ink-2));
+  transform: translateX(-50%);
+  pointer-events: none;
+  text-shadow: var(--body-shadow);
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.scrollHint[data-visible='false'] { opacity: 0; }
+.scrollLine {
+  position: relative;
+  width: 1px;
+  height: 28px;
+  overflow: hidden;
+  background: rgb(var(--line));
+}
+.scrollLine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--accent));
+  transform: translateY(-100%);
+  animation: scrollCue 2.2s var(--ease-in-out) infinite;
+}
+.scrollHint[data-visible='false'] .scrollLine::after { animation: none; }
+@keyframes scrollCue {
+  0%   { transform: translateY(-100%); }
+  70%  { transform: translateY(100%); }
+  100% { transform: translateY(100%); }
+}
+
+/* ─── Station stage + reveal ────────────────────────────────────────────── */
+.stage {
+  position: fixed;
+  left: max(200px, 12vw);
+  top: 50%;
+  width: min(560px, 44vw);
+  z-index: var(--z-hud);
+  display: grid;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.panel {
+  grid-area: 1 / 1;
+  align-self: center;
+  color: rgb(var(--ink));
+  transition: opacity 200ms linear;
+}
+.panel[data-leaving='true'] {
+  opacity: 0 !important;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+
+/* Anything that reveals: carries data-in and a soft backplate so text keeps
+   its contrast over the moving 3D in both themes. */
+.reveal {
+  position: relative;
+  isolation: isolate;
+}
+.reveal::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -22% -24% -22% -30%;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    rgb(var(--space-0) / 0.58),
+    rgb(var(--space-0) / 0.5) 52%,
+    rgb(var(--space-0) / 0.22) 80%,
+    rgb(var(--space-0) / 0)
+  );
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+.reveal[data-in='true']::before { opacity: 1; }
+
+/* Title lines rise out of their own mask. The padding/negative margin pair
+   gives ascenders and descenders room inside the clip at tight line-heights. */
+.line {
+  display: block;
+  overflow: hidden;
+  padding: 0.12em 0 0.16em;
+  margin: -0.12em 0 -0.16em;
+}
+.lineInner {
+  display: block;
+  opacity: 0;
+  transform: translateY(105%);
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform 0s linear var(--dur-2);
+}
+.reveal[data-in='true'] .lineInner {
+  opacity: 1;
+  transform: none;
+  transition:
+    transform var(--dur-3) var(--ease-out-expo) calc(var(--i, 0) * 60ms),
+    opacity 0s linear calc(var(--i, 0) * 60ms);
+}
+
+/* Lead, actions, cards: fade up 8px after the title. */
+.rise {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform 0s linear var(--dur-2);
+}
+.reveal[data-in='true'] .rise {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--dur-3) var(--ease-out) calc(200ms + var(--i, 0) * 70ms),
+    transform var(--dur-3) var(--ease-out-expo) calc(200ms + var(--i, 0) * 70ms);
+}
+
+/* Only an arrived panel takes the pointer. */
+.hit { pointer-events: none; }
+.reveal[data-in='true']:not([data-leaving='true']) .hit { pointer-events: auto; }
+
+/* ─── Station type ──────────────────────────────────────────────────────── */
+.title {
+  margin: 0 0 22px;
+  font-size: clamp(40px, 4.4vw, 64px);
+  color: rgb(var(--ink));
+}
+.heroName {
+  margin: 0 0 28px;
+  font-size: clamp(56px, 7vw, 96px);
+  color: rgb(var(--ink));
+}
+.lead {
+  margin: 0 0 28px;
+  max-width: 46ch;
+  font-size: 18px;
+  text-shadow: var(--body-shadow);
+}
+.heroLead { font-size: 19px; margin-bottom: 32px; }
+:global(:root:not([data-theme='light'])) .lead { line-height: 1.65; }
+
+.ember { color: rgb(var(--accent-text)); }
+.leadNum { color: rgb(var(--accent-text)); font-weight: 600; }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: rgb(var(--ink-2));
+}
+.facts li { display: inline-flex; align-items: center; }
+.facts li + li::before {
+  content: '';
+  width: 1px;
+  height: 14px;
+  margin: 0 14px;
+  background: rgb(var(--line));
+}
+
+.hint { margin: 0; color: rgb(var(--ink-3)); text-shadow: var(--body-shadow); }
+
+.email {
+  display: inline-block;
+  margin: 0 0 26px;
+  font-size: 28px;
+}
+
+/* ─── Solid panel surface (PR card, testimonial) ────────────────────────── */
+.surface {
+  background: rgb(var(--surface) / 0.86);
+  border: 1px solid rgb(var(--line));
+  border-radius: 18px;
+  box-shadow:
+    0 28px 60px -30px rgb(var(--space-0) / 0.95),
+    0 2px 10px -4px rgb(var(--space-0) / 0.6);
+}
+:global(:root[data-theme='light']) .surface {
+  box-shadow:
+    0 24px 50px -28px rgb(var(--ink) / 0.26),
+    0 2px 8px -4px rgb(var(--ink) / 0.12);
+}
+
+.iconBtn {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgb(var(--ink) / 0.22);
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.02);
+  color: rgb(var(--ink));
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+.iconBtn:hover { background: rgb(var(--ink) / 0.06); border-color: rgb(var(--ink) / 0.42); }
+.iconBtn:active { transform: translateY(1px); }
+.iconBtn:focus-visible { border-radius: 999px; }
+.iconBtnQuiet {
+  width: 28px;
+  height: 28px;
+  border-color: transparent;
+  background: transparent;
+  color: rgb(var(--ink-3));
+}
+.iconBtnQuiet:hover { color: rgb(var(--ink)); border-color: transparent; background: rgb(var(--ink) / 0.07); }
+
+/* Crossfading stack: every item shares one grid cell, so the block is as tall
+   as its tallest item and nothing jumps when the item changes. */
+.stack { display: grid; }
+.stackItem {
+  grid-area: 1 / 1;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform 0s linear var(--dur-2),
+    visibility 0s linear var(--dur-2);
+}
+.stackItem[data-active='true'] {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity var(--dur-3) var(--ease-out) 80ms,
+    transform var(--dur-3) var(--ease-out-expo) 80ms,
+    visibility 0s;
+}
+
+/* ─── Open source ───────────────────────────────────────────────────────── */
+.prCard {
+  max-width: 480px;
+  margin: 0 0 14px;
+  padding: 22px 24px 24px;
+}
+.prHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.flutter { color: rgb(var(--flutter-accent)); flex: none; }
+.gh { color: rgb(var(--ink-2)); flex: none; }
+.prOrg { color: rgb(var(--ink-2)); }
+.merged {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--status-merged) / 0.4);
+  background: rgb(var(--status-merged) / 0.1);
+  color: rgb(var(--status-merged));
+  line-height: 1;
+}
+.prTitle {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: rgb(var(--ink));
+}
+.prMeta { margin: 0 0 20px; color: rgb(var(--ink-3)); }
+.add { color: rgb(var(--status-merged)); }
+.del { color: rgb(var(--status-removed)); }
+
+.carousel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dots { display: flex; margin-left: -4px; }
+.dot {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.dot:focus-visible { outline-offset: 0; }
+.dotTrack {
+  position: relative;
+  display: block;
+  width: 20px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(var(--ink-3) / 0.45);
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.dot:hover .dotTrack { background: rgb(var(--ink-2)); }
+.dot[aria-current='true'] .dotTrack { background: rgb(var(--ink) / 0.2); }
+.dotFill {
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--accent));
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+.dot[aria-current='true'] .dotFill { transform: scaleX(1); }
+.dot[aria-current='true'] .dotFill[data-running='true'] {
+  animation: dotFill var(--autoplay, 7000ms) linear both;
+}
+@keyframes dotFill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.counter { margin: 0 6px 0 10px; color: rgb(var(--ink-3)); }
+
+/* ─── Experience ────────────────────────────────────────────────────────── */
+.quoteCard {
+  max-width: 470px;
+  margin: 0;
+  padding: 22px 24px 16px;
+}
+.quote { margin: 0 0 16px; font-size: 17px; color: rgb(var(--ink)); }
+.quoteName { display: block; font-size: 15px; color: rgb(var(--ink)); }
+.quoteRole { display: block; margin-top: 3px; color: rgb(var(--ink-3)); }
+.quoteNav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(var(--line));
+}
+.quoteNav .counter { margin: 0 auto 0 0; }
+
+/* ─── Right-side station objects ────────────────────────────────────────── */
+.side {
+  position: fixed;
+  z-index: var(--z-hud);
+  pointer-events: none;
+  transition: opacity 240ms linear;
+}
+
+/* Work: the showcase (ProjectShowcase, owned elsewhere) starts on the same
+   left edge as every station overlay. */
+.gallery {
+  position: fixed;
+  left: max(200px, 12vw);
+  right: 4vw;
+  top: 50%;
+  z-index: var(--z-hud);
+  transform: translateY(-50%);
+}
+
+/* About: a closing caption in the bottom-right corner, the one region the
+   station's planet and its 3D label never use at 1280–1440. */
+.aboutSide {
+  right: 4vw;
+  bottom: clamp(56px, 9vh, 88px);
+  width: min(30vw, 400px);
+  text-align: right;
+}
+.statement {
+  margin: 0;
+  font-size: clamp(22px, 1.95vw, 28px);
+  color: rgb(var(--ink));
+  text-shadow: var(--body-shadow);
+}
+
+.journey {
+  right: 0;
+  top: 50%;
+  width: min(56vw, 780px);
+  height: min(74vh, 560px);
+  transform: translateY(-50%);
+}
+.journey::before { content: none; }
+.journeyPath {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 0s linear var(--dur-2);
+}
+.reveal[data-in='true'] .journeyPath {
+  clip-path: inset(0 0 0 0);
+  transition: clip-path var(--dur-4) var(--ease-out) 120ms;
+}
+.journeyPath path {
+  fill: none;
+  stroke: rgb(var(--ink-3) / 0.6);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.node {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.nodeDot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgb(var(--space-0));
+  border: 1.5px solid rgb(var(--ink-3));
+  transform: translate(-50%, -50%);
+}
+.node[data-current='true'] .nodeDot {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  background: rgb(var(--accent));
+  box-shadow: 0 0 0 5px rgb(var(--accent) / 0.18);
+}
+.nodeLabel {
+  position: absolute;
+  top: 0;
+  width: max-content;
+  max-width: 290px;
+  transform: translateY(-50%);
+}
+.nodeLabel[data-side='left'] { right: 20px; text-align: right; }
+.nodeLabel[data-side='right'] { left: 20px; }
+/* Waypoint tags sit on a solid token surface: they cross the planet, and a
+   soft backplate cannot hold ink-on-planet contrast in daylight. */
+.nodeTag {
+  padding: 10px 14px 11px;
+  border-radius: 12px;
+  background: rgb(var(--surface) / 0.88);
+  border: 1px solid rgb(var(--line));
+  box-shadow: 0 14px 30px -18px rgb(var(--space-0) / 0.9);
+}
+:global(:root[data-theme='light']) .nodeTag { box-shadow: 0 12px 26px -18px rgb(var(--ink) / 0.28); }
+.nodePeriod { display: block; margin-bottom: 4px; color: rgb(var(--ink-3)); }
+.nodeRole { display: block; font-size: 16px; color: rgb(var(--ink)); text-wrap: wrap; }
+.nodeCompany { display: block; margin-top: 3px; color: rgb(var(--ink-2)); }
+
+.orbit {
+  right: 0;
+  top: 50%;
+  width: min(54vw, 720px);
+  height: min(72vh, 540px);
+  transform: translateY(-50%);
+}
+.orbit::before { content: none; }
+.orbitNode {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.orbitLink {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translate(-50%, -26px);
+  color: rgb(var(--ink-2));
+}
+.orbitChip {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgb(var(--surface));
+  border: 1px solid rgb(var(--line));
+  color: rgb(var(--ink));
+  box-shadow: 0 14px 30px -16px rgb(var(--space-0) / 0.9);
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    transform var(--dur-2) var(--ease-out);
+}
+:global(:root[data-theme='light']) .orbitChip { box-shadow: 0 12px 26px -16px rgb(var(--ink) / 0.3); }
+.orbitLabel { text-shadow: var(--body-shadow); transition: color var(--dur-1) var(--ease-out); }
+.orbitLink:hover .orbitChip { border-color: rgb(var(--accent) / 0.7); color: rgb(var(--accent-text)); transform: translateY(-2px); }
+.orbitLink:hover .orbitLabel { color: rgb(var(--ink)); }
+.orbitLink:focus-visible { outline: none; }
+.orbitLink:focus-visible .orbitChip { outline: 2px solid rgb(var(--accent-text)); outline-offset: 3px; }
+
+/* ─── Hero portrait (FlipPhotoCard) ─────────────────────────────────────── */
+.portraitDock {
+  position: fixed;
+  right: 4vw;
+  bottom: 0;
+  z-index: var(--z-hud);
+  /* tied to the viewport so it never reaches the hero text (1024–1280px)
+     and always clears the intro player docked top-right (ends at 346px) */
+  width: min(30vw, 440px, calc((100vh - 352px) * 0.75));
+  transition: opacity 200ms linear;
+}
+.portrait {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 18px;
+  cursor: pointer;
+}
+.portrait:focus-visible { border-radius: 18px; outline-offset: 4px; }
+.portraitFigure {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: linear-gradient(to bottom, black 66%, transparent 97%);
+  mask-image: linear-gradient(to bottom, black 66%, transparent 97%);
+}
+.portraitChip {
+  position: absolute;
+  left: 50%;
+  bottom: 10%;
+  gap: 8px;
+  transform: translateX(-50%);
+  background: rgb(var(--surface) / 0.9);
+  pointer-events: none;
+}
+.portrait:hover .portraitChip,
+.portrait:focus-visible .portraitChip {
+  background: rgb(var(--surface));
+  border-color: rgb(var(--ink) / 0.42);
+}
+
+/* ─── Intro mini player ─────────────────────────────────────────────────── */
+.player {
+  position: fixed;
+  top: 76px;
+  right: 24px;
+  z-index: var(--z-chrome);
+  width: 184px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgb(var(--surface));
+  border: 1px solid rgb(var(--line));
+  box-shadow: 0 24px 50px -24px rgb(var(--space-0) / 0.95);
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: 100% 0;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out);
+}
+:global(:root[data-theme='light']) .player { box-shadow: 0 22px 46px -24px rgb(var(--ink) / 0.3); }
+.player[data-open='true'] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.playerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 4px 0 14px;
+  border-bottom: 1px solid rgb(var(--line));
+  color: rgb(var(--ink));
+}
+.playerVideo {
+  aspect-ratio: 4 / 5;
+  background: rgb(var(--space-1));
+}
+.playerVideo video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ─── Reduced motion: opacity only, no travel, no loops ─────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .lineInner,
+  .rise,
+  .stackItem,
+  .player { transform: none !important; }
+  .reveal[data-in='true'] .lineInner,
+  .reveal[data-in='true'] .rise,
+  .stackItem[data-active='true'] { transition: opacity var(--dur-2) linear; }
+  .journeyPath,
+  .reveal[data-in='true'] .journeyPath { clip-path: none; transition: none; }
+  .scrollLine::after { animation: none; transform: none; }
+  .dot[aria-current='true'] .dotFill[data-running='true'] { animation: none; }
+  .tick::before,
+  .orbitChip,
+  .iconBtn { transition-property: background-color, border-color, color; }
+  .orbitLink:hover .orbitChip { transform: none; }
+}

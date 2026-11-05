@@ -9,7 +9,6 @@
 //   3. raw GPU tier from detect-gpu
 
 import { useCallback, useEffect, useState } from 'react'
-import { getGPUTier } from 'detect-gpu'
 import {
   type QualityLevel,
   tierToLevel,
@@ -29,20 +28,27 @@ export interface QualityState {
   fpsDowngraded: boolean
 }
 
-export function useQualityLevel(): QualityState {
+/**
+ * @param enabled  run GPU detection only when the tunnel can actually be shown.
+ *                 Phones / classic mode pass false, so they never create the
+ *                 probe WebGL context or download detect-gpu's benchmark data.
+ */
+export function useQualityLevel(enabled = true): QualityState {
   const [tier, setTier]                 = useState<number | null>(null)
   const [override, setOverrideState]    = useState<QualityLevel | null>(null)
   const [fpsDowngraded, setFpsDowngraded] = useState(false)
   const [loading, setLoading]           = useState(true)
 
-  // Initial mount: read override + run detect-gpu in parallel
+  // Read override + run detect-gpu (lazily imported) once the tunnel is eligible
   useEffect(() => {
+    if (!enabled) return
     let cancelled = false
 
     setOverrideState(readOverride())
 
     ;(async () => {
       try {
+        const { getGPUTier } = await import('detect-gpu')
         const result = await getGPUTier()
         if (!cancelled) setTier(result.tier ?? 1)
       } catch {
@@ -53,7 +59,7 @@ export function useQualityLevel(): QualityState {
     })()
 
     return () => { cancelled = true }
-  }, [])
+  }, [enabled])
 
   const setOverride = useCallback((level: QualityLevel | null) => {
     setOverrideState(level)

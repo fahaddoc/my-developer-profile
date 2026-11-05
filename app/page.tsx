@@ -2,9 +2,9 @@
 //
 // During the 3 s intro, ONLY <LoadingScreen> and a tiny <JsonLd> render. The
 // entire app (sections, R3F, detect-gpu, etc.) lives behind a next/dynamic
-// boundary in <AppShell>, so its bundle does not download or hydrate while
-// the loader is visible. That gives the intro a clean main thread and kills
-// the perceived "jerks" caused by hydration / detect-gpu blocking.
+// boundary in <AppShell>. The loader warms that chunk on idle at ~1.5 s so the
+// handoff has no blank gap; every loader animation is compositor-only, so the
+// download/parse cannot make the intro stutter.
 
 'use client'
 
@@ -22,13 +22,15 @@ export default function Page() {
   const [booting, setBooting] = useState(true)
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem('sf-booted') === '1') {
-      setBooting(false)
+    try {
+      if (sessionStorage.getItem('sf-booted') === '1') setBooting(false)
+    } catch {
+      /* storage blocked: show the intro */
     }
   }, [])
 
   const onBootComplete = useCallback(() => {
-    if (typeof window !== 'undefined') sessionStorage.setItem('sf-booted', '1')
+    try { sessionStorage.setItem('sf-booted', '1') } catch { /* storage blocked */ }
     setBooting(false)
   }, [])
 

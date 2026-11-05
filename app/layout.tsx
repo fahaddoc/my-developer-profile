@@ -1,7 +1,7 @@
 // app/layout.tsx
 
 import type { Metadata, Viewport } from 'next'
-import { Sora, Inter, JetBrains_Mono } from 'next/font/google'
+import { Archivo, JetBrains_Mono } from 'next/font/google'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
@@ -15,25 +15,21 @@ import { personSchema, websiteSchema } from '@/lib/seo/jsonld'
 import { SITE_URL, SITE_NAME, AUTHOR, KEYWORDS, SOCIALS } from '@/lib/seo/site'
 import './globals.css'
 
-// Sora — geometric grotesque (same family as the .monks display type the
-// user wanted to match). Loaded across the weight range we use in headings.
-const sora = Sora({
+// Archivo — one variable family (wdth 62–125, wght 100–900) carries the whole
+// voice: expanded + heavy for film-title display type, normal width for
+// reading. --font-body aliases it in globals.css, so it downloads once.
+const archivo = Archivo({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
+  axes: ['wdth'],
   variable: '--font-display',
   display: 'swap',
 })
 
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  variable: '--font-body',
-  display: 'swap',
-})
-
+// JetBrains Mono — real data only (PR numbers, dates, diffs). 700 is loaded so
+// bold mono is never synthesised.
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
-  weight: ['400', '500'],
+  weight: ['400', '500', '700'],
   variable: '--font-mono',
   display: 'swap',
 })
@@ -98,8 +94,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: dark)',  color: '#0a0a0a' },
-    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
+    { media: '(prefers-color-scheme: dark)',  color: '#05080f' },
+    { media: '(prefers-color-scheme: light)', color: '#f4f7fb' },
   ],
 }
 
@@ -113,7 +109,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
   return (
-    <html lang="en" suppressHydrationWarning className={`${sora.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${archivo.variable} ${jetbrainsMono.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
       </head>
@@ -127,6 +123,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </ContactDrawerProvider>
           </ProjectDrawerProvider>
         </ThemeProvider>
+        {/* Film grain over every route (see .grain in globals.css). */}
+        <div className="grain" aria-hidden />
         {gaId ? <GoogleAnalytics gaId={gaId} /> : null}
         {/* Vercel Web Analytics + Speed Insights — visitor counts & vitals
             show up in the Vercel dashboard (Analytics tab) once enabled. */}

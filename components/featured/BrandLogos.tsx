@@ -19,7 +19,7 @@ function a11y(title?: string) {
     : ({ 'aria-hidden': true, focusable: false } as const)
 }
 
-/** Flutter logo — the signature blue beam. Uses currentColor so callers pick the tint. */
+/** Flutter logo (currentColor). Tint it with rgb(var(--flutter-accent)) so it holds AA in both themes. */
 export function FlutterLogo({ size = 24, className, style, title }: MarkProps) {
   return (
     <svg
@@ -53,7 +53,7 @@ export function GitHubLogo({ size = 24, className, style, title }: MarkProps) {
   )
 }
 
-/** GitHub "merged" purple diamond glyph. */
+/** GitHub git-merge glyph (currentColor). Tint it with rgb(var(--status-merged)). */
 export function MergedGlyph({ size = 16, className, style, title }: MarkProps) {
   return (
     <svg

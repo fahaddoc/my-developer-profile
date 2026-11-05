@@ -1,27 +1,25 @@
 'use client'
 
 // Shared scroll rails for the tunnel pages:
-//   • TunnelAnchors  — invisible <div id="…"> targets that scrollToStation
-//                      (in TunnelHUD) reads via document.getElementById.
+//   • TunnelAnchors  — invisible <div id="…"> targets at each station's t:
+//                      hash links and the no-Lenis fallback of scrollToStation.
 //   • useTunnelLoop  — rAF polling that snaps back to the start when the
 //                      user wheels down past the bottom of the page.
 // Used by both `/` (TunnelMode) and `/tunnel` (preview) so nav + loop
 // behave identically on both routes.
 
 import { useEffect } from 'react'
+import { STATIONS } from '@/lib/tunnel'
 
+// Must match <main height:500vh> (AppShell TunnelMode, app/tunnel/page.tsx):
+// the scrollable range is 500vh - 100vh = 400vh, so progress = scrollY / 400vh.
 const SCROLLABLE_VH = 400
-const beforeT = (t: number) => Math.max(0, t - 0.03) * SCROLLABLE_VH
 
-const ANCHORS = [
-  { id: 'hero',       topVh: beforeT(0.04) },
-  { id: 'about',      topVh: beforeT(0.20) },
-  { id: 'skills',     topVh: beforeT(0.35) },
-  { id: 'projects',   topVh: beforeT(0.55) },
-  { id: 'opensource', topVh: beforeT(0.63) },
-  { id: 'experience', topVh: beforeT(0.75) },
-  { id: 'contact',    topVh: beforeT(0.90) },
-]
+// Each anchor sits exactly at its station's t. They used to sit at t - 0.03,
+// which left a rail click 0.03 short of the station and the overlay stuck at
+// ~68% opacity. TunnelHUD's scrollToStation now reads t directly; these
+// anchors are the no-Lenis / hash-link fallback and must agree with it.
+const ANCHORS = STATIONS.map(({ id, t }) => ({ id, topVh: t * SCROLLABLE_VH }))
 
 export function TunnelAnchors() {
   return (

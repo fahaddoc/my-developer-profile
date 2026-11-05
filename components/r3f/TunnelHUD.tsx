@@ -1,445 +1,691 @@
 'use client'
 
-// TunnelHUD — full chrome overlay for the WebGL tunnel.
-// Station content lives HERE now (as flat HTML overlay panels), not inside
-// the 3D scene. That kills the old collision between drei <Html> and the
-// passing tunnel rings.
+// TunnelHUD — the DOM layer over the WebGL tunnel (desktop only).
+//
+// Station content lives here as flat overlays, not inside the 3D scene, so it
+// never collides with geometry. Layout, type, colour and motion follow
+// DESIGN.md: one ember accent through tokens, Archivo roles (.t-*), a thin
+// station rail, and a per-station reveal (title lines rise out of a mask, the
+// rest fades up after it, a 280ms crossfade on exit). Styles live in
+// TunnelHUD.module.css so hover, focus and reduced motion are real CSS.
+//
+// Perf: useScrollProgress throttles re-renders to 0.003 of progress; the top
+// progress hairline runs on its own rAF + ref (no React state per frame);
+// every side panel returns null outside its band.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import Link from 'next/link'
-import { FaGithub, FaLinkedinIn, FaEnvelope, FaPhone } from 'react-icons/fa6'
-import type { IconType } from 'react-icons'
-import { contributions } from '@/data/open-source'
-import { FlutterLogo, GitHubLogo, MergedGlyph } from '@/components/featured/BrandLogos'
 import {
-  STATIONS,
-  nearestStation,
-  useScrollProgress,
-  useSound,
-  hexAlpha,
-  type StationDef,
-} from '@/components/r3f/TunnelScene'
+  FaArrowLeft, FaArrowRight, FaDownload, FaEnvelope, FaGithub, FaLinkedinIn,
+  FaMoon, FaPause, FaPhone, FaPlay, FaStop, FaSun,
+} from 'react-icons/fa6'
+import type { IconType } from 'react-icons'
+import { contributions, openSourceStats } from '@/data/open-source'
+import { FlutterLogo, GitHubLogo, MergedGlyph } from '@/components/featured/BrandLogos'
+import { STATIONS, nearestStation, useScrollProgress, useSound, type StationDef } from '@/lib/tunnel'
 import { IntroMiniPlayer } from '@/components/r3f/IntroMiniPlayer'
 import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
+import { QualityToggleSlot } from '@/components/r3f/QualityToggle'
 import { lenisInstance } from '@/components/providers/SmoothScroll'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { experience } from '@/data/projects'
 import { ProjectShowcase } from '@/components/projects/ProjectShowcase'
 import { testimonials } from '@/data/testimonials'
+import { AUTHOR, SOCIALS } from '@/lib/seo/site'
+import styles from './TunnelHUD.module.css'
 
-// Lenis hijacks native scroll, so el.scrollIntoView({behavior:'smooth'})
-// gets cancelled mid-animation. Use lenis.scrollTo when available so the
-// nav clicks actually glide to the target station.
-// Track the active scroll animation so a second click cancels the first
+const T = Object.fromEntries(STATIONS.map((s) => [s.id, s.t])) as Record<string, number>
+const FIRST = STATIONS[0]
+
+/** Distance from a station. Before the first station (page load sits at
+ *  progress 0, the hero at 0.04) counts as arrived, so the first screen is
+ *  fully present instead of 57% faded. */
+function stationDist(progress: number, s: { id: string; t: number }) {
+  return s.id === FIRST.id ? Math.max(0, progress - s.t) : Math.abs(progress - s.t)
+}
+const pad = (n: number) => String(n).padStart(2, '0')
+const order = (n: number) => ({ '--i': n }) as CSSProperties
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Navigation
+// Lenis hijacks native scroll, so scrollIntoView({behavior:'smooth'}) gets
+// cancelled mid-flight. Drive lenis.scrollTo ourselves and land exactly on
+// the station's t (progress = scroll / limit), so the overlay reaches full
+// opacity. While a jump is in flight only the target station may reveal, so
+// the stations we fly past do not flash their content.
+// ─────────────────────────────────────────────────────────────────────────────
 let scrollRafId = 0
+let navTarget: string | null = null
 
 function scrollToStation(id: string) {
-  const el = document.getElementById(id)
-  if (!el) return
-  const target = el.offsetTop
-
-  // Always cancel any in-flight animation first
+  const t = T[id]
+  if (t === undefined) return
   if (scrollRafId) { cancelAnimationFrame(scrollRafId); scrollRafId = 0 }
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   if (lenisInstance) {
-    // Lenis was measured before TunnelMode rendered its 500vh spacer, so
-    // its limit may be stale on first nav click. Refresh dimensions.
+    // Lenis measured the page before the 500vh spacer mounted; refresh.
     lenisInstance.resize()
-
+    const limit  = lenisInstance.limit
+    const target = t * limit
     const startY = lenisInstance.scroll
     const dist   = target - startY
     if (Math.abs(dist) < 1) return
+    if (reduce) {
+      lenisInstance.scrollTo(target, { immediate: true, lock: false, force: true })
+      return
+    }
 
-    const duration = 900
+    // Longer jumps take a little longer, capped so the rail never feels slow.
+    const duration = Math.min(1400, 700 + (Math.abs(dist) / Math.max(1, limit)) * 1200)
     const startT   = performance.now()
-    const easeOut  = (t: number) => 1 - Math.pow(1 - t, 3)
+    const easeOut  = (x: number) => 1 - Math.pow(1 - x, 5) // quint
+    navTarget = id
 
     const step = (now: number) => {
-      // Bail out if a newer scroll started or Lenis disappeared
-      if (!lenisInstance) { scrollRafId = 0; return }
+      if (!lenisInstance) { scrollRafId = 0; navTarget = null; return }
       const p = Math.min(1, (now - startT) / duration)
-      const y = startY + dist * easeOut(p)
-      lenisInstance.scrollTo(y, { immediate: true, lock: false, force: true })
+      lenisInstance.scrollTo(startY + dist * easeOut(p), { immediate: true, lock: false, force: true })
       if (p < 1) {
         scrollRafId = requestAnimationFrame(step)
       } else {
         scrollRafId = 0
+        navTarget = null
       }
     }
     scrollRafId = requestAnimationFrame(step)
-  } else {
-    window.scrollTo({ top: target, behavior: 'smooth' })
+    return
   }
+
+  const el = document.getElementById(id)
+  if (el) window.scrollTo({ top: el.offsetTop, behavior: reduce ? 'auto' : 'smooth' })
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Small hooks
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** False for the first two frames after mount, so a reveal has a start state
+ *  to transition from instead of appearing already arrived. */
+function useArmed() {
+  const [armed, setArmed] = useState(false)
+  useEffect(() => {
+    let r2 = 0
+    const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setArmed(true)) })
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2) }
+  }, [])
+  return armed
+}
+
+/** Latching threshold: true once value >= on, false again once value <= off. */
+function useLatch(value: number, on: number, off: number) {
+  const ref = useRef(false)
+  if (value >= on) ref.current = true
+  else if (value <= off) ref.current = false
+  return ref.current
+}
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setReduced(mq.matches)
+    const on = () => setReduced(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return reduced
+}
+
+/** Linear fade band used by the right-hand station objects. */
+function band(progress: number, t: number, half = 0.075, ramp = 0.035) {
+  const dist = Math.abs(progress - t)
+  return { dist, opacity: Math.max(0, Math.min(1, (half - dist) / ramp)) }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HUD root
+// ─────────────────────────────────────────────────────────────────────────────
 export function TunnelHUD() {
   const progress = useScrollProgress()
   const station  = nearestStation(progress)
-  const [sound, setSound] = useSound()
-  const { theme, toggle: toggleTheme } = useTheme()
-  const isDark = theme === 'dark'
-
-  const accent = station.color
 
   return (
     <>
-      {/* ─── top-left: SF logo + portfolio strip ──────────────────────── */}
-      <div
-        style={{
-          position: 'fixed', top: 22, left: 32, zIndex: 50,
-          display: 'flex', alignItems: 'center', gap: 18,
-          fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          color: 'rgb(var(--text-primary))', fontSize: 11, letterSpacing: '0.25em',
-          textTransform: 'uppercase',
-          pointerEvents: 'none',
-        }}
-      >
-        <span style={{
-          fontFamily: 'var(--font-display), system-ui, sans-serif',
-          fontSize: 18, fontWeight: 800, color: accent,
-          textShadow: `0 0 10px ${hexAlpha(accent, 0.5)}`,
-          letterSpacing: '-0.02em',
-        }}>
-          SF
-        </span>
-        <span style={{ fontWeight: 700 }}>SHAH FAHAD</span>
-        <span style={{ color: 'rgb(var(--text-primary) / 0.4)' }}>|</span>
-        <span style={{ color: 'rgb(var(--text-primary) / 0.55)' }}>PORTFOLIO</span>
-      </div>
+      {/* cinematic frame: above the canvas, below every HUD layer */}
+      <div className={`vignette ${styles.vignetteLayer}`} aria-hidden="true" />
 
-      {/* ─── top-center: SCROLL TO EXPLORE + dashes ───────────────────── */}
+      <TopBar />
+      <StationRail activeId={station.id} />
+      <IntroMiniPlayer />
+
+      <StationStage station={station} progress={progress} />
+
+      <HeroPortrait progress={progress} />
+      <AboutStatement progress={progress} />
+      <ProjectsGallery progress={progress} />
+      <ExperienceJourney progress={progress} />
+      <ContactOrbit progress={progress} />
+
+      <ScrollHint visible={progress < 0.03} />
+      <Socials />
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chrome
+// ─────────────────────────────────────────────────────────────────────────────
+function TopBar() {
+  const [sound, setSound] = useSound()
+  const { theme, toggle } = useTheme()
+  const isDark = theme === 'dark'
+
+  const goHome = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault()
+    scrollToStation('hero')
+  }
+
+  return (
+    <header className={styles.topbar}>
+      <a href="#hero" onClick={goHome} className={styles.wordmark}>Shah Fahad</a>
+
+      <ProgressLine />
+
+      <div className={styles.cluster}>
+        <button type="button" onClick={() => setSound(!sound)} className={styles.chromeBtn}>
+          {sound ? <FaStop size={10} aria-hidden /> : <FaPlay size={10} aria-hidden />}
+          {sound ? 'Stop intro' : 'Play intro'}
+        </button>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={`${isDark ? 'Dark' : 'Light'} theme, switch to ${isDark ? 'light' : 'dark'}`}
+          className={styles.chromeBtn}
+        >
+          {isDark ? <FaMoon size={12} aria-hidden /> : <FaSun size={13} aria-hidden />}
+          {isDark ? 'Dark' : 'Light'}
+        </button>
+        <QualityToggleSlot className={`${styles.chromeBtn} ${styles.chromeQuiet}`} />
+      </div>
+    </header>
+  )
+}
+
+/** Hairline journey progress. Follows scroll continuously through a ref, so it
+ *  never re-renders React. */
+function ProgressLine() {
+  const fillRef = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    let raf  = 0
+    let last = -1
+    const tick = () => {
+      const w = window as unknown as {
+        __scrollRef?: { current: number }
+        __lenis?:     { scroll: number; limit: number }
+      }
+      let cur = w.__scrollRef?.current ?? 0
+      if (w.__lenis && w.__lenis.limit > 0) cur = w.__lenis.scroll / w.__lenis.limit
+      cur = Math.min(1, Math.max(0, cur))
+      if (fillRef.current && Math.abs(cur - last) > 0.0005) {
+        last = cur
+        fillRef.current.style.transform = `scaleX(${cur.toFixed(4)})`
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+  return (
+    <span className={styles.progress} aria-hidden="true">
+      <span ref={fillRef} className={styles.progressFill} />
+    </span>
+  )
+}
+
+function StationRail({ activeId }: { activeId: string }) {
+  return (
+    <nav aria-label="Stations" className={styles.rail}>
+      <ol className={styles.railList}>
+        {STATIONS.map((s) => {
+          const active = s.id === activeId
+          return (
+            <li key={s.id}>
+              <button
+                type="button"
+                onClick={() => scrollToStation(s.id)}
+                aria-current={active ? 'step' : undefined}
+                className={styles.railBtn}
+              >
+                <span className={styles.tick} aria-hidden="true" />
+                {s.short}
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+    </nav>
+  )
+}
+
+function ScrollHint({ visible }: { visible: boolean }) {
+  return (
+    <div className={styles.scrollHint} data-visible={visible} aria-hidden="true">
+      <span className="t-label">Scroll</span>
+      <span className={styles.scrollLine} />
+    </div>
+  )
+}
+
+function Socials() {
+  return (
+    <nav aria-label="Profiles" className={styles.socials}>
+      <a href={SOCIALS.github} target="_blank" rel="noopener noreferrer" aria-label="GitHub" className={styles.socialLink}>
+        <FaGithub size={16} aria-hidden />
+      </a>
+      <a href={SOCIALS.linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className={styles.socialLink}>
+        <FaLinkedinIn size={16} aria-hidden />
+      </a>
+      <a href={`mailto:${AUTHOR.email}`} aria-label="Email" className={styles.socialLink}>
+        <FaEnvelope size={15} aria-hidden />
+      </a>
+    </nav>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Station stage — the left overlay. When the nearest station changes, the
+// outgoing panel stays mounted for a 280ms crossfade instead of hard-swapping.
+// ─────────────────────────────────────────────────────────────────────────────
+interface Shown { id: string; leaving: boolean }
+
+function StationStage({ station, progress }: { station: StationDef; progress: number }) {
+  const [shown, setShown] = useState<Shown[]>(() => [{ id: station.id, leaving: false }])
+
+  useEffect(() => {
+    setShown((prev) => {
+      const current = prev.find((p) => !p.leaving)
+      if (current?.id === station.id) return prev
+      return [
+        ...prev.filter((p) => p.id !== station.id).map((p) => ({ ...p, leaving: true })),
+        { id: station.id, leaving: false },
+      ]
+    })
+  }, [station.id])
+
+  useEffect(() => {
+    if (!shown.some((p) => p.leaving)) return
+    const id = window.setTimeout(() => setShown((prev) => prev.filter((p) => !p.leaving)), 320)
+    return () => window.clearTimeout(id)
+  }, [shown])
+
+  return (
+    <div className={styles.stage}>
+      {shown.map(({ id, leaving }) => {
+        const s = STATIONS.find((x) => x.id === id)
+        if (!s || s.id === 'projects') return null
+        return <StationPanel key={id} station={s} progress={progress} leaving={leaving} />
+      })}
+    </div>
+  )
+}
+
+function StationPanel({ station, progress, leaving }: { station: StationDef; progress: number; leaving: boolean }) {
+  const proximity = Math.max(0, 1 - stationDist(progress, station) / 0.10)
+  const opacity   = Math.pow(proximity, 1.1)
+  const armed     = useArmed()
+  const near      = useLatch(proximity, 0.35, 0.2)
+  const isIn      = armed && near && (navTarget === null || navTarget === station.id)
+  const live      = isIn && !leaving
+
+  return (
+    <section
+      className={`${styles.panel} ${styles.reveal}`}
+      data-in={isIn}
+      data-leaving={leaving}
+      style={{ opacity }}
+      inert={!live}
+    >
+      <StationCard station={station} active={live} />
+    </section>
+  )
+}
+
+function StationCard({ station, active }: { station: StationDef; active: boolean }) {
+  switch (station.id) {
+    case 'hero':       return <HeroCard       station={station} />
+    case 'about':      return <AboutCard      station={station} />
+    case 'skills':     return <SkillsCard     station={station} />
+    case 'opensource': return <OpenSourceCard station={station} active={active} />
+    case 'experience': return <ExperienceCard station={station} />
+    case 'contact':    return <ContactCard    station={station} />
+    default:           return null
+  }
+}
+
+/** Station title whose lines ("\n" in the copy) each rise out of a mask. */
+function MaskedTitle({ text, as: Tag = 'h2', className }: { text: string; as?: 'h1' | 'h2'; className: string }) {
+  const lines = text.split('\n')
+  return (
+    <Tag className={className}>
+      {lines.map((line, i) => (
+        <span key={i} className={styles.line}>
+          <span className={styles.lineInner} style={order(i)}>
+            {line}{i < lines.length - 1 ? ' ' : ''}
+          </span>
+        </span>
+      ))}
+    </Tag>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Station cards (left overlay)
+// ─────────────────────────────────────────────────────────────────────────────
+function HeroCard({ station }: { station: StationDef }) {
+  return (
+    <>
+      <MaskedTitle as="h1" text={station.heading} className={`t-display ${styles.heroName}`} />
+      <p className={`t-lead ${styles.lead} ${styles.heroLead} ${styles.rise}`} style={order(0)}>
+        {station.tagline}
+      </p>
+      <div className={`${styles.actions} ${styles.rise} ${styles.hit}`} style={order(1)}>
+        <a
+          href="#projects"
+          onClick={(e) => { e.preventDefault(); scrollToStation('projects') }}
+          className="btn btn--primary"
+        >
+          See the work <span className="btn-arrow" aria-hidden="true">→</span>
+        </a>
+        <a href="/Shah_Fahad_Resume.pdf" download aria-label="Resume, PDF" className="btn btn--ghost">
+          <FaDownload size={12} aria-hidden /> Resume
+        </a>
+      </div>
+    </>
+  )
+}
+
+function AboutCard({ station }: { station: StationDef }) {
+  return (
+    <>
+      <MaskedTitle text={station.heading} className={`t-title ${styles.title}`} />
+      <p className={`t-lead ${styles.lead} ${styles.rise}`} style={order(0)}>{station.tagline}</p>
+      <ul className={`${styles.facts} ${styles.rise}`} style={order(1)}>
+        <li className="t-data">8+ years</li>
+        <li className="t-data">DigitalHire · Kistpay · Miletap</li>
+        <li className="t-data">Karachi, PK</li>
+      </ul>
+    </>
+  )
+}
+
+function SkillsCard({ station }: { station: StationDef }) {
+  return (
+    <>
+      <MaskedTitle text={station.heading} className={`t-title ${styles.title}`} />
+      <p className={`t-lead ${styles.lead} ${styles.rise}`} style={order(0)}>{station.tagline}</p>
+      <p className={`t-label ${styles.hint} ${styles.rise}`} style={order(1)}>Select a skill to spin the orbit</p>
+    </>
+  )
+}
+
+// Long enough to read a PR title and its meta line before the next one.
+const OS_AUTOPLAY_MS = 7000
+const OS_MERGED = openSourceStats().merged
+
+function OpenSourceCard({ station, active }: { station: StationDef; active: boolean }) {
+  const [idx, setIdx]               = useState(0)
+  const [hoverPaused, setHover]     = useState(false)
+  const [userPaused, setUserPaused] = useState(false)
+  const reduced = useReducedMotion()
+  const n       = contributions.length
+  const running = active && !hoverPaused && !userPaused && !reduced && n > 1
+
+  // One timeout per card so a manual pick restarts the clock and the dot fill.
+  useEffect(() => {
+    if (!running) return
+    const id = window.setTimeout(() => setIdx((i) => (i + 1) % n), OS_AUTOPLAY_MS)
+    return () => window.clearTimeout(id)
+  }, [running, idx, n])
+
+  const [before, after = ''] = station.tagline.split('{n}')
+
+  return (
+    <>
+      <MaskedTitle text={station.heading} className={`t-title ${styles.title}`} />
+      <p className={`t-lead ${styles.lead} ${styles.rise}`} style={order(0)}>
+        {before}
+        {station.tagline.includes('{n}') && <span className={styles.leadNum}>{OS_MERGED}</span>}
+        {after}
+      </p>
+
       <div
-        style={{
-          position: 'fixed', top: 22, left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 50, pointerEvents: 'none',
-          fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          color: 'rgb(var(--text-primary))', fontSize: 11, letterSpacing: '0.25em',
-          textTransform: 'uppercase',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-        }}
+        className={`${styles.surface} ${styles.prCard} ${styles.rise} ${styles.hit}`}
+        style={order(1)}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        onFocusCapture={() => setHover(true)}
+        onBlurCapture={() => setHover(false)}
       >
-        <span>SCROLL TO EXPLORE</span>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {STATIONS.map((s, i) => {
-            const active = progress >= s.t - (1 / STATIONS.length) * 0.6
-            const here   = i === Math.floor(progress * STATIONS.length)
+        <div className={styles.stack} aria-live={running ? 'off' : 'polite'}>
+          {contributions.map((c, i) => {
+            const on = i === idx
             return (
-              <span key={s.id} style={{
-                width: here ? 28 : 18, height: 2,
-                background: active ? accent : 'rgba(255,255,255,0.22)',
-                boxShadow:  active ? `0 0 6px ${accent}aa` : 'none',
-                transition: 'background 200ms, box-shadow 200ms, width 220ms',
-                display: 'inline-block',
-              }} />
+              <article key={c.id} className={styles.stackItem} data-active={on} aria-hidden={!on}>
+                <div className={styles.prHead}>
+                  {c.org === 'Flutter'
+                    ? <FlutterLogo size={22} className={styles.flutter} title="Flutter" />
+                    : <span className={`t-label ${styles.prOrg}`}>{c.org}</span>}
+                  <GitHubLogo size={20} className={styles.gh} />
+                  <span className={`t-label ${styles.merged}`}>
+                    <MergedGlyph size={13} /> Merged
+                  </span>
+                </div>
+                <h3 className={`t-subtitle ${styles.prTitle}`}>{c.prTitle}</h3>
+                <p className={`t-data ${styles.prMeta}`}>
+                  {c.repo} · #{c.prNumber} · {c.displayDate} ·{' '}
+                  <span className={styles.add}>+{c.additions}</span>/<span className={styles.del}>−{c.deletions}</span>
+                </p>
+                <div className={styles.actions}>
+                  <a href={c.prUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary">
+                    View pull request <span className="btn-arrow" aria-hidden="true">↗</span>
+                  </a>
+                  <Link href={`/achievements/${c.id}`} className="btn btn--ghost">
+                    Read case study <span className="btn-arrow" aria-hidden="true">→</span>
+                  </Link>
+                </div>
+              </article>
             )
           })}
         </div>
       </div>
 
-      {/* ─── top-right: SOUND toggle + THEME toggle ───────────────────── */}
-      <button
-        type="button"
-        onClick={() => setSound(!sound)}
-        aria-label={sound ? 'Stop intro video' : 'Play intro video'}
-        aria-pressed={sound}
-        style={{
-          position: 'fixed', top: 22, right: 32, zIndex: 50,
-          background: 'transparent', border: 'none', cursor: 'pointer',
-          color: sound ? accent : 'rgb(var(--text-primary) / 0.55)',
-          fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          fontSize: 11, letterSpacing: '0.25em', textTransform: 'uppercase',
-          display: 'flex', alignItems: 'center', gap: 10,
-          pointerEvents: 'auto', padding: 0,
-        }}
-      >
-        <svg width="11" height="11" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
-          {sound
-            ? <rect x="1.6" y="1.6" width="6.8" height="6.8" rx="1.2" />
-            : <path d="M2.2 1.3v7.4l6-3.7z" />}
-        </svg>
-        {sound ? 'INTRO ON' : 'PLAY INTRO'}
-      </button>
-
-      {/* THEME toggle — sits to the left of SOUND */}
-      <button
-        type="button"
-        onClick={toggleTheme}
-        aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-        title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-        style={{
-          position: 'fixed', top: 22, right: 168, zIndex: 50,
-          background: 'transparent', border: 'none', cursor: 'pointer',
-          color: 'rgb(var(--text-primary) / 0.55)',
-          fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          fontSize: 11, letterSpacing: '0.25em', textTransform: 'uppercase',
-          display: 'flex', alignItems: 'center', gap: 10,
-          pointerEvents: 'auto', padding: 0,
-          transition: 'color 200ms',
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = accent }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = 'rgb(var(--text-primary) / 0.55)' }}
-      >
-        {isDark ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-        ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-          </svg>
-        )}
-        {isDark ? 'DARK' : 'LIGHT'}
-      </button>
-
-      {/* ─── left rail: vertical station step indicator ───────────────── */}
-      <nav
-        aria-label="Tunnel stations"
-        style={{
-          position: 'fixed', left: 32, top: '50%',
-          transform: 'translateY(-50%)',
-          zIndex: 40,
-          display: 'flex', flexDirection: 'column', gap: 28,
-          fontFamily: 'var(--font-mono), ui-monospace, monospace',
-        }}
-      >
-        {STATIONS.map((s) => {
-          const isActive = s.id === station.id
-          return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => scrollToStation(s.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 14,
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                padding: 0, textAlign: 'left',
-                color: isActive ? 'rgb(var(--text-primary))' : 'rgb(var(--text-primary) / 0.4)',
-                transition: 'color 220ms',
-                pointerEvents: 'auto',
-              }}
-            >
-              <span style={{
-                width: 12, height: 12, borderRadius: '50%',
-                background: isActive ? accent : 'transparent',
-                border: `1px solid ${isActive ? accent : 'rgb(var(--text-primary) / 0.35)'}`,
-                boxShadow: isActive ? `0 0 10px ${hexAlpha(accent, 0.7)}` : 'none',
-                transition: 'all 220ms',
-                flexShrink: 0,
-              }} />
-              <span style={{
-                fontSize: 11, fontWeight: 600,
-                letterSpacing: '0.28em',
-                color: isActive ? accent : 'rgb(var(--text-primary) / 0.5)',
-              }}>{s.short}</span>
-            </button>
-          )
-        })}
-      </nav>
-
-      {/* ─── floating intro mini-player (top-right, below SOUND) ──────── */}
-      <IntroMiniPlayer accent={accent} />
-
-      {/* ─── center: station content overlay ──────────────────────────── */}
-      <StationOverlay station={station} progress={progress} />
-
-      {/* ─── right: hero portrait (only fades in on INTRO) ────────────── */}
-      <HeroSidePhoto progress={progress} accent={accent} />
-
-      {/* ─── right: projects grid (only fades in on PROJECTS) ─────────── */}
-      <AboutStory progress={progress} />
-      <ProjectsGallery progress={progress} />
-      <ExperienceJourney progress={progress} />
-      <ContactOrbit progress={progress} />
-
-      {/* ─── bottom-center: SCROLL DOWN + mouse icon ──────────────────── */}
-      <div
-        style={{
-          position: 'fixed', bottom: 24, left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 50, pointerEvents: 'none',
-          fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          fontSize: 10, letterSpacing: '0.3em',
-          color: 'rgb(var(--text-primary) / 0.7)',
-          textTransform: 'uppercase',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-        }}
-      >
-        <MouseScrollIcon color={accent} />
-        <span>SCROLL DOWN</span>
-      </div>
-
-      {/* ─── bottom-left: FOLLOW ME + socials ─────────────────────────── */}
-      <div
-        style={{
-          position: 'fixed', bottom: 28, left: 32, zIndex: 50,
-          fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          color: 'rgb(var(--text-primary) / 0.55)',
-          fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase',
-          display: 'flex', flexDirection: 'column', gap: 8,
-        }}
-      >
-        <span>FOLLOW ME</span>
-        <div style={{ display: 'flex', gap: 14, pointerEvents: 'auto' }}>
-          <SocialLink href="https://github.com/fahaddoc"               label="GitHub"   color={accent}>{IconGithub}</SocialLink>
-          <SocialLink href="https://www.linkedin.com/in/fahaddoc600"   label="LinkedIn" color={accent}>{IconLinkedin}</SocialLink>
-          <SocialLink href="mailto:hello@shahfahad.dev"                label="Email"    color={accent}>{IconMail}</SocialLink>
+      {n > 1 && (
+        <div className={`${styles.carousel} ${styles.rise} ${styles.hit}`} style={order(2)}>
+          <div role="group" aria-label="Merged pull requests" className={styles.dots}>
+            {contributions.map((c, i) => {
+              const on = i === idx
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => { setIdx(i); setUserPaused(true) }}
+                  aria-label={`Pull request #${c.prNumber}, ${c.repo}`}
+                  aria-current={on ? 'true' : undefined}
+                  className={styles.dot}
+                >
+                  <span className={styles.dotTrack}>
+                    <span
+                      key={`${idx}-${running}`}
+                      className={styles.dotFill}
+                      data-running={on && running}
+                      style={{ '--autoplay': `${OS_AUTOPLAY_MS}ms` } as CSSProperties}
+                    />
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <span className={`t-data ${styles.counter}`}>{pad(idx + 1)} / {pad(n)}</span>
+          <button
+            type="button"
+            onClick={() => setUserPaused(!userPaused)}
+            aria-label={userPaused ? 'Resume rotation' : 'Pause rotation'}
+            className={`${styles.iconBtn} ${styles.iconBtnQuiet}`}
+          >
+            {userPaused ? <FaPlay size={9} aria-hidden /> : <FaPause size={9} aria-hidden />}
+          </button>
         </div>
+      )}
+    </>
+  )
+}
+
+function ExperienceCard({ station }: { station: StationDef }) {
+  const [ti, setTi] = useState(0)
+  const n = testimonials.length
+  const go = (d: number) => setTi((t) => (t + d + n) % n)
+
+  return (
+    <>
+      <MaskedTitle text={station.heading} className={`t-title ${styles.title}`} />
+      <p className={`t-lead ${styles.lead} ${styles.rise}`} style={order(0)}>{station.tagline}</p>
+
+      <figure className={`${styles.surface} ${styles.quoteCard} ${styles.rise} ${styles.hit}`} style={order(1)}>
+        <div className={styles.stack} aria-live="polite">
+          {testimonials.map((q, i) => (
+            <div key={q.name} className={styles.stackItem} data-active={i === ti} aria-hidden={i !== ti}>
+              <blockquote className={`t-lead ${styles.quote}`}>&ldquo;{q.short}&rdquo;</blockquote>
+              <figcaption>
+                <span className={`t-subtitle ${styles.quoteName}`}>{q.name}</span>
+                <span className={`t-label ${styles.quoteRole}`}>{q.role}</span>
+              </figcaption>
+            </div>
+          ))}
+        </div>
+        {n > 1 && (
+          <div className={styles.quoteNav}>
+            <span className={`t-data ${styles.counter}`}>{pad(ti + 1)} / {pad(n)}</span>
+            <button type="button" onClick={() => go(-1)} aria-label="Previous recommendation" className={styles.iconBtn}>
+              <FaArrowLeft size={12} aria-hidden />
+            </button>
+            <button type="button" onClick={() => go(1)} aria-label="Next recommendation" className={styles.iconBtn}>
+              <FaArrowRight size={12} aria-hidden />
+            </button>
+          </div>
+        )}
+      </figure>
+    </>
+  )
+}
+
+function ContactCard({ station }: { station: StationDef }) {
+  const call = station.cta?.href ?? 'https://cal.com/shahfahad'
+  return (
+    <>
+      <MaskedTitle text={station.heading} className={`t-title ${styles.title}`} />
+      <p className={`t-lead ${styles.lead} ${styles.rise}`} style={order(0)}>{station.tagline}</p>
+      <div className={`${styles.rise} ${styles.hit}`} style={order(1)}>
+        <a href={`mailto:${AUTHOR.email}`} className={`link-quiet t-subtitle ${styles.email}`}>{AUTHOR.email}</a>
+      </div>
+      <div className={`${styles.actions} ${styles.rise} ${styles.hit}`} style={order(2)}>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('contact-drawer-open'))}
+          className="btn btn--primary"
+        >
+          Write to me <span className="btn-arrow" aria-hidden="true">→</span>
+        </button>
+        <a href={call} target="_blank" rel="noopener noreferrer" className="btn btn--ghost">
+          Book a 15-min call
+        </a>
       </div>
     </>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StationOverlay — left-positioned content panel that updates per station
+// Right-hand station objects
 // ─────────────────────────────────────────────────────────────────────────────
-function StationOverlay({ station, progress }: { station: StationDef; progress: number }) {
-  const dist    = Math.abs(progress - station.t)
-  const opacity = Math.pow(Math.max(0, 1 - dist / 0.10), 1.1)
 
+/** Hero portrait. Bottom-anchored and sized from the viewport (CSS), so it
+ *  clears the hero text at 1024–1280px and the intro player above it. */
+function HeroPortrait({ progress }: { progress: number }) {
+  const opacity = Math.pow(Math.max(0, 1 - stationDist(progress, FIRST) / 0.10), 1.1)
+  if (opacity < 0.01) return null
   return (
-    <div
-      key={station.id}
-      style={{
-        position: 'fixed',
-        // The left nav rail is a fixed ~160px-wide column (longest label
-        // "EXPERIENCE"). 11vw alone is only ~158px on a 1440 screen, so the
-        // card collides with the nav labels there — clamp to a hard 190px floor.
-        left:     'max(190px, 11vw)',
-        top:      '50%',
-        transform: 'translateY(-50%)',
-        zIndex:   30,
-        maxWidth: 540,
-        width:    'min(46vw, 540px)',
-        pointerEvents: 'none',
-        opacity,
-        transition: 'opacity 200ms',
-        color: 'rgb(var(--text-primary))',
-      }}
-    >
-      {renderCard(station, opacity > 0.4)}
+    <div className={styles.portraitDock} style={{ opacity }} inert={opacity < 0.4}>
+      <FlipPhotoCard />
     </div>
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HeroSidePhoto — fixed right-side portrait, mirrors StationOverlay's
-// left-side text. Only fades in when camera is at the INTRO station (hero, t≈0.04).
-// ─────────────────────────────────────────────────────────────────────────────
-function HeroSidePhoto({ progress, accent }: { progress: number; accent: string }) {
-  const HERO_T = 0.04
-  const dist    = Math.abs(progress - HERO_T)
-  const opacity = Math.pow(Math.max(0, 1 - dist / 0.10), 1.1)
-
-  if (opacity < 0.01) return null
-
+function AboutStatement({ progress }: { progress: number }) {
+  const { dist, opacity } = band(progress, T.about)
+  const armed = useArmed()
+  const near  = useLatch(opacity, 0.55, 0.35)
+  if (dist > 0.08) return null
   return (
-    <div
-      style={{
-        position: 'fixed',
-        right:    '4vw',
-        top:      '50%',
-        transform: 'translateY(-50%)',
-        zIndex:   30,
-        width:    'min(40vw, 460px)',
-        pointerEvents: 'auto',
-        opacity,
-        transition: 'opacity 200ms',
-      }}
-    >
-      <FlipPhotoCard accent={accent} width={460} />
+    <div className={`${styles.side} ${styles.reveal} ${styles.aboutSide}`} data-in={armed && near} style={{ opacity }} aria-hidden={!near}>
+      <p className={`t-subtitle ${styles.statement} ${styles.rise}`} style={order(1)}>
+        Clean code, real performance, interfaces that feel <span className={styles.ember}>alive.</span>
+      </p>
     </div>
   )
 }
 
 // A readable project gallery takes over the station, then fades before OSS.
 function ProjectsGallery({ progress }: { progress: number }) {
-  const projectT = STATIONS.find((station) => station.id === 'projects')!.t
-  const ossT = STATIONS.find((station) => station.id === 'opensource')!.t
-  const midpoint = (projectT + ossT) / 2
-  const distance = Math.abs(progress - projectT)
-  const approach = Math.max(0, Math.min(1, (0.11 - distance) / 0.04))
+  const projectT  = T.projects
+  const midpoint  = (projectT + T.opensource) / 2
+  const distance  = Math.abs(progress - projectT)
+  const approach  = Math.max(0, Math.min(1, (0.11 - distance) / 0.04))
   const departure = progress <= projectT ? 1 : Math.max(0, Math.min(1, (midpoint - progress) / 0.025))
-  const opacity = Math.min(approach, departure)
+  const opacity   = Math.min(approach, departure)
   if (opacity < 0.01) return null
 
   return (
-    <div style={{ position: 'fixed', left: 'max(190px, 14vw)', right: '4vw', top: '50%', transform: 'translateY(-50%)', zIndex: 30, opacity, pointerEvents: opacity > 0.4 ? 'auto' : 'none' }}>
+    <div className={styles.gallery} style={{ opacity, pointerEvents: opacity > 0.4 ? 'auto' : 'none' }}>
       <ProjectShowcase />
     </div>
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ExperienceJourney — right-side "Orbital Trajectory" for the EXPERIENCE station.
-// A curved flight path with a glowing waypoint-planet per role (newest on top),
-// labels beside each. Proximity-faded + fully gone before the neighbouring
-// stations (projects 0.55 / contact 0.90).
-// ─────────────────────────────────────────────────────────────────────────────
-const EJ_NODES = [{ x: 78, y: 12 }, { x: 40, y: 38 }, { x: 70, y: 64 }, { x: 32, y: 88 }]
-const EJ_PATH  = 'M 78 12 C 55 22, 50 28, 40 38 S 78 54, 70 64 S 40 78, 32 88'
+// Experience: a quiet trajectory, newest role on top. The path draws in once
+// when the station arrives; no floating, no flowing dashes.
+const EJ_NODES = [{ x: 78, y: 10 }, { x: 40, y: 36 }, { x: 70, y: 62 }, { x: 34, y: 95 }]
+const EJ_PATH  = 'M 78 10 C 55 20, 50 26, 40 36 S 78 52, 70 62 S 42 84, 34 95'
 
 function ExperienceJourney({ progress }: { progress: number }) {
-  const EXP_T   = STATIONS.find((s) => s.id === 'experience')?.t ?? 0.75
-  const dist    = Math.abs(progress - EXP_T)
-  // Very tight — experience (0.75) and contact (0.90) are only 0.15 apart and
-  // both render on the right, so hand off cleanly around their midpoint (0.825)
-  // with no overlap.
-  const opacity = Math.max(0, Math.min(1, (0.075 - dist) / 0.035))
-  const near    = opacity > 0.4
+  // Experience (0.75) and contact (0.90) both use the right side; the tight
+  // band hands off around their midpoint without overlap.
+  const { dist, opacity } = band(progress, T.experience)
+  const armed = useArmed()
+  const near  = useLatch(opacity, 0.55, 0.35)
   if (dist > 0.08) return null
-
-  const ACCENT = '#5EEAD4'
-  const jour   = experience.slice(0, 4)
+  const roles = experience.slice(0, EJ_NODES.length)
 
   return (
     <div
-      style={{
-        position: 'fixed', right: 0, top: '50%', transform: 'translateY(-50%)',
-        width: 'min(56vw, 780px)', height: 'min(74vh, 560px)', zIndex: 30,
-        opacity, transition: 'opacity 240ms', pointerEvents: near ? 'auto' : 'none',
-      }}
+      className={`${styles.side} ${styles.reveal} ${styles.journey}`}
+      data-in={armed && near}
+      style={{ opacity }}
+      aria-hidden={!near}
     >
-      <style>{`
-        @keyframes ej-dash  { to { stroke-dashoffset: -40; } }
-        @keyframes ej-float { 0%,100%{ transform: translate(-50%,-50%) translateY(0); }
-                              50%   { transform: translate(-50%,-50%) translateY(-7px); } }
-      `}</style>
-
-      {/* trajectory path */}
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-        <path d={EJ_PATH} fill="none" stroke={`${ACCENT}40`} strokeWidth="0.5" strokeDasharray="2 3" style={{ animation: 'ej-dash 3s linear infinite' }} />
-        <path d={EJ_PATH} fill="none" stroke={ACCENT} strokeWidth="0.3" opacity="0.5" />
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={styles.journeyPath} aria-hidden="true">
+        <path d={EJ_PATH} />
       </svg>
-
-      {/* waypoint planets + labels */}
-      {jour.map((e, i) => {
+      {roles.map((e, i) => {
         const p = EJ_NODES[i]
+        const side = p.x > 50 ? 'left' : 'right'
         return (
-          <div key={e.id} style={{
-            position: 'absolute', left: `${p.x}%`, top: `${p.y}%`,
-            animation: `ej-float ${(3.6 + i * 0.5).toFixed(1)}s ease-in-out ${(-i * 0.4).toFixed(1)}s infinite`,
-          }}>
-            <span style={{
-              display: 'block', width: e.current ? 22 : 16, height: e.current ? 22 : 16, borderRadius: '50%',
-              background: `radial-gradient(circle at 35% 30%, #aef6ec, ${ACCENT} 55%, #0b6b5e)`,
-              boxShadow: `0 0 ${e.current ? 26 : 16}px ${ACCENT}`,
-              border: e.current ? '2px solid #fff' : 'none',
-            }} />
-            <div style={{
-              position: 'absolute', top: '50%', transform: 'translateY(-50%)',
-              [p.x > 50 ? 'right' : 'left']: 26, width: 184,
-              textAlign: p.x > 50 ? 'right' : 'left',
-            } as React.CSSProperties}>
-              <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 9.5, letterSpacing: '0.1em', color: ACCENT }}>
-                {e.period}{e.current ? ' · NOW' : ''}
-              </div>
-              <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 15, fontWeight: 700, color: '#fff', lineHeight: 1.15, marginTop: 2, textShadow: '0 1px 8px rgba(0,0,0,0.7)' }}>
-                {e.role}
-              </div>
-              <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 10, color: 'rgba(255,255,255,0.55)' }}>
-                {e.company}
+          <div key={e.id} className={styles.node} data-current={e.current} style={{ left: `${p.x}%`, top: `${p.y}%` }}>
+            <span className={styles.nodeDot} />
+            <div className={styles.nodeLabel} data-side={side}>
+              <div className={`${styles.rise} ${styles.nodeTag}`} style={order(i)}>
+                <span className={`t-data ${styles.nodePeriod}`}>{e.period}</span>
+                <span className={`t-subtitle ${styles.nodeRole}`}>{e.role}</span>
+                <span className={`t-label ${styles.nodeCompany}`}>{e.company}</span>
               </div>
             </div>
           </div>
@@ -449,710 +695,50 @@ function ExperienceJourney({ progress }: { progress: number }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ContactOrbit — right-side "Orbiting Channels" for the CONTACT station.
-// An Earth hub with contact channels (email / linkedin / github / phone) as
-// floating orbiting nodes wired to it; click any node to open the contact
-// drawer. Proximity-faded so it doesn't bleed into the experience section.
-// ─────────────────────────────────────────────────────────────────────────────
-const CO_HUB   = { x: 50, y: 50 }
-const CO_NODES: { icon: IconType; label: string; x: number; y: number }[] = [
-  { icon: FaEnvelope,   label: 'Email',    x: 24, y: 22 },
-  { icon: FaLinkedinIn, label: 'LinkedIn', x: 78, y: 30 },
-  { icon: FaGithub,     label: 'GitHub',   x: 22, y: 78 },
-  { icon: FaPhone,      label: 'Phone',    x: 78, y: 72 },
+// Contact: the four real channels sit around the contact planet like
+// satellites. Every node is a direct link (mailto, LinkedIn, GitHub, tel).
+interface Channel { icon: IconType; label: string; href: string; aria: string; external: boolean; x: number; y: number }
+const CHANNELS: Channel[] = [
+  { icon: FaEnvelope,   label: 'Email',    href: `mailto:${AUTHOR.email}`,                 aria: `Email ${AUTHOR.email}`,                  external: false, x: 24, y: 24 },
+  { icon: FaLinkedinIn, label: 'LinkedIn', href: SOCIALS.linkedin,                          aria: 'LinkedIn profile, opens in a new tab',   external: true,  x: 78, y: 30 },
+  { icon: FaGithub,     label: 'GitHub',   href: SOCIALS.github,                            aria: 'GitHub profile, opens in a new tab',     external: true,  x: 22, y: 76 },
+  { icon: FaPhone,      label: 'Phone',    href: `tel:${AUTHOR.phone.replace(/\s+/g, '')}`, aria: `Phone ${AUTHOR.phone}`,                  external: false, x: 78, y: 72 },
 ]
 
 function ContactOrbit({ progress }: { progress: number }) {
-  const CONTACT_T = STATIONS.find((s) => s.id === 'contact')?.t ?? 0.90
-  const dist      = Math.abs(progress - CONTACT_T)
-  // Mirror ExperienceJourney's tight band so the two hand off cleanly (~0.825)
-  // without overlapping on the right.
-  const opacity   = Math.max(0, Math.min(1, (0.075 - dist) / 0.035))
-  const near      = opacity > 0.4
+  const { dist, opacity } = band(progress, T.contact)
+  const armed = useArmed()
+  const near  = useLatch(opacity, 0.55, 0.35)
   if (dist > 0.08) return null
-
-  const ACCENT = '#5EEAD4'
-  const open   = () => window.dispatchEvent(new Event('contact-drawer-open'))
+  const isIn = armed && near
 
   return (
     <div
-      style={{
-        position: 'fixed', right: 0, top: '50%', transform: 'translateY(-50%)',
-        width: 'min(54vw, 720px)', height: 'min(72vh, 540px)', zIndex: 30,
-        opacity, transition: 'opacity 240ms', pointerEvents: near ? 'auto' : 'none',
-      }}
+      className={`${styles.side} ${styles.reveal} ${styles.orbit}`}
+      data-in={isIn}
+      style={{ opacity }}
+      inert={!near}
     >
-      <style>{`
-        @keyframes co-pulse { 0%,100%{ transform: translate(-50%,-50%) scale(1); opacity:.9 } 50%{ transform: translate(-50%,-50%) scale(1.16); opacity:1 } }
-        @keyframes co-float { 0%,100%{ transform: translate(-50%,-50%) translateY(0) } 50%{ transform: translate(-50%,-50%) translateY(-8px) } }
-      `}</style>
-
-      {/* connector lines hub → channels */}
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-        {CO_NODES.map((n, i) => (
-          <line key={i} x1={`${CO_HUB.x}%`} y1={`${CO_HUB.y}%`} x2={`${n.x}%`} y2={`${n.y}%`}
-            stroke={`${ACCENT}30`} strokeWidth="1" strokeDasharray="3 4" />
-        ))}
-      </svg>
-
-      {/* Earth hub */}
-      <div style={{
-        position: 'absolute', left: `${CO_HUB.x}%`, top: `${CO_HUB.y}%`, width: 92, height: 92, borderRadius: '50%',
-        transform: 'translate(-50%,-50%)',
-        background: 'radial-gradient(circle at 36% 30%, #6fd3ff, #1b6fb0 50%, #06243f 100%)',
-        boxShadow: '0 0 52px #2b9fe0aa, inset -8px -8px 22px rgba(0,0,0,0.5)',
-      }} />
-      <div style={{
-        position: 'absolute', left: `${CO_HUB.x}%`, top: `${CO_HUB.y}%`, width: 124, height: 124, borderRadius: '50%',
-        transform: 'translate(-50%,-50%)', border: `1px solid ${ACCENT}55`, animation: 'co-pulse 3s ease-in-out infinite',
-      }} />
-
-      {/* channel nodes */}
-      {CO_NODES.map((n, i) => {
-        const Icon = n.icon
-        return (
-          <button key={n.label} onClick={open} aria-label={`Open contact — ${n.label}`}
-            style={{
-              position: 'absolute', left: `${n.x}%`, top: `${n.y}%`, transform: 'translate(-50%,-50%)',
-              border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
-              animation: `co-float ${(3.5 + i * 0.6).toFixed(1)}s ease-in-out ${(-i * 0.5).toFixed(1)}s infinite`,
-            }}>
-            <span style={{
-              display: 'flex', width: 52, height: 52, borderRadius: '50%', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(13,22,34,0.72)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
-              border: `1.5px solid ${ACCENT}66`, boxShadow: `0 0 18px ${ACCENT}44`,
-            }}>
-              <Icon size={19} color={ACCENT} />
-            </span>
-            <span style={{
-              position: 'absolute', top: 'calc(100% + 5px)', left: '50%', transform: 'translateX(-50%)',
-              whiteSpace: 'nowrap', fontFamily: 'var(--font-mono), monospace', fontSize: 9.5,
-              letterSpacing: '0.1em', color: 'rgba(255,255,255,0.65)',
-            }}>{n.label}</span>
-          </button>
-        )
-      })}
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        {CHANNELS.map((c, i) => {
+          const Icon = c.icon
+          return (
+            <li key={c.label} className={styles.orbitNode} style={{ left: `${c.x}%`, top: `${c.y}%` }}>
+              <div className={`${styles.rise} ${styles.hit}`} style={order(i)}>
+                <a
+                  href={c.href}
+                  aria-label={c.aria}
+                  {...(c.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  className={styles.orbitLink}
+                >
+                  <span className={styles.orbitChip}><Icon size={18} aria-hidden /></span>
+                  <span className={`t-label ${styles.orbitLabel}`}>{c.label}</span>
+                </a>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AboutStory — right-side "Terminal Log" for the ABOUT station. A mono terminal
-// window that prints a short personal story. Proximity-faded with a tight band
-// so it doesn't bleed into intro (0.04) / skills (0.35).
-// ─────────────────────────────────────────────────────────────────────────────
-const ABOUT_STORY_LINES = [
-  "I'm a software engineer from Karachi, Pakistan.",
-  "8+ years building real-time products people actually use —",
-  "from MILETAP's video conferencing to DigitalHire's hiring system.",
-  "Clean code, real performance, interfaces that feel alive.",
-]
-
-function AboutStory({ progress }: { progress: number }) {
-  const ABOUT_T = STATIONS.find((s) => s.id === 'about')?.t ?? 0.20
-  const dist    = Math.abs(progress - ABOUT_T)
-  // Tight band — intro (0.04) and skills (0.35) are close, so fade fast.
-  const opacity = Math.max(0, Math.min(1, (0.075 - dist) / 0.035))
-  const near    = opacity > 0.4
-  if (dist > 0.08) return null
-
-  const ACCENT = '#5EEAD4'
-
-  return (
-    <div
-      style={{
-        position: 'fixed', right: '5vw', top: '50%', transform: 'translateY(-50%)',
-        width: 'min(46vw, 540px)', zIndex: 30,
-        opacity, transition: 'opacity 240ms', pointerEvents: near ? 'auto' : 'none',
-        borderRadius: 8, overflow: 'hidden',
-        background: 'rgba(6,10,16,0.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
-        border: `1px solid ${ACCENT}40`, boxShadow: `0 24px 60px rgba(0,0,0,0.55), 0 0 36px ${ACCENT}1a`,
-      }}
-    >
-      <style>{`@keyframes about-cursor { 0%,49%{opacity:1} 50%,100%{opacity:0} }`}</style>
-      {/* title bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 14px', borderBottom: '1px solid rgba(94,234,212,0.16)', background: 'rgba(94,234,212,0.04)' }}>
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f56' }} />
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }} />
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#27c93f' }} />
-        <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono), monospace', fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>shah@portfolio: ~/about</span>
-      </div>
-      <div style={{ padding: '18px 18px 22px', fontFamily: 'var(--font-mono), monospace', fontSize: 13, lineHeight: 1.7 }}>
-        <div style={{ color: ACCENT }}>$ whoami</div>
-        {ABOUT_STORY_LINES.map((ln, i) => (
-          <div key={i} style={{ color: 'rgba(255,255,255,0.82)', marginTop: i === 0 ? 6 : 2 }}>
-            <span style={{ color: ACCENT, opacity: 0.6 }}>&gt; </span>{ln}
-          </div>
-        ))}
-        <div style={{ marginTop: 12, color: ACCENT }}>
-          $ <span style={{ display: 'inline-block', width: 8, height: 15, background: ACCENT, marginLeft: 2, verticalAlign: 'middle', animation: 'about-cursor 1.1s step-end infinite' }} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function renderCard(s: StationDef, near = true) {
-  switch (s.id) {
-    case 'hero':       return <HeroCard       station={s} />
-    case 'about':      return <AboutCard      station={s} />
-    case 'skills':     return <SkillsCard     station={s} />
-    case 'projects':   return null
-    case 'opensource': return <OpenSourceCard station={s} near={near} />
-    case 'experience': return <ExperienceCard station={s} />
-    case 'contact':    return <ContactCard    station={s} />
-  }
-  return null
-}
-
-function SkillsCard({ station }: { station: StationDef }) {
-  const stats = [
-    { label: 'React + Next.js',  value: 'Frontend Core'      },
-    { label: 'Flutter + WebRTC', value: 'Mobile & Real-Time' },
-    { label: 'Three.js + GSAP',  value: '3D & Creative'      },
-  ]
-  return (
-    <>
-      <div style={{
-        fontFamily: 'var(--font-mono), ui-monospace, monospace',
-        fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase',
-        color: station.color, marginBottom: 18,
-        textShadow: 'var(--eyebrow-shadow)',
-      }}>
-        Technologies I work with
-      </div>
-
-      <h2 style={{
-        ...heading,
-        fontSize: '2.2rem',
-        color: 'rgb(var(--text-primary))',
-        marginBottom: 18,
-      }}>
-        6 Years of Craft
-      </h2>
-
-      <p style={{
-        fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
-        fontSize: '0.95rem', lineHeight: 1.7, color: 'rgb(var(--text-primary) / 0.7)',
-        margin: '0 0 26px', maxWidth: 480,
-      }}>
-        From pixel-perfect React interfaces to real-time WebRTC video platforms — I build things that work at scale. Specialized across frontend, mobile, and live-communication systems.
-      </p>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 22 }}>
-        {stats.map((s) => (
-          <div key={s.label} style={{
-            display: 'flex', alignItems: 'baseline',
-            fontFamily: 'var(--font-mono), ui-monospace, monospace',
-            fontSize: 12, letterSpacing: '0.06em',
-          }}>
-            <span style={{ color: 'rgb(var(--text-primary))' }}>{s.label}</span>
-            <span style={{
-              flex: 1, margin: '0 10px', overflow: 'hidden',
-              color: 'rgb(var(--text-primary) / 0.25)',
-              letterSpacing: '0.2em',
-            }}>
-              ················································
-            </span>
-            <span style={{ color: station.color }}>{s.value}</span>
-          </div>
-        ))}
-      </div>
-
-      <div style={{
-        fontFamily: 'var(--font-mono), ui-monospace, monospace',
-        fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase',
-        color: 'rgb(var(--text-primary) / 0.55)',
-      }}>
-        → Click any skill to spin the orbit
-      </div>
-    </>
-  )
-}
-
-// ── Shared style helpers ───────────────────────────────────────────────────
-const eyebrow = (color: string) => ({
-  fontFamily: 'var(--font-mono), ui-monospace, monospace',
-  fontSize: 11, letterSpacing: '0.32em', textTransform: 'uppercase' as const,
-  color, marginBottom: 18,
-  textShadow: 'var(--eyebrow-shadow)',
-})
-
-const heading = {
-  fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
-  fontSize: 56, fontWeight: 800 as const, lineHeight: 1.04,
-  letterSpacing: '-0.02em', color: 'rgb(var(--text-primary))',
-  margin: '0 0 22px',
-  textShadow: 'var(--heading-shadow)',
-}
-
-const tagline = {
-  fontFamily: 'var(--font-body), ui-sans-serif, system-ui, sans-serif',
-  fontSize: 16, lineHeight: 1.55, color: 'rgb(var(--text-primary) / 0.78)',
-  margin: '0 0 22px', maxWidth: 480,
-  textShadow: 'var(--body-shadow)',
-}
-
-const ctaBtn = (color: string): React.CSSProperties => ({
-  display: 'inline-flex', alignItems: 'center', gap: 10,
-  padding: '14px 22px',
-  fontFamily: 'var(--font-mono), ui-monospace, monospace',
-  fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase',
-  fontWeight: 700,
-  color: '#0A0A12', background: color,
-  border: `1px solid ${color}`,
-  borderRadius: 4, textDecoration: 'none',
-  boxShadow: `0 0 24px ${hexAlpha(color, 0.4)}`,
-  pointerEvents: 'auto',
-})
-
-const ctaBtnGhost = (color: string): React.CSSProperties => ({
-  display: 'inline-flex', alignItems: 'center', gap: 10,
-  padding: '14px 22px',
-  fontFamily: 'var(--font-mono), ui-monospace, monospace',
-  fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase',
-  fontWeight: 700,
-  color, background: 'transparent',
-  border: `1px solid ${hexAlpha(color, 0.45)}`,
-  borderRadius: 4, textDecoration: 'none',
-  pointerEvents: 'auto',
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Per-station cards
-// ─────────────────────────────────────────────────────────────────────────────
-
-function HeroCard({ station }: { station: StationDef }) {
-  // Photo/video card lives in the 3D tunnel centre now (rendered by
-  // TunnelScene's HeroPortrait3D), not in this side panel.
-  return (
-    <>
-      <div style={eyebrow(station.color)}>{station.subtitle}</div>
-      <h1 style={{
-        ...heading,
-        fontSize: 92,
-        lineHeight: 0.95,
-        textTransform: 'uppercase',
-        marginBottom: 24,
-      }}>
-        <span style={{ color: 'rgb(var(--text-primary))', display: 'block' }}>SHAH</span>
-        <span style={{
-          color: station.color,
-          textShadow: `0 0 18px ${hexAlpha(station.color, 0.45)}`,
-          display: 'block',
-        }}>FAHAD</span>
-      </h1>
-      <div style={{
-        fontFamily: 'var(--font-mono), monospace',
-        fontSize: 12, letterSpacing: '0.3em', textTransform: 'uppercase',
-        color: station.color, marginBottom: 14,
-      }}>
-        SENIOR SOFTWARE ENGINEER
-      </div>
-      <div style={{
-        fontFamily: 'var(--font-mono), monospace',
-        fontSize: 12, letterSpacing: '0.18em',
-        color: 'rgb(var(--text-primary) / 0.85)', marginBottom: 24,
-      }}>
-        REACT &nbsp;·&nbsp; NEXT.JS &nbsp;·&nbsp; FLUTTER &nbsp;·&nbsp; WEBRTC
-      </div>
-      <p style={{ ...tagline, marginBottom: 28 }}>
-        Building real-time, high-performance and scalable digital experiences
-        from <span style={{ color: station.color }}>Karachi, Pakistan.</span>
-      </p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-        <a
-          href="#about"
-          onClick={(e) => {
-            e.preventDefault()
-            scrollToStation('about')
-          }}
-          style={ctaBtn(station.color)}
-        >
-          Start Journey <span style={{ fontSize: 13 }}>→</span>
-        </a>
-        <a
-          href="/Shah_Fahad_Resume.pdf"
-          download="Shah_Fahad_Resume.pdf"
-          aria-label="Download Shah Fahad's resume (PDF)"
-          style={ctaBtnGhost(station.color)}
-        >
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M2.5 13h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Resume
-        </a>
-      </div>
-    </>
-  )
-}
-
-function AboutCard({ station }: { station: StationDef }) {
-  const stats = [
-    { v: '8+',  l: 'YEARS'     },
-    { v: '4',   l: 'COMPANIES' },
-    { v: '9+',  l: 'PROJECTS'  },
-    { v: '25+', l: 'CLIENTS'   },
-  ]
-  const tech = ['React', 'Next.js', 'TypeScript', 'Flutter', 'WebRTC', 'SignalR']
-  return (
-    <>
-      <div style={eyebrow(station.color)}>{station.subtitle}</div>
-      <h2 style={heading}>{station.heading}</h2>
-      <p style={tagline}>
-        8+ years building products people actually use — from MILETAP&apos;s
-        real-time video platform to DigitalHire&apos;s hiring system.
-      </p>
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, auto)',
-        gap: 18, marginBottom: 24,
-      }}>
-        {stats.map((s) => (
-          <div key={s.l} style={{
-            paddingTop: 10, borderTop: `1px solid ${hexAlpha(station.color, 0.35)}`,
-          }}>
-            <div style={{
-              fontFamily: 'var(--font-display), system-ui, sans-serif',
-              fontSize: 32, fontWeight: 800, color: 'rgb(var(--text-primary))',
-              lineHeight: 1, letterSpacing: '-0.02em',
-            }}>{s.v}</div>
-            <div style={{
-              marginTop: 6, fontFamily: 'var(--font-mono), monospace',
-              fontSize: 9, letterSpacing: '0.28em', color: 'rgb(var(--text-primary) / 0.55)',
-            }}>{s.l}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {tech.map((t) => (
-          <span key={t} style={{
-            fontFamily: 'var(--font-mono), monospace',
-            fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase',
-            color: 'rgb(var(--text-primary) / 0.7)',
-            padding: '5px 11px',
-            border: `1px solid ${hexAlpha(station.color, 0.3)}`,
-            borderRadius: 3,
-          }}>{t}</span>
-        ))}
-      </div>
-    </>
-  )
-}
-
-// Long enough to read a PR title and its meta line before the next one comes
-// round. Shorter than this and the card reads as a flicker rather than a list.
-const OS_AUTOPLAY_MS = 7000
-
-function OpenSourceCard({ station, near }: { station: StationDef; near: boolean }) {
-  // Flutter blue lives ONLY inside this card (the planet/label stay sage).
-  const FLUTTER = '#54C5F8'
-  const MERGED  = '#3fb950'
-
-  const [active, setActive] = useState(0)
-  const [paused, setPaused] = useState(false)
-
-  // Autoplay — only runs while the station is on screen and the visitor is not
-  // reading/hovering it, so the PR they are about to click does not slide away.
-  useEffect(() => {
-    if (!near || paused || contributions.length < 2) return
-    const id = setInterval(() => {
-      setActive((a) => (a + 1) % contributions.length)
-    }, OS_AUTOPLAY_MS)
-    return () => clearInterval(id)
-  }, [near, paused])
-
-  const c = contributions[active] ?? contributions[0]
-  const meta = `${c.repo} · #${c.prNumber} · ${c.displayDate} · +${c.additions}/−${c.deletions}`
-
-  return (
-    <div
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocusCapture={() => setPaused(true)}
-      onBlurCapture={() => setPaused(false)}
-    >
-      <style>{`
-        @keyframes os-swap { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: translateY(0) } }
-        @keyframes os-bar  { from { width: 0% } to { width: 100% } }
-        @media (prefers-reduced-motion: reduce) {
-          @keyframes os-swap { from { opacity: 0 } to { opacity: 1 } }
-        }
-      `}</style>
-
-      <div style={eyebrow(station.color)}>{station.subtitle}</div>
-      <h2 style={{ ...heading, marginBottom: 18 }}>{station.heading}</h2>
-
-      {/* the rotating half of the card — keyed so each change replays the swap */}
-      <div key={c.id} style={{ animation: 'os-swap 480ms cubic-bezier(.16,1,.3,1) both' }}>
-
-      {/* logos + merged pill row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, pointerEvents: 'none' }}>
-        {c.org === 'Flutter' ? (
-          <FlutterLogo size={26} style={{ color: FLUTTER }} title="Flutter" />
-        ) : (
-          <span style={{
-            fontFamily: 'var(--font-mono), ui-monospace, monospace',
-            fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase',
-            color: 'rgb(var(--text-primary) / 0.85)',
-          }}>{c.org}</span>
-        )}
-        <GitHubLogo size={24} style={{ color: 'rgb(var(--text-primary) / 0.85)' }} title="GitHub" />
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '4px 11px', borderRadius: 999,
-          border: `1px solid ${hexAlpha(MERGED, 0.5)}`,
-          background: hexAlpha(MERGED, 0.12),
-          fontFamily: 'var(--font-mono), ui-monospace, monospace',
-          fontSize: 10, fontWeight: 700, letterSpacing: '0.16em',
-          textTransform: 'uppercase', color: MERGED,
-        }}>
-          <MergedGlyph size={13} style={{ color: MERGED }} />
-          Merged
-        </span>
-      </div>
-
-      {/* PR title */}
-      <p style={{
-        fontFamily: 'var(--font-display), ui-sans-serif, system-ui, sans-serif',
-        fontSize: 18, fontWeight: 700, lineHeight: 1.3, letterSpacing: '-0.01em',
-        color: 'rgb(var(--text-primary))', margin: '0 0 10px', maxWidth: 480,
-      }}>
-        {c.prTitle}
-      </p>
-
-      {/* meta line */}
-      <div style={{
-        fontFamily: 'var(--font-mono), ui-monospace, monospace',
-        fontSize: 12, letterSpacing: '0.04em',
-        color: 'rgb(var(--text-primary) / 0.6)', margin: '0 0 24px',
-      }}>
-        {meta}
-      </div>
-
-      {/* actions */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-        <a
-          href={c.prUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={ctaBtn(station.color)}
-        >
-          View Pull Request <span style={{ fontSize: 13 }}>↗</span>
-        </a>
-        <Link
-          href={`/achievements/${c.id}`}
-          style={ctaBtnGhost(station.color)}
-        >
-          Read case study <span style={{ fontSize: 13 }}>→</span>
-        </Link>
-      </div>
-
-      </div>{/* /rotating half */}
-
-      {/* which of the merged PRs you are looking at, and how far off the next one is */}
-      {contributions.length > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 22, pointerEvents: 'auto' }}>
-          {contributions.map((item, i) => {
-            const isActive = i === active
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActive(i)}
-                aria-label={`Show ${item.repo} pull request #${item.prNumber}`}
-                aria-current={isActive}
-                style={{
-                  position: 'relative',
-                  width: isActive ? 46 : 22,
-                  height: 3,
-                  padding: 0,
-                  border: 'none',
-                  borderRadius: 999,
-                  cursor: 'pointer',
-                  overflow: 'hidden',
-                  background: hexAlpha(station.color, isActive ? 0.22 : 0.3),
-                  transition: 'width 320ms cubic-bezier(.16,1,.3,1), background 220ms',
-                }}
-              >
-                {isActive && (
-                  <span
-                    key={`${item.id}-${paused}`}
-                    style={{
-                      position: 'absolute', inset: 0, display: 'block',
-                      background: station.color,
-                      width: paused ? '100%' : undefined,
-                      animation: paused || !near ? 'none' : `os-bar ${OS_AUTOPLAY_MS}ms linear forwards`,
-                    }}
-                  />
-                )}
-              </button>
-            )
-          })}
-          <span style={{
-            fontFamily: 'var(--font-mono), ui-monospace, monospace',
-            fontSize: 10, letterSpacing: '0.18em',
-            color: 'rgb(var(--text-primary) / 0.45)', marginLeft: 4,
-          }}>
-            {String(active + 1).padStart(2, '0')} / {String(contributions.length).padStart(2, '0')}
-          </span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ExperienceCard({ station }: { station: StationDef }) {
-  // The journey renders as the right-side Orbital Trajectory; the left panel
-  // keeps the intro copy + a rotating real LinkedIn recommendation (social
-  // proof right where the career is shown).
-  const [ti, setTi] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => setTi((t) => (t + 1) % testimonials.length), 6000)
-    return () => clearInterval(id)
-  }, [])
-  const t = testimonials[ti]
-
-  return (
-    <>
-      <div style={eyebrow(station.color)}>{station.subtitle}</div>
-      <h2 style={heading}>{station.heading}</h2>
-      <p style={tagline}>{station.tagline}</p>
-
-      {/* rotating recommendation */}
-      <style>{`@keyframes exp-quote { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-      <div
-        key={ti}
-        style={{
-          marginTop: 22, maxWidth: 460, padding: '15px 18px', borderRadius: 14,
-          background: 'rgb(var(--bg-surface) / 0.55)',
-          border: `1px solid ${hexAlpha(station.color, 0.28)}`,
-          boxShadow: `0 12px 30px rgba(0,0,0,0.35), 0 0 22px ${hexAlpha(station.color, 0.12)}`,
-          animation: 'exp-quote 500ms ease both',
-        }}
-      >
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
-          fontFamily: 'var(--font-mono), monospace', fontSize: 9, letterSpacing: '0.22em',
-          textTransform: 'uppercase', color: station.color,
-        }}>
-          ★ Recommendation
-        </div>
-        <p style={{
-          margin: 0, fontSize: 13.5, lineHeight: 1.6,
-          color: 'rgb(var(--text-primary) / 0.86)',
-        }}>
-          &ldquo;{t.short}&rdquo;
-        </p>
-        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ width: 26, height: 1.5, background: station.color }} />
-          <div>
-            <div style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: 13, color: 'rgb(var(--text-primary))' }}>{t.name}</div>
-            <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 9.5, letterSpacing: '0.06em', color: 'rgb(var(--text-primary) / 0.5)', marginTop: 1 }}>{t.role}</div>
-          </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 5 }}>
-            {testimonials.map((_, i) => (
-              <span key={i} style={{ width: i === ti ? 16 : 5, height: 5, borderRadius: 999, background: i === ti ? station.color : hexAlpha(station.color, 0.3), transition: 'all .3s' }} />
-            ))}
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
-
-function ContactCard({ station }: { station: StationDef }) {
-  return (
-    <>
-      <div style={eyebrow(station.color)}>{station.subtitle}</div>
-      <h2 style={heading}>{station.heading}</h2>
-      <div style={{
-        margin: '0 0 28px',
-        display: 'flex', flexDirection: 'column', gap: 6,
-        fontFamily: 'var(--font-mono), monospace',
-        fontSize: 14, letterSpacing: '0.06em',
-      }}>
-        <span style={{ color: 'rgb(var(--text-primary))' }}>hello@shahfahad.dev</span>
-        <span style={{ color: 'rgb(var(--text-primary) / 0.65)' }}>+92 304 2186009</span>
-        <span style={{ color: 'rgb(var(--text-primary) / 0.65)' }}>Karachi, Pakistan</span>
-      </div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          onClick={() => window.dispatchEvent(new Event('contact-drawer-open'))}
-          style={{ ...ctaBtn(station.color), border: 'none', cursor: 'pointer' }}
-        >
-          Contact Me →
-        </button>
-      </div>
-    </>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Inline icons
-// ─────────────────────────────────────────────────────────────────────────────
-
-function MouseScrollIcon({ color }: { color: string }) {
-  return (
-    <svg width="18" height="28" viewBox="0 0 18 28" aria-hidden="true">
-      <rect x={1} y={1} width={16} height={26} rx={8}
-        fill="none" stroke={color} strokeOpacity={0.55} strokeWidth={1} />
-      <circle cx={9} cy={9} r={1.6} fill={color}>
-        <animate attributeName="cy" values="9;14;9" dur="1.6s" repeatCount="indefinite" />
-        <animate attributeName="opacity" values="1;0.4;1" dur="1.6s" repeatCount="indefinite" />
-      </circle>
-    </svg>
-  )
-}
-
-function SocialLink({
-  href, label, color, children,
-}: {
-  href: string; label: string; color: string; children: React.ReactNode
-}) {
-  return (
-    <a
-      href={href}
-      target={href.startsWith('mailto:') ? undefined : '_blank'}
-      rel="noopener noreferrer"
-      aria-label={label}
-      style={{
-        color: 'rgb(var(--text-primary) / 0.55)',
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: 28, height: 28, borderRadius: 4,
-        border: '1px solid rgb(var(--text-primary) / 0.15)',
-        transition: 'color 200ms, border-color 200ms',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.color       = color
-        e.currentTarget.style.borderColor = hexAlpha(color, 0.5)
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.color       = 'rgb(var(--text-primary) / 0.55)'
-        e.currentTarget.style.borderColor = 'rgb(var(--text-primary) / 0.15)'
-      }}
-    >
-      {children}
-    </a>
-  )
-}
-
-const IconGithub = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-  </svg>
-)
-
-const IconLinkedin = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-  </svg>
-)
-
-const IconMail = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-    <polyline points="22,6 12,13 2,6" />
-  </svg>
-)

@@ -12,6 +12,7 @@ import { useQualityLevel } from '@/components/r3f/useQualityLevel'
 import { QualityToggle } from '@/components/r3f/QualityToggle'
 import { TunnelAnchors, useTunnelLoop } from '@/components/r3f/TunnelScrollRails'
 import { PRESETS, type QualityLevel } from '@/lib/quality'
+import { EmberLight } from '@/components/ui/LoadingScreen'
 
 const TunnelScene = dynamic(
   () => import('@/components/r3f/TunnelScene').then((m) => m.TunnelScene),
@@ -25,7 +26,7 @@ const MobileSpace = dynamic(() => import('@/components/mobile/MobileSpace'), { s
 
 export default function AppShell() {
   const [eligible, setEligible] = useState<boolean | null>(null)
-  const quality = useQualityLevel()
+  const quality = useQualityLevel(eligible === true)
 
   useEffect(() => {
     // Manual override for previewing either experience on any device:
@@ -61,32 +62,26 @@ export default function AppShell() {
   return <ClassicMode />
 }
 
+// BootSpinner — covers the gap while eligibility / GPU tier resolve. It is
+// the loader's last frame held: the same space and the same ember point in
+// the same place, now breathing gently (EmberLight variant="idle"), so the
+// intro hands off without a cut. Theme-aware via tokens; static under reduced
+// motion.
 function BootSpinner() {
   return (
     <div
+      role="status"
+      aria-label="Loading"
       style={{
-        position:       'fixed',
-        inset:          0,
-        display:        'flex',
-        alignItems:     'center',
-        justifyContent: 'center',
-        background:     '#0A0A0B',
-        zIndex:         5,
+        position:   'fixed',
+        inset:      0,
+        background: 'rgb(var(--space-0))',
+        zIndex:     5,
+        overflow:   'hidden',
       }}
     >
-      <div
-        style={{
-          width:          36,
-          height:         36,
-          borderRadius:   '50%',
-          border:         '2px solid rgba(94,234,212,0.18)',
-          borderTopColor: '#5EEAD4',
-          animation:      'tunnel-spin 0.8s linear infinite',
-        }}
-      />
-      <style jsx>{`
-        @keyframes tunnel-spin { to { transform: rotate(360deg); } }
-      `}</style>
+      <EmberLight variant="idle" />
+      <span className="sr-only">Loading the portfolio…</span>
     </div>
   )
 }

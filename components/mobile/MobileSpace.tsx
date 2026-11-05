@@ -1,45 +1,80 @@
 'use client'
 
-// MobileSpace — the mobile / touch / reduced-capability experience, rebuilt to
-// match the desktop "space" tunnel identity. Combines five concepts picked in
-// /lab: Starfield Parallax background (07), Station Rail (03), Mini-Nebula Hero
-// (04), Scroll-Snap Planets (09), and Project Constellation w/ bottom sheet
-// (12). All content is reused from the central data files — no duplication.
+// MobileSpace — the classic experience: touch devices, screens under 1024px
+// and reduced-motion desktops (AppShell decides). Same journey and the same
+// copy as the desktop tunnel (DESIGN.md §8), told as seven scenes in one
+// scroller over the CSS starfield.
+//
+// Performance contract (DESIGN.md §9): no framer / GSAP / R3F / Lenis here.
+// - One passive rAF-throttled scroll listener writes ONE CSS var on the
+//   starfield root (StarfieldBackground owns it, fed by `scrollRef`).
+// - One IntersectionObserver tracks the station under the centre line for the
+//   rail; one one-shot observer plays reveals once and then lets go.
+// - Reveals only hide content after JS sets `data-ms-ready`; reduced motion
+//   never sets it, so content is visible by default.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
+import {
+  FaChevronLeft,
+  FaChevronRight,
+  FaCircleHalfStroke,
+  FaGithub,
+  FaLinkedinIn,
+  FaPlay,
+  FaVolumeHigh,
+  FaVolumeXmark,
+  FaXmark,
+} from 'react-icons/fa6'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { StarfieldBackground } from '@/components/mobile/StarfieldBackground'
-import { projects, experience, skills } from '@/data/projects'
-import { testimonials } from '@/data/testimonials'
-import type { Project } from '@/data/projects'
 import { FeaturedAchievement } from '@/components/featured/FeaturedAchievement'
+import { projects, experience, skills } from '@/data/projects'
+import type { Project } from '@/data/projects'
+import { engineeringDemos } from '@/data/engineering-demos'
+import { testimonials } from '@/data/testimonials'
+import { openSourceStats } from '@/data/open-source'
 
-// ── theme-adaptive accent helpers ─────────────────────────────────────────────
-const A = 'rgb(var(--mob-accent))'
-const Aa = (a: number) => `rgb(var(--mob-accent) / ${a})`
-const TXT = 'rgb(var(--text-primary))'
-const SUB = 'rgb(var(--text-secondary))'
-const VIO = 'rgb(var(--accent-violet))'
+// ── content ──────────────────────────────────────────────────────────────────
+const STATIONS = ['Intro', 'About', 'Skills', 'Work', 'Open source', 'Experience', 'Contact'] as const
+const STATION_IDS = ['intro', 'about', 'skills', 'work', 'open-source', 'experience', 'contact'] as const
+const EMAIL = 'hello@shahfahad.dev'
+const RESUME = '/Shah_Fahad_Resume.pdf'
+const CAL = 'https://cal.com/shahfahad'
 
-const STATIONS = ['Intro', 'About', 'Skills', 'Work', 'Open Source', 'Exp', 'Contact']
-
-// About narrative — mirrors the desktop/classic About story cards.
-const STORY = [
-  { label: 'Career', heading: 'The Professional Path', body: "8+ years building products people actually use — from MILETAP's real-time video platform to DigitalHire's modern hiring system. 4 companies, 9+ projects, 25+ clients." },
-  { label: 'Passion', heading: 'What Drives Me', body: 'Real-time is where I come alive. WebRTC, SignalR, live video — the moment two people connect through infrastructure I built, that rush never gets old.' },
-  { label: 'Human', heading: 'Behind the Code', body: "I debug best at 2am. I've shipped code that ran during a live TV broadcast. Based in Karachi — where the chai is strong and the internet is character-building." },
-  { label: 'Vision', heading: "Where I'm Heading", body: 'AI-native interfaces, collaborative real-time tools, software that feels alive — making the interface between human and machine disappear.' },
+const DEMO_IDS = new Set(engineeringDemos.map((p) => p.id))
+const WORK_GROUPS: { label: string; items: Project[] }[] = [
+  { label: 'Shipped products', items: projects.filter((p) => !DEMO_IDS.has(p.id)) },
+  { label: 'Engineering demos', items: projects.filter((p) => DEMO_IDS.has(p.id)) },
 ]
-const STATS = [
-  { v: '8+', l: 'Years' }, { v: '9+', l: 'Projects' }, { v: '4+', l: 'Companies' }, { v: '25+', l: 'Clients' },
-]
+// Star x positions (% of the chart width) — a meander in the right-hand band.
+const STAR_X = [87, 95, 80, 91, 77, 85, 96, 81, 93, 78, 89, 83]
+const ROW = 56 // px per star row: a 44px+ hit target for every project
+const CATEGORY: Record<Project['category'], string> = { web: 'Web', mobile: 'Mobile', realtime: 'Real-time' }
 
-// Deterministic constellation coordinates (one per project, % of the field).
-const NODE_XY: [number, number][] = [
-  [50, 14], [79, 26], [23, 30], [66, 46], [33, 54],
-  [82, 60], [16, 64], [52, 72], [72, 84], [30, 86],
-]
+const shortTitle = (p: Project) => p.title.split(' — ')[0]
+const projectSlug = (p: Project) => {
+  const s = (p as Project & { slug?: unknown }).slug
+  return typeof s === 'string' && s ? s : p.id
+}
+// "Real-Time" → "Real-time", "Tools & Platforms" → "Tools & platforms"; acronyms stay.
+const sentenceCase = (s: string) =>
+  s.replace(/([ -])([A-Za-z][a-z]+)/g, (_, sep: string, w: string) => sep + w.toLowerCase())
+
+const iv = (i: number) => ({ ['--i' as string]: i }) as CSSProperties
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 // ═══════════════════════════════════════════════════════════════════════════
 export default function MobileSpace() {
@@ -52,176 +87,859 @@ export default function MobileSpace() {
     stationEls.current[i] = el
   }, [])
 
-  // Parallax driver — push scrollTop into a CSS var (rAF-throttled).
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    let raf = 0
-    const onScroll = () => {
-      if (raf) return
-      raf = requestAnimationFrame(() => {
-        document.documentElement.style.setProperty('--mob-scroll', String(el.scrollTop))
-        raf = 0
-      })
+  // Reveal gate: hide-then-reveal only once JS is ready, never under reduced
+  // motion. Layout effect so the hidden state lands before the first paint.
+  // State lives in data attributes React never renders, so a re-render that
+  // rewrites `class` can never hide revealed content again.
+  useLayoutEffect(() => {
+    const root = scrollRef.current
+    if (!root || prefersReducedMotion() || typeof IntersectionObserver === 'undefined') return
+    root.setAttribute('data-ms-ready', '')
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue
+          e.target.setAttribute('data-in', '')
+          io.unobserve(e.target)
+        }
+      },
+      { root, rootMargin: '0px 0px -8% 0px', threshold: 0 },
+    )
+    root.querySelectorAll('[data-reveal], [data-mask]').forEach((el) => io.observe(el))
+    return () => {
+      io.disconnect()
+      root.removeAttribute('data-ms-ready')
     }
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => { el.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf) }
   }, [])
 
-  // Active-station tracking for the rail + planet entrances.
+  // Active station = the one crossing the viewport's centre line. Works for
+  // stations taller than the screen and in landscape.
   useEffect(() => {
     const root = scrollRef.current
     if (!root) return
     const io = new IntersectionObserver(
       (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            const idx = stationEls.current.indexOf(e.target as HTMLElement)
-            if (idx !== -1) setActive(idx)
-          }
-        })
+        for (const e of entries) {
+          if (!e.isIntersecting) continue
+          const idx = stationEls.current.indexOf(e.target as HTMLElement)
+          if (idx !== -1) setActive(idx)
+        }
       },
-      { root, threshold: 0.55 },
+      { root, rootMargin: '-50% 0px -50% 0px', threshold: 0 },
     )
     stationEls.current.forEach((el) => el && io.observe(el))
     return () => io.disconnect()
   }, [])
 
-  // Lock scroll behind the bottom sheet.
-  useEffect(() => {
-    const el = scrollRef.current
+  const goTo = useCallback((i: number, focus = false) => {
+    const el = stationEls.current[i]
     if (!el) return
-    el.style.overflowY = openProject ? 'hidden' : 'auto'
-  }, [openProject])
+    el.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' })
+    if (focus) el.focus({ preventScroll: true })
+  }, [])
 
-  const goTo = (i: number) => {
-    stationEls.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
+  const closeSheet = useCallback(() => setOpenProject(null), [])
 
   return (
     <>
-      <StarfieldBackground />
-      <TopBar />
-      <StationRail active={active} onGo={goTo} />
+      <StarfieldBackground scrollRef={scrollRef} />
+      <TopBar onHome={() => goTo(0, true)} />
+      <StationRail active={active} onGo={(i) => goTo(i, true)} />
 
-      <div
-        ref={scrollRef}
-        className="mob-scroll"
-        data-lenis-prevent
-        style={{
-          height: '100svh',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          overscrollBehavior: 'contain',
-          scrollSnapType: 'y proximity',
-          position: 'relative',
-          zIndex: 1,
-          background: 'transparent',
-          WebkitOverflowScrolling: 'touch',
-        }}
-      >
-        <Station n={0} setRef={setStationRef(0)}><Hero active={active === 0} onWork={() => goTo(3)} /></Station>
-        <Station n={1} setRef={setStationRef(1)}><About active={active === 1} /></Station>
-        <Station n={2} setRef={setStationRef(2)}><Skills active={active === 2} /></Station>
-        <Station n={3} setRef={setStationRef(3)}><Work active={active === 3} onOpen={setOpenProject} /></Station>
-        <Station n={4} setRef={setStationRef(4)}><FeaturedAchievement active={active === 4} n={5} /></Station>
-        <Station n={5} setRef={setStationRef(5)}><Exp active={active === 5} /></Station>
-        <Station n={6} setRef={setStationRef(6)}><Contact active={active === 6} /></Station>
+      <div ref={scrollRef} className="mob-scroll" data-lenis-prevent data-ms-inert>
+        <main>
+          <Station i={0} setRef={setStationRef(0)} className="ms-st--hero">
+            <Hero onWork={() => goTo(3, true)} />
+          </Station>
+          <Station i={1} setRef={setStationRef(1)}>
+            <About />
+          </Station>
+          <Station i={2} setRef={setStationRef(2)}>
+            <Skills />
+          </Station>
+          <Station i={3} setRef={setStationRef(3)}>
+            <Work onOpen={setOpenProject} />
+          </Station>
+          <Station i={4} setRef={setStationRef(4)}>
+            <OpenSource />
+          </Station>
+          <Station i={5} setRef={setStationRef(5)}>
+            <Experience />
+          </Station>
+          <Station i={6} setRef={setStationRef(6)} className="ms-st--contact">
+            <Contact />
+          </Station>
+        </main>
       </div>
 
-      {openProject && <ProjectSheet project={openProject} onClose={() => setOpenProject(null)} />}
+      {openProject && <ProjectSheet project={openProject} onClose={closeSheet} />}
 
       <style jsx global>{`
+        /* ── scroller + stations ─────────────────────────────────────────── */
+        .mob-scroll {
+          position: relative;
+          z-index: var(--z-content);
+          height: 100svh;
+          overflow-x: hidden;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          scroll-snap-type: y proximity;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          background: transparent;
+        }
         .mob-scroll::-webkit-scrollbar { display: none; }
-        .mob-scroll { scrollbar-width: none; }
-        @keyframes mob-planet-in { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        @keyframes mob-fade-up { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes mob-drift { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-        @keyframes mob-orbit { to { transform: rotate(360deg); } }
-        @keyframes mob-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        @keyframes mob-quote { from { opacity: 0; } to { opacity: 1; } }
+        .mob-scroll.is-locked { overflow-y: hidden; }
         @media (prefers-reduced-motion: reduce) {
           .mob-scroll { scroll-snap-type: none; }
         }
+
+        .ms-st {
+          position: relative;
+          min-height: 100svh;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          padding: 92px max(20px, env(safe-area-inset-right)) 76px calc(44px + env(safe-area-inset-left));
+          scroll-snap-align: start;
+          color: rgb(var(--ink));
+        }
+        .ms-st:focus { outline: none; }
+        .ms-inner { position: relative; width: 100%; max-width: 560px; }
+
+        .ms-title-mask {
+          overflow: hidden;
+          padding-bottom: 0.12em;
+          margin-bottom: -0.12em;
+        }
+        .ms-title {
+          font-size: clamp(34px, 10vw, 46px);
+          line-height: 1.04;
+          color: rgb(var(--ink));
+        }
+        .ms-lead {
+          font-size: 16px;
+          line-height: 1.65;
+          margin-top: 16px;
+          max-width: 38ch;
+        }
+        .ms-em {
+          color: rgb(var(--accent-text));
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+        }
+
+        /* Square icon variant of the shared ghost button. */
+        .btn.ms-icon {
+          --btn-h: 44px;
+          width: 44px;
+          padding: 0;
+          flex: none;
+        }
+        .btn.ms-icon svg { width: 15px; height: 15px; }
+
+        /* ── reveals (one-shot; only after data-ms-ready) ───────────────── */
+        [data-ms-ready] [data-reveal]:not([data-in]) { opacity: 0; transform: translate3d(0, 10px, 0); }
+        [data-ms-ready] [data-reveal][data-in] {
+          animation: ms-fade-up var(--dur-3) var(--ease-out-expo) both;
+          animation-delay: calc(var(--i, 0) * 70ms);
+        }
+        [data-ms-ready] [data-reveal='rise']:not([data-in]) { transform: translate3d(0, 28px, 0); }
+        [data-ms-ready] [data-reveal='rise'][data-in] { animation: ms-rise var(--dur-4) var(--ease-out-expo) both; }
+        [data-ms-ready] [data-reveal='group']:not([data-in]) { opacity: 1; transform: none; }
+        [data-ms-ready] [data-reveal='group'][data-in] { animation: none; }
+        [data-ms-ready] [data-reveal='group']:not([data-in]) .ms-si { opacity: 0; }
+        [data-ms-ready] [data-reveal='group'][data-in] .ms-si {
+          animation: ms-fade-up var(--dur-3) var(--ease-out-expo) both;
+          animation-delay: calc(var(--i, 0) * 45ms);
+        }
+        [data-ms-ready] [data-mask]:not([data-in]) > * { transform: translate3d(0, 105%, 0); }
+        [data-ms-ready] [data-mask][data-in] > * {
+          animation: ms-mask-up var(--dur-3) var(--ease-out-expo) both;
+          animation-delay: calc(var(--i, 0) * 70ms);
+        }
+        @keyframes ms-fade-up {
+          from { opacity: 0; transform: translate3d(0, 10px, 0); }
+          to   { opacity: 1; transform: none; }
+        }
+        @keyframes ms-rise {
+          from { opacity: 0; transform: translate3d(0, 28px, 0); }
+          to   { opacity: 1; transform: none; }
+        }
+        @keyframes ms-mask-up {
+          from { transform: translate3d(0, 105%, 0); }
+          to   { transform: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-ms-ready] [data-reveal],
+          [data-ms-ready] [data-reveal] .ms-si,
+          [data-ms-ready] [data-mask] > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+        }
+
+        /* ── top bar ─────────────────────────────────────────────────────── */
+        .ms-topbar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: var(--z-chrome);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 18px max(20px, env(safe-area-inset-left));
+          background: linear-gradient(rgb(var(--space-0) / 0.94) 0%, rgb(var(--space-0) / 0.8) 58%, rgb(var(--space-0) / 0) 100%);
+          pointer-events: none;
+        }
+        .ms-topbar > * { pointer-events: auto; }
+        /* Daylight sky is blue-tinted at the top (StarfieldBackground mixes
+           --nebula-a 32% into --space-0); match it so the scrim leaves no band. */
+        @supports (color: color-mix(in srgb, red 50%, blue)) {
+          :root[data-theme='light'] .ms-topbar {
+            --sky-top: color-mix(in srgb, rgb(var(--nebula-a)) 32%, rgb(var(--space-0)));
+            background: linear-gradient(
+              color-mix(in srgb, var(--sky-top) 94%, transparent) 0%,
+              color-mix(in srgb, var(--sky-top) 80%, transparent) 58%,
+              color-mix(in srgb, var(--sky-top) 0%, transparent) 100%
+            );
+          }
+        }
+        .ms-wordmark {
+          min-height: 44px;
+          padding: 0;
+          border: 0;
+          background: none;
+          color: rgb(var(--ink));
+          font-family: var(--font-display), system-ui, sans-serif;
+          font-variation-settings: 'wdth' 112;
+          font-weight: 700;
+          font-size: 16px;
+          letter-spacing: -0.012em;
+          cursor: pointer;
+        }
+
+        /* ── rail: a labelled progress spine ─────────────────────────────── */
+        .ms-rail {
+          --item-h: 44px;
+          position: fixed;
+          left: env(safe-area-inset-left);
+          top: 50%;
+          z-index: var(--z-chrome);
+          width: 44px;
+          transform: translateY(-50%);
+        }
+        .ms-rail ol { position: relative; list-style: none; margin: 0; padding: 0; }
+        .ms-rail ol::before {
+          content: '';
+          position: absolute;
+          left: 12px;
+          top: calc(var(--item-h) / 2);
+          bottom: calc(var(--item-h) / 2);
+          width: 1px;
+          background: rgb(var(--ink) / 0.16);
+        }
+        .ms-rail-btn {
+          display: flex;
+          align-items: center;
+          width: 44px;
+          height: var(--item-h);
+          padding: 0 0 0 12px;
+          border: 0;
+          background: none;
+          cursor: pointer;
+        }
+        .ms-rail-btn:focus-visible { outline-offset: -2px; }
+        .ms-rail-tick {
+          display: block;
+          width: 7px;
+          height: 1px;
+          background: rgb(var(--ink-3));
+          transform-origin: left center;
+          transition: transform var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out);
+        }
+        .ms-rail-btn:hover .ms-rail-tick { background: rgb(var(--ink)); }
+        .ms-rail-btn[aria-current='step'] .ms-rail-tick {
+          background: rgb(var(--accent));
+          transform: scaleX(1.72) scaleY(2);
+        }
+        .ms-rail-label {
+          position: absolute;
+          left: 25px;
+          top: 0;
+          width: 16px;
+          height: var(--item-h);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+          transform: translate3d(0, calc(var(--active, 0) * var(--item-h)), 0);
+          transition: transform var(--dur-3) var(--ease-out);
+        }
+        .ms-rail-label span {
+          writing-mode: vertical-rl;
+          transform: rotate(180deg);
+          white-space: nowrap;
+          font-family: var(--font-body), system-ui, sans-serif;
+          font-size: 13px;
+          font-weight: 500;
+          letter-spacing: 0.01em;
+          color: rgb(var(--ink));
+          animation: ms-fade var(--dur-2) var(--ease-out) both;
+        }
+        @keyframes ms-fade { from { opacity: 0; } to { opacity: 1; } }
+        @media (max-height: 520px) {
+          .ms-rail { --item-h: 32px; top: calc(50% + 22px); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ms-rail-label { transition: none; }
+          .ms-rail-label span { animation: none; }
+          .ms-rail-tick { transition: none; }
+        }
+
+        /* ── 0 · intro ───────────────────────────────────────────────────── */
+        .ms-st--hero {
+          --top: 60px;
+          --scene-h: clamp(180px, calc(100svh - 400px), 380px);
+          --horizon: calc(var(--top) + var(--scene-h));
+          --photo-h: calc(var(--scene-h) * 1.1);
+          --photo-w: calc(var(--photo-h) * 0.7534);
+          --sink: 0.16; /* share of the photo hidden behind the horizon */
+          --apex: 60%;
+          justify-content: flex-start;
+          padding-top: var(--top);
+          overflow: hidden;
+          overflow: clip;
+        }
+        .ms-hero-scene {
+          position: relative;
+          height: var(--scene-h);
+          margin-left: calc(-44px - env(safe-area-inset-left));
+          margin-right: calc(-1 * max(20px, env(safe-area-inset-right)));
+        }
+        .ms-sunrise {
+          position: absolute;
+          left: var(--apex);
+          bottom: -40px;
+          width: min(150%, 760px);
+          height: 120%;
+          transform: translateX(-50%);
+          pointer-events: none;
+          background:
+            radial-gradient(42% 46% at 50% 100%, rgb(var(--accent) / 0.34), rgb(var(--accent) / 0.1) 48%, transparent 74%);
+        }
+        .ms-intro {
+          position: absolute;
+          left: calc(var(--apex) - var(--photo-w) / 2);
+          bottom: calc(var(--photo-h) * var(--sink) * -1);
+          width: var(--photo-w);
+          height: var(--photo-h);
+        }
+        .ms-intro-card {
+          position: absolute;
+          inset: 0;
+          display: block;
+          padding: 0;
+          border: 0;
+          background: none;
+          cursor: pointer;
+          perspective: 900px;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .ms-intro-card:focus-visible { outline-offset: 6px; border-radius: 14px; }
+        .ms-intro-inner {
+          position: absolute;
+          inset: 0;
+          display: block;
+          transform-style: preserve-3d;
+          transition: transform 760ms var(--ease-out);
+        }
+        .ms-intro[data-flipped='true'] .ms-intro-inner { transform: rotateY(180deg); }
+        .ms-intro-face {
+          position: absolute;
+          inset: 0;
+          display: block;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
+        }
+        .ms-intro-back { transform: rotateY(180deg); }
+        .ms-intro-media {
+          filter: drop-shadow(0 0 1px rgb(var(--accent) / 0.5)) drop-shadow(-4px -3px 14px rgb(var(--accent) / 0.22));
+        }
+        .ms-intro-video {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: bottom;
+        }
+        .ms-intro-ctl {
+          position: absolute;
+          left: -18px;
+          bottom: calc(var(--photo-h) * var(--sink) + 18px);
+          z-index: 4;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          height: 36px;
+          padding: 0 14px 0 12px;
+          border-radius: 999px;
+          border: 1px solid rgb(var(--ink) / 0.22);
+          background: rgb(var(--space-0) / 0.74);
+          color: rgb(var(--ink));
+          font-family: var(--font-body), system-ui, sans-serif;
+          font-size: 13px;
+          font-weight: 500;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: border-color var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out);
+        }
+        .ms-intro-ctl::before { content: ''; position: absolute; inset: -5px -2px; }
+        .ms-intro-ctl svg { width: 11px; height: 11px; flex: none; }
+        .ms-intro-ctl--sound svg { width: 14px; height: 14px; }
+        .ms-intro-card:hover .ms-intro-ctl,
+        .ms-intro-ctl:hover { border-color: rgb(var(--ink) / 0.42); }
+        .ms-intro-ctl:focus-visible { outline-offset: 3px; border-radius: 999px; }
+        /* Reduced motion: no 3D turn, the two faces crossfade instead. */
+        @media (prefers-reduced-motion: reduce) {
+          .ms-intro-inner { transition: none; transform: none !important; }
+          .ms-intro-face { transition: opacity var(--dur-2) linear; }
+          .ms-intro-back { transform: none; opacity: 0; }
+          .ms-intro[data-flipped='true'] .ms-intro-back { opacity: 1; }
+          .ms-intro[data-flipped='true'] .ms-intro-front { opacity: 0; }
+        }
+
+        .ms-planet {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: calc(var(--horizon) - 160px);
+          bottom: 0;
+          z-index: 2;
+          overflow: hidden;
+          pointer-events: none;
+          -webkit-mask-image: linear-gradient(#000 calc(100% - 140px), transparent);
+          mask-image: linear-gradient(#000 calc(100% - 140px), transparent);
+        }
+        .ms-planet-orb {
+          position: absolute;
+          top: 160px;
+          left: var(--apex);
+          width: max(250vw, 900px);
+          aspect-ratio: 1;
+          border-radius: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(180deg, rgb(var(--surface-2)) 0px, rgb(var(--space-1)) 70px, rgb(var(--space-0)) 240px);
+          box-shadow:
+            inset 0 1.5px 0 rgb(var(--accent) / 0.9),
+            inset 0 16px 26px -16px rgb(var(--accent) / 0.55),
+            0 -1px 10px rgb(var(--accent) / 0.35),
+            0 -22px 70px -8px rgb(var(--accent) / 0.2);
+        }
+        /* The scene, planet and copy position against the section itself. */
+        .ms-st--hero .ms-inner { position: static; max-width: none; }
+        .ms-hero-copy { position: relative; z-index: 3; margin-top: 22px; max-width: 560px; }
+        .ms-hero-name {
+          font-size: clamp(44px, 13.5vw, 64px);
+          color: rgb(var(--ink));
+        }
+        .ms-hero-lead { font-size: 16px; margin-top: 14px; max-width: 36ch; }
+        .ms-ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+
+        :root[data-theme='light'] .ms-intro-media {
+          filter: drop-shadow(0 14px 20px rgb(var(--ink) / 0.16)) drop-shadow(-2px -2px 10px rgb(var(--accent) / 0.16));
+        }
+        :root[data-theme='light'] .ms-sunrise {
+          background: radial-gradient(42% 46% at 50% 100%, rgb(var(--accent) / 0.2), rgb(var(--accent) / 0.06) 50%, transparent 74%);
+        }
+        :root[data-theme='light'] .ms-planet-orb {
+          background: linear-gradient(180deg, rgb(var(--surface)) 0px, rgb(var(--surface-2)) 80px, rgb(var(--space-1)) 260px);
+          box-shadow:
+            inset 0 1.5px 0 rgb(var(--accent) / 0.7),
+            inset 0 16px 26px -16px rgb(var(--accent) / 0.32),
+            0 -1px 10px rgb(var(--accent) / 0.22),
+            0 -22px 70px -8px rgb(var(--accent) / 0.12);
+        }
+        :root[data-theme='light'] .ms-intro-ctl { background: rgb(var(--surface) / 0.86); }
+
+        /* Landscape phones: copy sits in the sky on the left, the planet rises
+           across the bottom and the photo stands on it to the right. */
+        @media (orientation: landscape) and (max-height: 540px) {
+          .ms-st--hero {
+            --top: 56px;
+            --scene-h: calc(100svh - var(--top) - 56px);
+            --apex: 76%;
+            --sink: 0.1;
+            justify-content: center;
+            padding-bottom: 72px;
+          }
+          .ms-hero-scene { position: absolute; left: 0; right: 0; top: var(--top); margin: 0; }
+          /* Only ~56px of planet below the horizon: a short fade keeps the
+             body opaque over the photo's cut-off edge. */
+          .ms-planet {
+            -webkit-mask-image: linear-gradient(#000 calc(100% - 20px), transparent);
+            mask-image: linear-gradient(#000 calc(100% - 20px), transparent);
+          }
+          .ms-hero-copy { margin-top: 0; max-width: min(52%, 420px); }
+          .ms-hero-name { font-size: 44px; }
+          .ms-hero-lead { margin-top: 10px; font-size: 15px; }
+          .ms-ctas { margin-top: 16px; }
+        }
+
+        /* ── 1 · about ───────────────────────────────────────────────────── */
+        .ms-facts { margin-top: 36px; border-top: 1px solid rgb(var(--line)); }
+        .ms-fact {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 4px 16px;
+          padding: 14px 0;
+          border-bottom: 1px solid rgb(var(--line));
+        }
+        .ms-fact dt { font-size: 14px; color: rgb(var(--ink-3)); }
+        .ms-fact dd { margin-left: auto; color: rgb(var(--ink)); text-align: right; }
+
+        /* ── 2 · skills ──────────────────────────────────────────────────── */
+        .ms-skills { list-style: none; margin-top: 32px; border-top: 1px solid rgb(var(--line)); }
+        .ms-skill-row { padding: 16px 0 17px; border-bottom: 1px solid rgb(var(--line)); }
+        .ms-skill-cat { font-size: 20px; color: rgb(var(--ink)); }
+        .ms-skill-list { margin-top: 6px; font-size: 16px; line-height: 1.55; }
+        .ms-skill { white-space: nowrap; }
+        .ms-sep { color: rgb(var(--ink-3)); }
+        @media (min-width: 520px) {
+          .ms-skill-row { display: grid; grid-template-columns: 170px 1fr; gap: 16px; align-items: baseline; }
+          .ms-skill-list { margin-top: 0; }
+        }
+
+        /* ── 3 · work: the star chart ────────────────────────────────────── */
+        .ms-chart-head {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 32px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid rgb(var(--line));
+        }
+        .ms-chart-head h3 { font-size: 18px; color: rgb(var(--ink)); }
+        .ms-chart-head .t-data { color: rgb(var(--ink-3)); }
+        .ms-chart { position: relative; margin-top: 6px; }
+        .ms-chart-path { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+        .ms-chart-path polyline {
+          fill: none;
+          stroke: rgb(var(--ink) / 0.22);
+          stroke-width: 1;
+          stroke-dasharray: 2 5;
+          vector-effect: non-scaling-stroke;
+        }
+        .ms-node {
+          position: absolute;
+          left: 0;
+          right: 0;
+          height: ${ROW}px;
+          display: block;
+          padding: 0;
+          border: 0;
+          border-radius: 10px;
+          background: none;
+          color: inherit;
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .ms-node:focus-visible { outline-offset: -2px; border-radius: 10px; }
+        .ms-node-star {
+          position: absolute;
+          top: 50%;
+          left: var(--x);
+          width: 7px;
+          height: 7px;
+          margin: -3.5px 0 0 -3.5px;
+          border-radius: 50%;
+          background: rgb(var(--ink-2));
+          transition: background-color var(--dur-1) var(--ease-out), transform var(--dur-2) var(--ease-out);
+        }
+        .ms-node--featured .ms-node-star {
+          width: 11px;
+          height: 11px;
+          margin: -5.5px 0 0 -5.5px;
+          background: rgb(var(--ink));
+          box-shadow: 0 0 0 5px rgb(var(--space-0)), 0 0 0 6px rgb(var(--ink) / 0.3);
+        }
+        .ms-node--demo .ms-node-star {
+          background: rgb(var(--space-0));
+          box-shadow: inset 0 0 0 1.5px rgb(var(--ink-3));
+        }
+        .ms-node-text {
+          position: absolute;
+          left: 0;
+          right: 30%;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        .ms-node-title {
+          display: block;
+          font-size: 15px;
+          font-weight: 600;
+          line-height: 1.2;
+          color: rgb(var(--ink));
+          transition: color var(--dur-1) var(--ease-out);
+        }
+        .ms-node-meta {
+          display: block;
+          margin-top: 3px;
+          font-size: 13px;
+          line-height: 1.2;
+          color: rgb(var(--ink-3));
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .ms-node:hover .ms-node-title,
+        .ms-node:focus-visible .ms-node-title { color: rgb(var(--accent-text)); }
+        .ms-node:hover .ms-node-star,
+        .ms-node:focus-visible .ms-node-star { background: rgb(var(--accent)); transform: scale(1.25); }
+        .ms-node:active .ms-node-star { transform: scale(0.9); }
+        .ms-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; }
+        .ms-pager .t-data { color: rgb(var(--ink-2)); }
+        .ms-pager .btn { gap: 8px; }
+        .ms-pager .btn svg { width: 11px; height: 11px; }
+
+        /* ── 5 · experience ──────────────────────────────────────────────── */
+        .ms-tl { position: relative; list-style: none; margin-top: 32px; }
+        .ms-tl::before {
+          content: '';
+          position: absolute;
+          left: 4px;
+          top: 8px;
+          bottom: 30px;
+          width: 1px;
+          background: rgb(var(--line));
+        }
+        .ms-tl-item { position: relative; padding: 0 0 24px 28px; }
+        .ms-tl-dot {
+          position: absolute;
+          left: 0;
+          top: 4px;
+          width: 9px;
+          height: 9px;
+          border-radius: 50%;
+          background: rgb(var(--space-0));
+          box-shadow: inset 0 0 0 1.5px rgb(var(--ink-3));
+        }
+        .ms-tl-item.is-current .ms-tl-dot {
+          background: rgb(var(--accent));
+          box-shadow: 0 0 0 4px rgb(var(--accent) / 0.18);
+        }
+        .ms-tl-date { display: block; color: rgb(var(--ink-3)); white-space: nowrap; }
+        .ms-tl-role { margin-top: 6px; font-size: 19px; color: rgb(var(--ink)); text-wrap: pretty; }
+        .ms-tl-co { margin-top: 3px; font-size: 15px; color: rgb(var(--ink-2)); }
+
+        .ms-quote { margin-top: 20px; padding-top: 28px; border-top: 1px solid rgb(var(--line)); }
+        .ms-quote-stack { display: grid; }
+        .ms-quote-item {
+          grid-area: 1 / 1;
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity var(--dur-2) var(--ease-out), visibility 0s linear var(--dur-2);
+        }
+        .ms-quote-item.is-active { opacity: 1; visibility: visible; transition: opacity var(--dur-2) var(--ease-out); }
+        .ms-quote-text {
+          font-family: var(--font-display), system-ui, sans-serif;
+          font-size: 19px;
+          font-weight: 500;
+          line-height: 1.5;
+          letter-spacing: -0.005em;
+          color: rgb(var(--ink));
+          text-wrap: pretty;
+        }
+        .ms-quote-by { margin-top: 16px; display: flex; flex-direction: column; gap: 2px; }
+        .ms-quote-name { font-size: 15px; font-weight: 600; color: rgb(var(--ink)); }
+        .ms-quote-role { font-size: 13px; color: rgb(var(--ink-3)); }
+        .ms-quote-nav { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
+        .ms-quote-nav .t-data { color: rgb(var(--ink-2)); min-width: 3.5em; text-align: center; }
+        @media (prefers-reduced-motion: reduce) {
+          .ms-quote-item, .ms-quote-item.is-active { transition: none; }
+        }
+
+        /* ── 6 · contact ─────────────────────────────────────────────────── */
+        .ms-st--contact { overflow: hidden; overflow: clip; padding-bottom: 104px; }
+        .ms-st--contact .ms-inner { position: static; }
+        .ms-email {
+          display: inline-block;
+          margin-top: 28px;
+          max-width: 100%;
+          font-family: var(--font-display), system-ui, sans-serif;
+          font-variation-settings: 'wdth' 100;
+          font-size: clamp(22px, 7.2vw, 32px);
+          font-weight: 650;
+          letter-spacing: -0.02em;
+          line-height: 1.15;
+          color: rgb(var(--ink));
+          overflow-wrap: anywhere;
+          text-decoration: underline;
+          text-decoration-thickness: 1px;
+          text-underline-offset: 7px;
+          text-decoration-color: rgb(var(--ink) / 0.3);
+          transition: color var(--dur-1) var(--ease-out), text-decoration-color var(--dur-1) var(--ease-out);
+        }
+        .ms-email:hover,
+        .ms-email:active { color: rgb(var(--accent-text)); text-decoration-color: currentColor; }
+        .ms-links { list-style: none; margin-top: 30px; border-top: 1px solid rgb(var(--line)); }
+        .ms-link {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          min-height: 58px;
+          border-bottom: 1px solid rgb(var(--line));
+          color: rgb(var(--ink));
+        }
+        .ms-link svg { width: 17px; height: 17px; flex: none; color: rgb(var(--ink-2)); transition: color var(--dur-1) var(--ease-out); }
+        .ms-link-label { font-size: 16px; font-weight: 600; }
+        .ms-link-value { margin-left: auto; font-size: 14px; color: rgb(var(--ink-3)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+        .ms-link-arrow { color: rgb(var(--ink-3)); transition: transform var(--dur-2) var(--ease-out), color var(--dur-1) var(--ease-out); }
+        .ms-link:hover .ms-link-arrow,
+        .ms-link:focus-visible .ms-link-arrow { color: rgb(var(--accent-text)); transform: translate(2px, -2px); }
+        .ms-link:hover svg { color: rgb(var(--ink)); }
+        .ms-footer {
+          position: relative;
+          z-index: 1;
+          margin-top: 56px;
+          font-size: 13px;
+          color: rgb(var(--ink-3));
+        }
+        .ms-home-planet {
+          position: absolute;
+          left: 50%;
+          top: calc(100% - 64px);
+          width: max(240vw, 860px);
+          aspect-ratio: 1;
+          border-radius: 50%;
+          transform: translateX(-50%);
+          pointer-events: none;
+          background: linear-gradient(180deg, rgb(var(--surface)) 0px, rgb(var(--space-0)) 90px);
+          box-shadow:
+            inset 0 1px 0 rgb(var(--ink) / 0.2),
+            0 -14px 60px -12px rgb(var(--nebula-a) / 0.75);
+        }
+        :root[data-theme='light'] .ms-home-planet {
+          background: linear-gradient(180deg, rgb(var(--surface)) 0px, rgb(var(--surface-2)) 90px);
+          box-shadow: inset 0 1px 0 rgb(var(--ink) / 0.14), 0 -14px 60px -12px rgb(var(--nebula-a) / 0.9);
+        }
+
+        /* ── project sheet (dialog) ──────────────────────────────────────── */
+        .ms-sheet {
+          position: fixed;
+          inset: 0;
+          z-index: var(--z-sheet);
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          background: rgb(var(--space-0) / 0.66);
+          animation: ms-fade var(--dur-2) var(--ease-out) both;
+        }
+        .ms-sheet[data-state='closing'] { animation: ms-fade-out var(--dur-2) var(--ease-out) both; }
+        .ms-sheet-panel {
+          position: relative;
+          width: 100%;
+          max-width: 640px;
+          max-height: 88svh;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          padding: 10px 20px calc(28px + env(safe-area-inset-bottom));
+          border-radius: 18px 18px 0 0;
+          border: 1px solid rgb(var(--line));
+          border-bottom: 0;
+          background: rgb(var(--surface));
+          box-shadow: 0 -24px 60px -20px rgb(var(--space-0) / 0.8);
+          animation: ms-sheet-in 460ms var(--ease-out-expo) both;
+        }
+        .ms-sheet[data-state='closing'] .ms-sheet-panel { animation: ms-sheet-out var(--dur-2) var(--ease-out) both; }
+        .ms-sheet-panel:focus { outline: none; }
+        @keyframes ms-fade-out { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes ms-sheet-in { from { transform: translate3d(0, 100%, 0); } to { transform: none; } }
+        @keyframes ms-sheet-out { from { transform: none; } to { transform: translate3d(0, 100%, 0); } }
+        @media (prefers-reduced-motion: reduce) {
+          .ms-sheet-panel,
+          .ms-sheet[data-state='closing'] .ms-sheet-panel { animation: ms-fade var(--dur-2) linear both; }
+          .ms-sheet[data-state='closing'] .ms-sheet-panel { animation-name: ms-fade-out; }
+        }
+        :root[data-theme='light'] .ms-sheet { background: rgb(var(--ink) / 0.32); }
+        :root[data-theme='light'] .ms-sheet-panel { box-shadow: 0 -24px 60px -24px rgb(var(--ink) / 0.3); }
+        .ms-sheet-grip {
+          width: 36px;
+          height: 4px;
+          margin: 0 auto 12px;
+          border-radius: 2px;
+          background: rgb(var(--ink) / 0.22);
+        }
+        .ms-sheet-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+        .ms-sheet-meta { padding-top: 12px; font-size: 14px; color: rgb(var(--ink-3)); }
+        .ms-sheet-meta .t-data { font-size: 13px; }
+        .ms-sheet-title { margin-top: 6px; font-size: 26px; color: rgb(var(--ink)); }
+        .ms-sheet-cover {
+          position: relative;
+          margin-top: 18px;
+          aspect-ratio: 16 / 9;
+          border-radius: 12px;
+          overflow: hidden;
+          background: rgb(var(--surface-2));
+          border: 1px solid rgb(var(--line));
+        }
+        .ms-sheet-tagline { margin-top: 18px; font-size: 17px; color: rgb(var(--ink)); line-height: 1.5; }
+        .ms-sheet-desc { margin-top: 12px; font-size: 15px; line-height: 1.65; color: rgb(var(--ink-2)); }
+        .ms-sheet-h { margin-top: 24px; font-size: 15px; font-weight: 600; color: rgb(var(--ink)); }
+        .ms-sheet-list { list-style: none; margin-top: 6px; border-top: 1px solid rgb(var(--line)); }
+        .ms-sheet-list li { padding: 11px 0; border-bottom: 1px solid rgb(var(--line)); font-size: 15px; line-height: 1.55; color: rgb(var(--ink-2)); }
+        .ms-sheet-tech { margin-top: 18px; font-size: 14px; line-height: 1.6; color: rgb(var(--ink-3)); }
+        .ms-sheet-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
       `}</style>
     </>
   )
 }
 
-// ── shell pieces ──────────────────────────────────────────────────────────────
-function Station({ n, setRef, children }: { n: number; setRef: (el: HTMLElement | null) => void; children: React.ReactNode }) {
+// ── shell ───────────────────────────────────────────────────────────────────
+function Station({ i, setRef, className, children }: {
+  i: number
+  setRef: (el: HTMLElement | null) => void
+  className?: string
+  children: ReactNode
+}) {
   return (
     <section
       ref={setRef}
-      data-station={n}
-      style={{
-        minHeight: '100svh',
-        scrollSnapAlign: 'start',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        padding: '84px 22px 64px 46px',
-      }}
+      id={STATION_IDS[i]}
+      data-station={i}
+      aria-labelledby={`${STATION_IDS[i]}-title`}
+      tabIndex={-1}
+      className={`ms-st${className ? ` ${className}` : ''}`}
     >
-      {children}
+      <div className="ms-inner">{children}</div>
     </section>
   )
 }
 
-function Planet({ size, active, hue = 'teal', delay = 0 }: { size: number; active: boolean; hue?: 'teal' | 'violet'; delay?: number }) {
-  const c = hue === 'teal' ? 'var(--mob-accent)' : 'var(--accent-violet)'
+function StationTitle({ i, children }: { i: number; children: ReactNode }) {
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: `radial-gradient(circle at 34% 30%, rgb(${c}), rgb(${c} / 0.15) 68%, transparent)`,
-        boxShadow: `0 0 ${size * 0.55}px rgb(${c} / 0.45)`,
-        border: `1px solid rgb(${c} / 0.4)`,
-        animation: active ? `mob-planet-in 0.7s cubic-bezier(0.22,1,0.36,1) ${delay}s both` : 'none',
-      }}
-    />
-  )
-}
-
-function Eyebrow({ n, label }: { n: number; label: string }) {
-  return (
-    <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 11, letterSpacing: '0.22em', color: A, textTransform: 'uppercase' }}>
-      {String(n).padStart(2, '0')} · {label}
+    <div className="ms-title-mask" data-mask>
+      <h2 id={`${STATION_IDS[i]}-title`} className="t-title ms-title">{children}</h2>
     </div>
   )
 }
 
-function TopBar() {
+function TopBar({ onHome }: { onHome: () => void }) {
   const { theme, toggle } = useTheme()
+  const dark = theme === 'dark'
   return (
-    <header
-      style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 20,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 18px',
-        background: 'linear-gradient(rgb(var(--bg-base) / 0.7), transparent)',
-        backdropFilter: 'blur(2px)',
-      }}
-    >
-      <span style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 12, letterSpacing: '0.18em', fontWeight: 700, color: TXT }}>
-        SHAH FAHAD
-      </span>
+    <header className="ms-topbar" data-ms-inert>
+      <button type="button" className="ms-wordmark" onClick={onHome}>Shah Fahad</button>
       <button
-        onClick={toggle}
-        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        style={{
-          width: 38, height: 38, borderRadius: 12, display: 'grid', placeItems: 'center',
-          background: Aa(0.08), border: `1px solid ${Aa(0.3)}`, color: A, cursor: 'pointer',
-        }}
+        type="button"
+        className="btn btn--ghost ms-icon"
+        onClick={(e) => toggle(e)}
+        aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
       >
-        {theme === 'dark' ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
-        )}
+        <FaCircleHalfStroke aria-hidden />
       </button>
     </header>
   )
@@ -229,402 +947,517 @@ function TopBar() {
 
 function StationRail({ active, onGo }: { active: number; onGo: (i: number) => void }) {
   return (
-    <nav
-      aria-label="Sections"
-      style={{ position: 'fixed', left: 14, top: '50%', transform: 'translateY(-50%)', zIndex: 20, display: 'flex', flexDirection: 'column', gap: 16 }}
-    >
-      {STATIONS.map((label, i) => {
-        const on = i === active
-        return (
-          <button
-            key={label}
-            onClick={() => onGo(i)}
-            aria-label={`Go to ${label}`}
-            aria-current={on}
-            style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-          >
-            <span
-              style={{
-                width: on ? 11 : 7, height: on ? 11 : 7, borderRadius: '50%',
-                background: on ? A : SUB, boxShadow: on ? `0 0 9px ${Aa(0.9)}` : 'none',
-                transition: 'all 0.3s ease', flexShrink: 0,
-              }}
-            />
-          </button>
-        )
-      })}
+    <nav className="ms-rail" aria-label="Sections" style={{ ['--active' as string]: active } as CSSProperties} data-ms-inert>
+      <ol>
+        {STATIONS.map((label, i) => (
+          <li key={label}>
+            <button
+              type="button"
+              className="ms-rail-btn"
+              aria-label={label}
+              aria-current={i === active ? 'step' : undefined}
+              onClick={() => onGo(i)}
+            >
+              <span className="ms-rail-tick" />
+            </button>
+          </li>
+        ))}
+      </ol>
+      <span className="ms-rail-label" aria-hidden="true">
+        <span key={active}>{STATIONS[active]}</span>
+      </span>
     </nav>
   )
 }
 
-// ── stations ────────────────────────────────────────────────────────────────
-function Hero({ active, onWork }: { active: boolean; onWork: () => void }) {
+// ── 0 · intro ───────────────────────────────────────────────────────────────
+function Hero({ onWork }: { onWork: () => void }) {
   return (
-    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
-      {/* nebula rings + photo / intro centerpiece */}
-      <MobilePhotoIntro active={active} />
-
-      <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 11, letterSpacing: '0.24em', color: A }}>WELCOME TO MY SPACE</div>
-      <h1 style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 800, fontSize: 'clamp(48px, 17vw, 84px)', lineHeight: 0.92, margin: '10px 0 0', color: TXT }}>
-        SHAH<br /><span style={{ color: A }}>FAHAD</span>
-      </h1>
-      <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 12, letterSpacing: '0.14em', color: SUB, marginTop: 14 }}>SENIOR SOFTWARE ENGINEER</div>
-      <p style={{ fontSize: 14, lineHeight: 1.6, color: SUB, marginTop: 12, maxWidth: 360 }}>
-        Building real-time, high-performance web &amp; mobile experiences from <span style={{ color: TXT }}>Karachi, Pakistan</span>.
-      </p>
-
-      <div style={{ display: 'flex', gap: 10, marginTop: 22, flexWrap: 'wrap' }}>
-        <button onClick={onWork} style={ctaPrimary}>View work →</button>
-        <a href="/Shah_Fahad_Resume.pdf" target="_blank" rel="noopener noreferrer" style={ctaGhost}>Resume</a>
+    <>
+      <div className="ms-hero-scene">
+        <div className="ms-sunrise" aria-hidden="true" />
+        <IntroCard />
       </div>
-    </div>
+      <div className="ms-planet" aria-hidden="true">
+        <div className="ms-planet-orb" />
+      </div>
+
+      <div className="ms-hero-copy">
+        <div className="ms-title-mask" data-mask>
+          <h1 id="intro-title" className="t-display ms-hero-name">Shah Fahad</h1>
+        </div>
+        <p className="t-lead ms-hero-lead" data-reveal style={iv(2)}>
+          Senior software engineer building real-time web and mobile products. React, Next.js, Flutter and WebRTC,
+          from Karachi, Pakistan.
+        </p>
+        <div className="ms-ctas" data-reveal style={iv(3)}>
+          <button type="button" className="btn btn--primary" onClick={onWork}>
+            See the work <span className="btn-arrow" aria-hidden="true">→</span>
+          </button>
+          <a className="btn btn--ghost" href={RESUME} target="_blank" rel="noopener noreferrer">
+            Resume
+          </a>
+        </div>
+      </div>
+    </>
   )
 }
 
-// Hero centerpiece — the sticker photo framed by nebula rings + teal glow.
-// Tap flips to the intro video (mirrors the desktop FlipPhotoCard, touch-first).
-function MobilePhotoIntro({ active }: { active: boolean }) {
+// The sticker photo standing on the horizon. Tap (or Enter / Space) flips it
+// to the intro video; the pill becomes a mute toggle while it plays.
+function IntroCard() {
   const [flipped, setFlipped] = useState(false)
   const [muted, setMuted] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+
+  // Mute is kept in sync on its own, so toggling it never restarts playback.
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = muted
+  }, [muted])
 
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
     if (flipped) {
-      v.muted = muted
-      v.play().catch(() => {})
+      v.play().catch(() => {
+        // Sound was refused (autoplay policy): play muted and say so.
+        v.muted = true
+        setMuted(true)
+        v.play().catch(() => {})
+      })
     } else {
       v.pause()
       v.currentTime = 0
     }
-  }, [flipped, muted])
+  }, [flipped])
 
   return (
-    <div style={{ position: 'relative', alignSelf: 'center', marginBottom: 28, width: 224, height: 248, display: 'grid', placeItems: 'center' }}>
-      {/* nebula rings */}
-      {[224, 176, 132].map((s, i) => (
-        <div key={s} aria-hidden="true" style={{
-          position: 'absolute', left: '50%', top: '50%', width: s, height: s, transform: 'translate(-50%,-50%)',
-          borderRadius: '50%', border: `1px solid ${Aa(0.16 - i * 0.04)}`,
-        }} />
-      ))}
-      {/* glow */}
-      <div aria-hidden="true" style={{ position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: `radial-gradient(circle, ${Aa(0.3)}, transparent 70%)`, filter: 'blur(28px)' }} />
-
-      {/* flip card */}
-      <div
+    // Flip state lives in a data attribute so the element's class never
+    // changes while it plays.
+    <div className="ms-intro" data-flipped={flipped} data-reveal="rise">
+      <button
+        type="button"
+        className="ms-intro-card"
+        aria-pressed={flipped}
+        aria-label="Play the intro video"
         onClick={() => setFlipped((f) => !f)}
-        role="button"
-        aria-label={flipped ? 'Showing intro video. Tap to return to photo.' : 'Photo of Shah Fahad. Tap to play intro video.'}
-        style={{
-          position: 'relative', width: 150, height: 188, cursor: 'pointer',
-          perspective: 800,
-          animation: active ? 'mob-planet-in 0.7s cubic-bezier(0.22,1,0.36,1) both' : 'none',
-        }}
       >
-        <div style={{ position: 'relative', width: '100%', height: '100%', transformStyle: 'preserve-3d', transition: 'transform 0.6s cubic-bezier(0.22,1,0.36,1)', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
-          {/* front — sticker photo */}
-          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
+        <span className="ms-intro-inner">
+          <span className="ms-intro-face ms-intro-front">
             <Image
               src="/images/shah-fahad-sticker.png"
-              alt="Shah Fahad — Senior Software Engineer"
+              alt="Shah Fahad"
               fill
               priority
-              sizes="150px"
-              style={{ objectFit: 'contain', objectPosition: 'bottom', filter: `drop-shadow(0 8px 12px rgb(0 0 0 / 0.45)) drop-shadow(0 0 18px ${Aa(0.55)})` }}
+              sizes="(max-width: 540px) 280px, 320px"
+              className="ms-intro-media"
+              style={{ objectFit: 'contain', objectPosition: 'bottom' }}
             />
-          </div>
-          {/* back — intro video */}
-          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+          </span>
+          <span className="ms-intro-face ms-intro-back">
             <video
               ref={videoRef}
+              className="ms-intro-video ms-intro-media"
               poster="/videos/shah-intro-poster.png"
               playsInline
               preload="metadata"
-              style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'bottom', filter: `drop-shadow(0 8px 12px rgb(0 0 0 / 0.45)) drop-shadow(0 0 18px ${Aa(0.55)})` }}
+              onEnded={() => setFlipped(false)}
+              aria-hidden="true"
+              tabIndex={-1}
             >
               <source src="/videos/shah-intro.webm" type="video/webm" />
               <source src="/videos/shah-intro.mov" type='video/mp4; codecs="hvc1"' />
               <source src="/videos/shah-intro.mp4" type="video/mp4" />
             </video>
-          </div>
-        </div>
-      </div>
-
-      {/* affordance — play hint (front) / mute toggle (back) */}
-      {!flipped ? (
-        <div aria-hidden="true" style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: Aa(0.1), border: `1px solid ${Aa(0.32)}`, color: A, fontFamily: 'var(--font-mono), monospace', fontSize: 9, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
-          ▶ tap for intro
-        </div>
-      ) : (
+          </span>
+        </span>
+        {!flipped && (
+          <span className="ms-intro-ctl" aria-hidden="true">
+            <FaPlay /> Play intro
+          </span>
+        )}
+      </button>
+      {flipped && (
         <button
-          onClick={(e) => { e.stopPropagation(); setMuted((m) => !m) }}
-          aria-label={muted ? 'Unmute intro' : 'Mute intro'}
-          style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: Aa(0.1), border: `1px solid ${Aa(0.32)}`, color: A, fontFamily: 'var(--font-mono), monospace', fontSize: 9, letterSpacing: '0.08em', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          type="button"
+          className="ms-intro-ctl ms-intro-ctl--sound"
+          onClick={() => setMuted((m) => !m)}
         >
-          {muted ? '🔇 unmute' : '🔊 mute'}
+          {muted ? <FaVolumeXmark aria-hidden /> : <FaVolumeHigh aria-hidden />}
+          {muted ? 'Unmute' : 'Mute'}
         </button>
       )}
     </div>
   )
 }
 
-function About({ active }: { active: boolean }) {
+// ── 1 · about ───────────────────────────────────────────────────────────────
+function About() {
   return (
-    <div>
-      <StationHead active={active} n={2} label="About" hue="violet">The <span style={{ color: A }}>story</span></StationHead>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18 }}>
-        {STORY.map((s) => (
-          <div key={s.label} style={glassCard}>
-            <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 9.5, letterSpacing: '0.14em', color: A, textTransform: 'uppercase' }}>{s.label}</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: TXT, marginTop: 3 }}>{s.heading}</div>
-            <p style={{ fontSize: 12, lineHeight: 1.55, color: SUB, marginTop: 5 }}>{s.body}</p>
-          </div>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-        {STATS.map((s) => (
-          <div key={s.l} style={{ flex: 1, textAlign: 'center', padding: '10px 4px', borderRadius: 12, background: Aa(0.05), border: `1px solid ${Aa(0.14)}` }}>
-            <div style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 800, fontSize: 18, color: A }}>{s.v}</div>
-            <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 8, color: SUB, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>{s.l}</div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <>
+      <StationTitle i={1}>I ship products people use.</StationTitle>
+      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+        8+ years turning ideas into shipped software, from Miletap&apos;s real-time video platform to
+        DigitalHire&apos;s hiring system.
+      </p>
+      <dl className="ms-facts" data-reveal="group">
+        <div className="ms-fact ms-si" style={iv(0)}>
+          <dt>Experience</dt>
+          <dd className="t-data"><span className="ms-em">8+</span> years</dd>
+        </div>
+        <div className="ms-fact ms-si" style={iv(1)}>
+          <dt>Teams</dt>
+          <dd className="t-data">DigitalHire · Kistpay · Miletap</dd>
+        </div>
+        <div className="ms-fact ms-si" style={iv(2)}>
+          <dt>Based in</dt>
+          <dd className="t-data">Karachi, PK</dd>
+        </div>
+      </dl>
+    </>
   )
 }
 
-function Skills({ active }: { active: boolean }) {
+// ── 2 · skills ──────────────────────────────────────────────────────────────
+function Skills() {
   return (
-    <div>
-      <StationHead active={active} n={3} label="Skills">The <span style={{ color: A }}>craft</span></StationHead>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 18 }}>
-        {skills.map((cat) => (
-          <div key={cat.label} style={glassCard}>
-            <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 10, letterSpacing: '0.12em', color: A, textTransform: 'uppercase', marginBottom: 8 }}>{cat.label}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {cat.skills.map((sk) => (
-                <span key={sk} style={chip}>{sk}</span>
+    <>
+      <StationTitle i={2}>Eight years of craft.</StationTitle>
+      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+        React and Next.js on the web, Flutter on mobile, WebRTC and SignalR when it has to be live.
+      </p>
+      <ul className="ms-skills" data-reveal="group">
+        {skills.map((cat, i) => (
+          <li key={cat.label} className="ms-skill-row ms-si" style={iv(i)}>
+            <h3 className="t-subtitle ms-skill-cat">{sentenceCase(cat.label)}</h3>
+            <p className="t-lead ms-skill-list">
+              {cat.skills.map((s, j) => (
+                <Fragment key={s}>
+                  {j > 0 && <span className="ms-sep" aria-hidden="true"> · </span>}
+                  <span className="ms-skill">{s}</span>
+                </Fragment>
               ))}
-            </div>
-          </div>
+            </p>
+          </li>
         ))}
-      </div>
-    </div>
+      </ul>
+    </>
   )
 }
 
-function Work({ active, onOpen }: { active: boolean; onOpen: (p: Project) => void }) {
+// ── 3 · work ────────────────────────────────────────────────────────────────
+function Work({ onOpen }: { onOpen: (p: Project) => void }) {
   const [page, setPage] = useState(0)
-  const pages = Math.ceil(projects.length / NODE_XY.length)
-  const nodes = projects.slice(page * NODE_XY.length, (page + 1) * NODE_XY.length)
-  const path = NODE_XY.slice(0, nodes.length).map(([x, y]) => `${x},${y}`).join(' ')
+  const prevRef = useRef<HTMLButtonElement>(null)
+  const nextRef = useRef<HTMLButtonElement>(null)
+  const pages = WORK_GROUPS.length
+  const group = WORK_GROUPS[page]
+  const height = group.items.length * ROW
+  const points = group.items
+    .map((_, i) => `${STAR_X[i % STAR_X.length]},${i * ROW + ROW / 2}`)
+    .join(' ')
+
+  const go = (d: number) => {
+    const np = Math.min(pages - 1, Math.max(0, page + d))
+    setPage(np)
+    // The pressed button may now be disabled; keep focus inside the pager.
+    requestAnimationFrame(() => {
+      const el = document.activeElement
+      if (!el || el === document.body || (el as HTMLButtonElement).disabled) {
+        ;(np === pages - 1 ? prevRef : nextRef).current?.focus()
+      }
+    })
+  }
+
   return (
-    <div>
-      <StationHead active={active} n={4} label="Work">Selected <span style={{ color: A }}>work</span></StationHead>
-      <div style={{ position: 'relative', width: '100%', aspectRatio: '3 / 3.6', marginTop: 14 }}>
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-          <polyline points={path} fill="none" stroke={Aa(0.22)} strokeWidth="0.4" strokeDasharray="1.6 1.8" />
+    <>
+      <StationTitle i={3}>Selected work.</StationTitle>
+      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+        Shipped products and engineering demos. Tap a star for the story behind it.
+      </p>
+
+      <div className="ms-chart-head" data-reveal style={iv(2)}>
+        <h3 className="t-subtitle" aria-live="polite">{group.label}</h3>
+        <span className="t-data">{group.items.length} projects</span>
+      </div>
+
+      <div className="ms-chart" style={{ height }} data-reveal="group">
+        <svg className="ms-chart-path" viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" aria-hidden="true">
+          <polyline key={page} points={points} />
         </svg>
-        {nodes.map((p, i) => {
-          const [x, y] = NODE_XY[i]
-          const big = p.featured
-          const d = big ? 22 : 15
+        {group.items.map((p, i) => {
+          const demo = DEMO_IDS.has(p.id)
           return (
             <button
               key={p.id}
+              type="button"
+              className={`ms-node ms-si${p.featured ? ' ms-node--featured' : ''}${demo ? ' ms-node--demo' : ''}`}
+              style={{ top: i * ROW, ['--x' as string]: `${STAR_X[i % STAR_X.length]}%`, ['--i' as string]: i } as CSSProperties}
+              aria-haspopup="dialog"
               onClick={() => onOpen(p)}
-              aria-label={`Open ${p.title}`}
-              style={{
-                position: 'absolute', left: `${x}%`, top: `${y}%`, transform: 'translate(-50%,-50%)',
-                width: d, height: d, borderRadius: '50%', cursor: 'pointer', padding: 0,
-                background: big ? A : Aa(0.4), border: `1px solid ${A}`,
-                boxShadow: big ? `0 0 12px ${Aa(0.8)}` : `0 0 6px ${Aa(0.4)}`,
-                animation: active ? `mob-planet-in 0.5s ease ${0.04 * i}s both` : 'none',
-              }}
             >
-              <span style={{ position: 'absolute', left: '50%', top: 'calc(100% + 3px)', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono), monospace', fontSize: 7.5, color: SUB, pointerEvents: 'none' }}>
-                {p.githubUrl ? p.title : p.company}
+              <span className="ms-node-star" aria-hidden="true" />
+              <span className="ms-node-text">
+                <span className="ms-node-title">{shortTitle(p)}</span>
+                <span className="ms-node-meta">
+                  {CATEGORY[p.category]} · <span className="t-data">{p.year}</span>
+                </span>
               </span>
             </button>
           )
         })}
       </div>
-      <div style={{ textAlign: 'center', fontFamily: 'var(--font-mono), monospace', fontSize: 10, color: SUB, marginTop: 14, letterSpacing: '0.1em' }}>
-        ✦ tap a node to open its case study
-      </div>
-      <nav aria-label="Project pages" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, marginTop: 20 }}>
-        <button style={ctaGhost} disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
-        <span aria-live="polite" style={{ color: SUB, fontSize: 12 }}>{page + 1} / {pages}</span>
-        <button style={ctaGhost} disabled={page === pages - 1} onClick={() => setPage(page + 1)}>Next</button>
+
+      <nav className="ms-pager" aria-label="Project groups">
+        <button ref={prevRef} type="button" className="btn btn--ghost btn--sm" disabled={page === 0} onClick={() => go(-1)}>
+          <FaChevronLeft aria-hidden /> Previous
+        </button>
+        <span className="t-data" aria-hidden="true">{page + 1} / {pages}</span>
+        <button ref={nextRef} type="button" className="btn btn--ghost btn--sm" disabled={page === pages - 1} onClick={() => go(1)}>
+          Next <FaChevronRight aria-hidden />
+        </button>
       </nav>
-    </div>
+    </>
   )
 }
 
-function Exp({ active }: { active: boolean }) {
-  const [ti, setTi] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => setTi((n) => (n + 1) % testimonials.length), 6000)
-    return () => clearInterval(id)
-  }, [])
-  const t = testimonials[ti]
+// ── 4 · open source ─────────────────────────────────────────────────────────
+function OpenSource() {
+  const merged = openSourceStats().merged
   return (
-    <div>
-      <StationHead active={active} n={6} label="Experience">The <span style={{ color: A }}>journey</span></StationHead>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 18 }}>
-        {experience.map((e, i) => (
-          <div key={e.id} style={{ display: 'flex', gap: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ width: 11, height: 11, borderRadius: '50%', marginTop: 4, background: e.current ? A : Aa(0.4), boxShadow: e.current ? `0 0 8px ${Aa(0.9)}` : 'none', border: `1px solid ${A}` }} />
-              {i < experience.length - 1 && <span style={{ flex: 1, width: 1, background: Aa(0.25), margin: '4px 0' }} />}
-            </div>
-            <div style={{ paddingBottom: 16 }}>
-              <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 9.5, color: A, letterSpacing: '0.08em' }}>{e.period}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: TXT, marginTop: 2 }}>{e.role}</div>
-              <div style={{ fontSize: 11.5, color: SUB }}>{e.company}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
-                {e.tech.map((tt) => <span key={tt} style={{ ...chip, fontSize: 8.5, padding: '2px 7px' }}>{tt}</span>)}
-              </div>
-            </div>
-          </div>
-        ))}
+    <>
+      <StationTitle i={4}>Merged upstream.</StationTitle>
+      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+        <span className="ms-em">{merged}</span> pull requests merged into Flutter and the Supabase Flutter SDK.
+      </p>
+      <div data-reveal style={iv(2)}>
+        <FeaturedAchievement />
       </div>
-
-      {/* rotating recommendation */}
-      <div style={{ ...glassCard, marginTop: 4 }} key={ti}>
-        <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 9.5, color: A, letterSpacing: '0.1em' }}>★ RECOMMENDATION</div>
-        <p style={{ fontSize: 12, lineHeight: 1.55, color: TXT, marginTop: 6, animation: 'mob-quote 0.5s ease' }}>&ldquo;{t.short}&rdquo;</p>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: TXT }}>{t.name}</div>
-            <div style={{ fontSize: 8.5, color: SUB }}>{t.role}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {testimonials.map((_, i) => <span key={i} style={{ width: i === ti ? 12 : 5, height: 5, borderRadius: 3, background: i === ti ? A : SUB, transition: 'all .3s' }} />)}
-          </div>
-        </div>
-      </div>
-    </div>
+    </>
   )
 }
 
-function Contact({ active }: { active: boolean }) {
+// ── 5 · experience ──────────────────────────────────────────────────────────
+function Experience() {
+  const [ti, setTi] = useState(0)
+  const n = testimonials.length
+  return (
+    <>
+      <StationTitle i={5}>Where I&apos;ve worked.</StationTitle>
+      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+        DigitalHire, Kistpay and Miletap, plus part-time work for E-Ocean and Entertech: frontend, real-time and
+        mobile.
+      </p>
+
+      <ol className="ms-tl" data-reveal="group">
+        {experience.map((e, i) => (
+          <li key={e.id} className={`ms-tl-item ms-si${e.current ? ' is-current' : ''}`} style={iv(i)}>
+            <span className="ms-tl-dot" aria-hidden="true" />
+            <span className="t-data ms-tl-date">{e.period}</span>
+            <h3 className="t-subtitle ms-tl-role">{e.role}</h3>
+            <p className="ms-tl-co">
+              {e.company}
+              {e.current && <span className="sr-only">, current role</span>}
+            </p>
+          </li>
+        ))}
+      </ol>
+
+      <figure className="ms-quote" data-reveal aria-label="Recommendations from LinkedIn">
+        <div className="ms-quote-stack" aria-live="polite">
+          {testimonials.map((t, i) => (
+            <div key={t.name} className={`ms-quote-item${i === ti ? ' is-active' : ''}`} aria-hidden={i !== ti}>
+              <blockquote>
+                <p className="ms-quote-text">&ldquo;{t.short}&rdquo;</p>
+              </blockquote>
+              <figcaption className="ms-quote-by">
+                <span className="ms-quote-name">{t.name}</span>
+                <span className="ms-quote-role">{t.role}</span>
+              </figcaption>
+            </div>
+          ))}
+        </div>
+        <div className="ms-quote-nav">
+          <button
+            type="button"
+            className="btn btn--ghost ms-icon"
+            aria-label="Previous recommendation"
+            onClick={() => setTi((v) => (v - 1 + n) % n)}
+          >
+            <FaChevronLeft aria-hidden />
+          </button>
+          <span className="t-data" aria-hidden="true">{ti + 1} / {n}</span>
+          <button
+            type="button"
+            className="btn btn--ghost ms-icon"
+            aria-label="Next recommendation"
+            onClick={() => setTi((v) => (v + 1) % n)}
+          >
+            <FaChevronRight aria-hidden />
+          </button>
+        </div>
+      </figure>
+    </>
+  )
+}
+
+// ── 6 · contact ─────────────────────────────────────────────────────────────
+function Contact() {
   const links = [
-    { label: 'Email', val: 'hello@shahfahad.dev', href: 'mailto:hello@shahfahad.dev' },
-    { label: 'GitHub', val: 'github.com/fahaddoc', href: 'https://github.com/fahaddoc' },
-    { label: 'LinkedIn', val: 'in/fahaddoc600', href: 'https://www.linkedin.com/in/fahaddoc600' },
+    { label: 'GitHub', value: 'github.com/fahaddoc', href: 'https://github.com/fahaddoc', Icon: FaGithub },
+    { label: 'LinkedIn', value: 'in/fahaddoc600', href: 'https://www.linkedin.com/in/fahaddoc600', Icon: FaLinkedinIn },
   ]
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-      <div style={{ alignSelf: 'center', marginBottom: 22 }}><Planet size={70} active={active} /></div>
-      <StationHead active={active} n={7} label="Contact">Let&apos;s <span style={{ color: A }}>connect</span></StationHead>
-      <p style={{ fontSize: 14, lineHeight: 1.6, color: SUB, marginTop: 12 }}>Open to opportunities and interesting problems. Reach out anywhere.</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18, width: '100%' }}>
-        {links.map((l) => (
-          <a key={l.label} href={l.href} target={l.href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer"
-            style={{ ...glassCard, display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none' }}>
-            <span style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 10, color: A, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{l.label}</span>
-            <span style={{ fontSize: 13, color: TXT }}>{l.val} →</span>
-          </a>
+    <>
+      <StationTitle i={6}>Let&apos;s build something.</StationTitle>
+      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+        Open to senior frontend and real-time roles, full-time or contract.
+      </p>
+      <a className="ms-email" href={`mailto:${EMAIL}`} data-reveal style={iv(2)}>{EMAIL}</a>
+      <div className="ms-ctas" data-reveal style={iv(3)}>
+        <button
+          type="button"
+          className="btn btn--primary"
+          onClick={() => window.dispatchEvent(new Event('contact-drawer-open'))}
+        >
+          Write to me
+        </button>
+        <a className="btn btn--ghost" href={CAL} target="_blank" rel="noopener noreferrer">
+          Book a 15-min call
+        </a>
+      </div>
+      <ul className="ms-links" data-reveal="group">
+        {links.map(({ label, value, href, Icon }, i) => (
+          <li key={label} className="ms-si" style={iv(i)}>
+            <a className="ms-link" href={href} target="_blank" rel="noopener noreferrer">
+              <Icon aria-hidden />
+              <span className="ms-link-label">{label}</span>
+              <span className="ms-link-value">{value}</span>
+              <span className="ms-link-arrow" aria-hidden="true">↗</span>
+            </a>
+          </li>
         ))}
-      </div>
-      <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 9, color: SUB, marginTop: 26, alignSelf: 'center' }}>
-        © 2026 Shah Fahad · built in space
-      </div>
-    </div>
+      </ul>
+      <footer className="ms-footer">© 2026 Shah Fahad</footer>
+      <div className="ms-home-planet" aria-hidden="true" />
+    </>
   )
 }
 
-function StationHead({ active, n, label, hue = 'teal', children }: { active: boolean; n: number; label: string; hue?: 'teal' | 'violet'; children: React.ReactNode }) {
-  return (
-    <div>
-      <div style={{ marginBottom: 14 }}><Planet size={56} active={active} hue={hue} /></div>
-      <Eyebrow n={n} label={label} />
-      <h2 style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 800, fontSize: 'clamp(30px, 9vw, 44px)', lineHeight: 1, margin: '8px 0 0', color: TXT }}>{children}</h2>
-    </div>
-  )
-}
+// ── project sheet: a real modal dialog ──────────────────────────────────────
+const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-// ── project bottom sheet ──────────────────────────────────────────────────────
 function ProjectSheet({ project, onClose }: { project: Project; onClose: () => void }) {
+  const panelRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const [closing, setClosing] = useState(false)
+  const requestClose = useCallback(() => setClosing(true), [])
+
+  // Exit: let the slide-down finish, then unmount.
+  useEffect(() => {
+    if (!closing) return
+    const t = window.setTimeout(onClose, prefersReducedMotion() ? 120 : 280)
+    return () => window.clearTimeout(t)
+  }, [closing, onClose])
+
+  // Modal: background inert + scroll-locked, focus in, focus back on close.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const bg = Array.from(document.querySelectorAll<HTMLElement>('[data-ms-inert]'))
+    const scroller = document.querySelector<HTMLElement>('.mob-scroll')
+    bg.forEach((el) => { el.inert = true })
+    scroller?.classList.add('is-locked')
+    closeRef.current?.focus({ preventScroll: true })
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        requestClose()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      bg.forEach((el) => { el.inert = false })
+      scroller?.classList.remove('is-locked')
+      if (opener?.isConnected) opener.focus({ preventScroll: true })
+    }
+  }, [requestClose])
+
+  const trapTab = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab' || !panelRef.current) return
+    const items = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE))
+    if (items.length === 0) return
+    const first = items[0]
+    const last = items[items.length - 1]
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
+
+  const titleId = `sheet-title-${project.id}`
   return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgb(0 0 0 / 0.5)', display: 'flex', alignItems: 'flex-end' }}
-    >
+    <div className="ms-sheet" data-state={closing ? 'closing' : 'open'} onClick={requestClose}>
       <div
+        ref={panelRef}
+        className="ms-sheet-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%', maxHeight: '86svh', overflowY: 'auto',
-          borderRadius: '22px 22px 0 0', background: 'rgb(var(--bg-surface) / 0.97)',
-          border: `1px solid ${Aa(0.22)}`, borderBottom: 'none', padding: '14px 20px 30px',
-          animation: 'mob-sheet-up 0.34s cubic-bezier(0.22,1,0.36,1)',
-          boxShadow: `0 -20px 60px rgb(0 0 0 / 0.5)`,
-        }}
+        onKeyDown={trapTab}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: SUB, margin: '0 auto 16px', cursor: 'grab' }} onClick={onClose} />
-
-        {/* mesh cover */}
-        <div style={{ height: 96, borderRadius: 14, overflow: 'hidden', position: 'relative', marginBottom: 14 }}>
-          <div style={{
-            position: 'absolute', inset: '-45%', filter: 'blur(16px)',
-            background: `conic-gradient(from 0deg, ${project.color}, ${A}, ${VIO}, ${project.color})`,
-            animation: 'mob-orbit 8s linear infinite',
-          }} />
-          <Image src={project.image} alt={project.title} fill style={{ objectFit: 'cover', opacity: 0.9 }} sizes="100vw" />
+        <div className="ms-sheet-grip" aria-hidden="true" />
+        <div className="ms-sheet-top">
+          <div>
+            <p className="ms-sheet-meta">
+              {project.company} · <span className="t-data">{project.year}</span>
+            </p>
+            <h2 id={titleId} className="t-subtitle ms-sheet-title">{project.title}</h2>
+          </div>
+          <button ref={closeRef} type="button" className="btn btn--ghost ms-icon" aria-label="Close" onClick={requestClose}>
+            <FaXmark aria-hidden />
+          </button>
         </div>
 
-        <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 10, color: A, letterSpacing: '0.12em' }}>{project.company} · {project.year}</div>
-        <h3 style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 800, fontSize: 22, color: TXT, margin: '4px 0 6px' }}>{project.title}</h3>
-        <p style={{ fontSize: 13, color: SUB, lineHeight: 1.5 }}>{project.tagline}</p>
-        <p style={{ fontSize: 13, color: TXT, lineHeight: 1.6, marginTop: 12 }}>{project.description}</p>
+        <div className="ms-sheet-cover">
+          <Image
+            src={project.image}
+            alt={`${shortTitle(project)} screenshot`}
+            fill
+            sizes="(max-width: 640px) 100vw, 640px"
+            style={{ objectFit: 'cover' }}
+          />
+        </div>
 
-        <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 9.5, color: A, letterSpacing: '0.12em', marginTop: 16, textTransform: 'uppercase' }}>Highlights</div>
-        <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {project.features.slice(0, 4).map((f, i) => (
-            <li key={i} style={{ display: 'flex', gap: 8, fontSize: 12, color: SUB, lineHeight: 1.45 }}>
-              <span style={{ color: A, flexShrink: 0 }}>▹</span>{f}
-            </li>
-          ))}
+        <p className="ms-sheet-tagline">{project.tagline}</p>
+        <p className="ms-sheet-desc">{project.description}</p>
+
+        <h3 className="ms-sheet-h">Highlights</h3>
+        <ul className="ms-sheet-list">
+          {project.features.slice(0, 4).map((f) => <li key={f}>{f}</li>)}
         </ul>
+        <p className="ms-sheet-tech">{project.tech.join(' · ')}</p>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 16 }}>
-          {project.tech.map((t) => <span key={t} style={chip}>{t}</span>)}
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        <div className="ms-sheet-actions">
+          <Link className="btn btn--primary" href={`/projects/${projectSlug(project)}`}>
+            Read case study <span className="btn-arrow" aria-hidden="true">→</span>
+          </Link>
           {project.liveUrl && (
-            <a href={project.liveUrl} target="_blank" rel="noopener noreferrer" style={{ ...ctaPrimary, flex: 1, textAlign: 'center' }}>Live ↗</a>
+            <a className="btn btn--ghost" href={project.liveUrl} target="_blank" rel="noopener noreferrer">
+              Live site <span className="btn-arrow" aria-hidden="true">↗</span>
+            </a>
           )}
           {project.githubUrl && (
-            <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" style={{ ...ctaPrimary, flex: 1, textAlign: 'center' }}>GitHub ↗</a>
+            <a className="btn btn--ghost" href={project.githubUrl} target="_blank" rel="noopener noreferrer">
+              <FaGithub aria-hidden /> GitHub
+            </a>
           )}
-          <button onClick={onClose} style={{ ...ctaGhost, flex: project.liveUrl ? 0 : 1 }}>Close</button>
         </div>
       </div>
     </div>
   )
-}
-
-// ── shared inline styles ──────────────────────────────────────────────────────
-const glassCard: React.CSSProperties = {
-  borderRadius: 14, padding: 14,
-  background: 'rgb(var(--bg-surface) / 0.45)', backdropFilter: 'blur(8px)',
-  border: `1px solid ${Aa(0.16)}`,
-}
-const chip: React.CSSProperties = {
-  fontFamily: 'var(--font-mono), monospace', fontSize: 10, padding: '4px 9px', borderRadius: 999,
-  background: Aa(0.07), border: `1px solid ${Aa(0.22)}`, color: 'rgb(var(--text-primary) / 0.85)',
-}
-const ctaPrimary: React.CSSProperties = {
-  padding: '11px 20px', borderRadius: 12, background: A, color: 'rgb(var(--bg-base))',
-  fontFamily: 'var(--font-mono), monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
-  textDecoration: 'none', border: 'none', cursor: 'pointer',
-}
-const ctaGhost: React.CSSProperties = {
-  padding: '11px 20px', borderRadius: 12, background: 'transparent', color: A,
-  fontFamily: 'var(--font-mono), monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
-  textDecoration: 'none', border: `1px solid ${Aa(0.4)}`, cursor: 'pointer',
 }

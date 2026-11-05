@@ -4,102 +4,127 @@
 @tailwind utilities;
 
 /* ─── Theme tokens ───────────────────────────────────────────────────────────
-   Every theme-relevant value is a CSS variable so flipping
-   <html data-theme="light"> swaps the whole palette in one shot. RGB triplets
-   are space-separated so Tailwind's `rgb(var(--x) / <alpha-value>)` syntax
-   works (lets us write classes like bg-bg-base/40). */
+   "Cinematic deep space" — see DESIGN.md. Cold blue-black space, one warm
+   ember accent (the teal & orange film grade). Every value is an RGB triplet
+   so inline styles and Tailwind can write rgb(var(--x) / a).
+
+   Semantic tokens are the source of truth. The legacy names further down
+   (--bg-base, --mob-accent, --os-accent, ...) are aliases so subpages that
+   still read them pick up the new palette without edits.
+
+   Contrast (WCAG, computed from the OKLCH sources in DESIGN.md):
+     dark : ink 18.1:1, ink-2 10.7:1, ink-3 7.0:1, accent 9.7:1 on space-0
+     light: ink 16.4:1, ink-2 7.9:1, ink-3 5.2:1, accent-text 5.0:1 on space-0
+            accent fill + accent-ink text 4.9:1 */
 
 :root,
 :root[data-theme='dark'] {
-  --bg-base:       10  10  10;
-  --bg-surface:    13  13  20;
-  --bg-elevated:   17  17  32;
+  /* space — oklch(0.135..0.235 0.02 262) */
+  --space-0:   5   8  15;   /* #05080f page / canvas */
+  --space-1:  10  14  23;   /* #0a0e17 */
+  --surface:  15  20  29;   /* #0f141d raised */
+  --surface-2:24  30  41;   /* #181e29 raised, hover */
+  --line:     45  51  61;   /* #2d333d hairlines */
 
-  /* Editorial palette — muted, desaturated. Same hues, ~40% saturation. */
-  --accent-violet: 180 165 200;
-  --accent-cyan:   150 175 185;
-  --accent-green:  150 175 150;
-  --accent-emerald:120 160 145;
+  /* ink */
+  --ink:      241 243 248;  /* #f1f3f8 */
+  --ink-2:    184 190 200;  /* #b8bec8 */
+  --ink-3:    146 153 165;  /* #9299a5 */
 
-  --text-primary:  241 245 249;
-  --text-secondary:148 163 184;
-  --text-muted:    71  85  105;
+  /* the one accent — ember, oklch(0.78 0.15 60) */
+  --accent:      252 158 71;  /* #fc9e47 fills, glows, large text */
+  --accent-text: 252 158 71;  /* small text in accent */
+  --accent-ink:    5   8  15; /* text on an accent fill */
 
-  /* Overlays — dot grid + scanlines */
-  --grid-dot-rgb:    180 165 200;
-  --grid-dot-alpha:  0.05;
-  --scanline-rgb:    0 0 0;
-  --scanline-alpha:  0.03;
+  /* atmosphere — cold, low chroma; never used for text */
+  --nebula-a:  38  74 128;   /* deep blue */
+  --nebula-b:  24  92 104;   /* sea teal */
 
-  /* Selection */
-  --selection-bg:   180 165 200;
-  --selection-fg:   241 245 249;
+  --grain-opacity: 0.075;
+  --grain-blend:   overlay;
 
-  /* Subtle dark drops — no neon glow */
-  --heading-shadow: 0 2px 12px rgb(0 0 0 / 0.5);
-  --eyebrow-shadow: none;
-  --body-shadow:    none;
-
-  /* Mobile "space" accent — the #5EEAD4 teal identity from the desktop tunnel */
-  --mob-accent: 94 234 212;
-
-  /* Open-source / achievement surfaces use the sage-graphite identity (#a3b48d)
-     from the gallery-in-space look, so the Flutter pages read as one theme. */
-  --os-accent: 163 180 141;
-
-  /* Flutter brand blue + chip foreground — theme-aware so they stay AA in light mode */
-  --flutter-accent: 84 197 248;   /* #54C5F8 */
-  --chip-fg:        205 238 231;  /* #cdeee7 */
-
-  /* Git status colors (merged / added / removed) — bright on the dark bg */
+  /* semantic brand colours (kept, theme-aware) */
+  --flutter-accent: 84 197 248;
   --status-merged:  63 185 80;
   --status-removed: 248 81 73;
+
+  --heading-shadow: 0 2px 24px rgb(5 8 15 / 0.55);
+  --eyebrow-shadow: none;
+  --body-shadow:    0 1px 12px rgb(5 8 15 / 0.45);
 
   color-scheme: dark;
 }
 
 :root[data-theme='light'] {
-  --bg-base:       248 250 252;
-  --bg-surface:    255 255 255;
-  --bg-elevated:   241 245 249;
+  /* daylight over the same world — cool off-white, never cream */
+  --space-0:  244 247 251;  /* #f4f7fb */
+  --space-1:  236 241 246;  /* #ecf1f6 */
+  --surface:  252 253 255;  /* #fcfdff */
+  --surface-2:228 234 241;  /* #e4eaf1 */
+  --line:     203 210 217;  /* #cbd2d9 */
 
-  --accent-violet: 124 58  237;
-  --accent-cyan:   8   145 178;
-  --accent-green:  22  163 74;
-  --accent-emerald:5   150 105;
+  --ink:       18  25  39;  /* #121927 */
+  --ink-2:     69  77  93;  /* #454d5d */
+  --ink-3:     97 105 119;  /* #616977 */
 
-  --text-primary:  15  23  42;
-  --text-secondary:71  85  105;
-  --text-muted:    100 116 139;
+  --accent:      221  99   0; /* #dd6300 fills, large text */
+  --accent-text: 178  74  15; /* #b24a0f small text, 5.0:1 */
+  --accent-ink:   18  25  39; /* ink on the ember fill, 4.9:1 */
 
-  --grid-dot-rgb:    100 116 139;
-  --grid-dot-alpha:  0.12;
-  --scanline-rgb:    100 116 139;
-  --scanline-alpha:  0.02;
+  --nebula-a: 150 178 214;
+  --nebula-b: 160 205 210;
 
-  --selection-bg:   124 58 237;
-  --selection-fg:   255 255 255;
+  --grain-opacity: 0.05;
+  --grain-blend:   multiply;
 
-  /* Light-mode shadows — subtle dark drops give text depth on white bg */
-  --heading-shadow: 0 3px 18px rgb(15 23 42 / 0.18), 0 1px 3px rgb(15 23 42 / 0.10);
-  --eyebrow-shadow: 0 1px 6px rgb(15 23 42 / 0.18);
-  --body-shadow:    0 1px 4px rgb(15 23 42 / 0.10);
-
-  /* Darker teal so the accent stays legible on the white mobile background */
-  --mob-accent: 13 148 136;
-
-  /* Sage reads too pale on white — use a darker teal-green that clears AA (~5:1). */
-  --os-accent: 15 118 110;
-
-  /* Darker Flutter blue + near-black chip text so both clear AA on white. */
-  --flutter-accent: 14 116 144;   /* #0e7490 — ~5.5:1 on white */
-  --chip-fg:        15  23  42;   /* text-primary dark */
-
-  /* Darker git status colors so merged/added/removed text hits WCAG AA on white */
+  --flutter-accent: 14 116 144;
   --status-merged:  22 101 52;
   --status-removed: 185 28 28;
 
+  --heading-shadow: 0 2px 18px rgb(244 247 251 / 0.7);
+  --eyebrow-shadow: none;
+  --body-shadow:    0 1px 10px rgb(244 247 251 / 0.6);
+
   color-scheme: light;
+}
+
+/* Legacy aliases — older surfaces read these names. Do not add new uses. */
+:root {
+  --bg-base:        var(--space-0);
+  --bg-surface:     var(--surface);
+  --bg-elevated:    var(--surface-2);
+  --text-primary:   var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-muted:     var(--ink-3);
+  --mob-accent:     var(--accent-text);
+  --os-accent:      var(--accent-text);
+  --accent-cyan:    var(--accent-text);
+  --accent-violet:  var(--nebula-a);
+  --chip-fg:        var(--ink-2);
+  --selection-bg:   var(--accent);
+  --selection-fg:   var(--accent-ink);
+
+  /* fonts — Archivo is loaded once as --font-display (app/layout.tsx) */
+  --font-body: var(--font-display);
+
+  /* motion */
+  --ease-out:       cubic-bezier(0.22, 1, 0.36, 1);   /* quint */
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:    cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-1: 160ms;
+  --dur-2: 280ms;
+  --dur-3: 520ms;
+  --dur-4: 900ms;
+
+  /* z-index scale */
+  --z-canvas:  0;
+  --z-content: 10;
+  --z-hud:     30;
+  --z-chrome:  40;
+  --z-sheet:   60;
+  --z-drawer:  1000;
+  --z-grain:   1001;
+  --z-loader:  9999;
 }
 
 * {
@@ -114,25 +139,21 @@ html {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+html::-webkit-scrollbar { display: none; }
 
-html::-webkit-scrollbar {
-  display: none;
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
 }
 
 body {
-  background-color: rgb(var(--bg-base));
-  color: rgb(var(--text-primary));
+  background-color: rgb(var(--space-0));
+  color: rgb(var(--ink));
   font-family: var(--font-body), system-ui, sans-serif;
+  font-kerning: normal;
   overflow-x: hidden;
-  transition: background-color 200ms, color 200ms;
+  transition: background-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out);
 }
 
-/* Background pattern lives in components/visual/CircuitBackground.tsx
-   (mounted at z-index: -1 directly in layout.tsx). The dot-grid + scanline
-   pseudo-elements were dropped — they were either invisible or striping the
-   tunnel canvas. */
-
-#__next,
 main,
 header,
 footer {
@@ -141,136 +162,187 @@ footer {
 }
 
 ::selection {
-  background: rgb(var(--selection-bg) / 0.3);
+  background: rgb(var(--selection-bg) / 0.85);
   color: rgb(var(--selection-fg));
 }
 
-/* Base link styling — muted lavender, subtle underline, no glow */
 a {
   color: inherit;
   text-decoration: none;
-  transition: color 180ms ease, border-color 180ms ease;
-}
-a:hover {
-  color: rgb(var(--accent-violet));
-}
-a:focus-visible {
-  outline: 2px solid rgb(var(--accent-violet) / 0.55);
-  outline-offset: 2px;
-  border-radius: 4px;
+  transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 
-@layer utilities {
-  /* Glow utilities — softened (≈50% original alpha) using muted token palette */
-  .glow-violet {
-    box-shadow: 0 0 32px rgb(var(--accent-violet) / 0.18), 0 0 70px rgb(var(--accent-violet) / 0.05);
-  }
-  .glow-violet-sm {
-    box-shadow: 0 0 18px rgb(var(--accent-violet) / 0.08);
-  }
-  .glow-cyan {
-    box-shadow: 0 0 32px rgb(var(--accent-cyan) / 0.15), 0 0 70px rgb(var(--accent-cyan) / 0.04);
-  }
-  .glow-cyan-sm {
-    box-shadow: 0 0 14px rgb(var(--accent-cyan) / 0.06);
-  }
-  .glow-emerald-sm {
-    box-shadow: 0 0 14px rgb(var(--accent-emerald) / 0.15);
-  }
-  .text-glow-violet {
-    text-shadow: 0 0 16px rgb(var(--accent-violet) / 0.35), 0 0 32px rgb(var(--accent-violet) / 0.12);
-  }
-  .text-glow-cyan {
-    text-shadow: 0 0 16px rgb(var(--accent-cyan) / 0.35), 0 0 32px rgb(var(--accent-cyan) / 0.12);
-  }
-  .border-subtle {
-    border-color: rgb(var(--accent-violet) / 0.12);
-  }
-  .neon-card {
-    border: 1px solid rgb(var(--accent-violet) / 0.12);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  }
-  .neon-card:hover {
-    border-color: rgb(var(--accent-violet) / 0.30);
-    box-shadow: 0 0 22px rgb(var(--accent-violet) / 0.06), inset 0 0 22px rgb(var(--accent-violet) / 0.02);
-  }
+:focus-visible {
+  outline: 2px solid rgb(var(--accent-text));
+  outline-offset: 3px;
+  border-radius: 6px;
 }
 
-/* Hero PhotoCard — chamfered angular frame (clip cut corners) */
-.photo-clip {
-  clip-path: polygon(
-    18px 0,
-    calc(100% - 18px) 0,
-    100% 18px,
-    100% calc(100% - 18px),
-    calc(100% - 18px) 100%,
-    18px 100%,
-    0 calc(100% - 18px),
-    0 18px
-  );
+/* ─── Type ───────────────────────────────────────────────────────────────────
+   One family (Archivo, variable wdth 62–125 + wght) does the whole voice:
+   expanded + heavy for titles, normal width for reading. JetBrains Mono only
+   for real data (PR numbers, dates, diffs, coordinates). */
+
+.t-display {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-variation-settings: 'wdth' 125;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+  text-wrap: balance;
+}
+.t-title {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-variation-settings: 'wdth' 112;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+.t-subtitle {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-variation-settings: 'wdth' 106;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.t-lead {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+  color: rgb(var(--ink-2));
+  text-wrap: pretty;
+}
+.t-label {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.005em;
+  line-height: 1.3;
+}
+.t-data {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.wide { font-variation-settings: 'wdth' 125; }
+
+/* ─── Buttons ────────────────────────────────────────────────────────────────
+   One button family for every surface. States are real CSS so keyboard and
+   pointer get the same feedback. */
+
+.btn {
+  --btn-h: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: var(--btn-h);
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+.btn:active { transform: translateY(1px) scale(0.985); }
+.btn:focus-visible { outline-offset: 4px; border-radius: 999px; }
+.btn[disabled],
+.btn[aria-disabled='true'] { opacity: 0.45; pointer-events: none; }
+.btn .btn-arrow { transition: transform var(--dur-2) var(--ease-out); }
+.btn:hover .btn-arrow { transform: translateX(3px); }
+
+.btn--primary {
+  background: rgb(var(--accent));
+  color: rgb(var(--accent-ink));
+  box-shadow: 0 0 0 0 rgb(var(--accent) / 0), 0 10px 30px -12px rgb(var(--accent) / 0.55);
+}
+.btn--primary:hover {
+  background: rgb(var(--accent) / 0.92);
+  box-shadow: 0 0 0 6px rgb(var(--accent) / 0.12), 0 14px 36px -12px rgb(var(--accent) / 0.65);
 }
 
-/* Persistent chromatic aberration on the photo (RGB-split) */
-.rgb-split {
-  filter:
-    drop-shadow(1.2px 0 0 rgba(255, 0, 80, 0.55))
-    drop-shadow(-1.2px 0 0 rgba(0, 230, 255, 0.55));
+.btn--ghost {
+  background: rgb(var(--ink) / 0.02);
+  color: rgb(var(--ink));
+  border-color: rgb(var(--ink) / 0.22);
+}
+.btn--ghost:hover {
+  background: rgb(var(--ink) / 0.06);
+  border-color: rgb(var(--ink) / 0.42);
 }
 
-/* Periodic glitch — fires every ~9s for ~250ms */
-@keyframes photo-glitch {
-  0%, 92%, 100% {
-    filter: none;
-    transform: translate3d(0, 0, 0);
-    opacity: 0;
-  }
-  93% {
-    filter: hue-rotate(20deg);
-    transform: translate3d(3px, -1px, 0);
-    opacity: 0.55;
-    clip-path: inset(8% 0 60% 0);
-  }
-  94% {
-    transform: translate3d(-4px, 2px, 0);
-    opacity: 0.65;
-    clip-path: inset(45% 0 20% 0);
-  }
-  95% {
-    transform: translate3d(2px, 0, 0);
-    opacity: 0.5;
-    clip-path: inset(70% 0 5% 0);
-  }
-  96% {
-    transform: translate3d(0, 0, 0);
-    opacity: 0;
-  }
-}
+.btn--sm { --btn-h: 38px; padding: 0 16px; font-size: 13px; }
 
-.glitch-layer {
-  animation: photo-glitch 9s linear infinite;
-}
+/* Square icon-only button (give it an aria-label). */
+.btn--icon { --btn-h: 44px; width: var(--btn-h); padding: 0; flex: none; }
+.btn--icon svg { width: 15px; height: 15px; }
 
-@keyframes scan-sweep {
-  0%   { transform: translateY(-100%); opacity: 0; }
-  10%  { opacity: 0.9; }
-  90%  { opacity: 0.9; }
-  100% { transform: translateY(1100%); opacity: 0; }
+/* Quiet inline link: underline grows from the left on hover. */
+.link-quiet {
+  color: rgb(var(--ink));
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size var(--dur-2) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
+.link-quiet:hover { background-size: 100% 1px; color: rgb(var(--accent-text)); }
 
-.scan-sweep {
-  animation: scan-sweep 4.5s linear infinite;
-}
+/* ─── Film grain ─────────────────────────────────────────────────────────────
+   One fixed layer over everything except the loader. A pre-rendered 160px
+   noise tile; the layer is oversized and stepped with transform (composited,
+   no repaint). Static under reduced motion and on touch. */
 
-/* Station heading (3D Html label) — gentle floating drift + breath. Applied to
-   the per-letter coloured heading above each station planet in TunnelScene. */
-@keyframes station-heading-float {
-  0%   { transform: translateY(0)     scale(1);     }
-  50%  { transform: translateY(-12px) scale(1.018); }
-  100% { transform: translateY(0)     scale(1);     }
-}
-.station-heading {
-  animation: station-heading-float 4.2s ease-in-out infinite;
+.grain {
+  position: fixed;
+  inset: -50%;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  background-image: url('/textures/grain.png');
+  background-size: 160px 160px;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: var(--grain-blend);
+  animation: grain-shift 0.9s steps(6) infinite;
   will-change: transform;
+}
+@keyframes grain-shift {
+  0%   { transform: translate3d(0, 0, 0); }
+  17%  { transform: translate3d(-3%, 2%, 0); }
+  33%  { transform: translate3d(2%, -4%, 0); }
+  50%  { transform: translate3d(-4%, -2%, 0); }
+  67%  { transform: translate3d(3%, 3%, 0); }
+  83%  { transform: translate3d(-1%, 4%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce), (hover: none) {
+  .grain { animation: none; will-change: auto; }
+}
+@media (hover: none) {
+  .grain { mix-blend-mode: normal; opacity: calc(var(--grain-opacity) * 0.5); }
+}
+
+/* Cinematic frame — edge vignette for full-bleed space surfaces. */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-content);
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgb(var(--space-0) / 0.72) 100%);
 }
 
 /* Project-page collage cards — gentle float. translateY only, so it composes

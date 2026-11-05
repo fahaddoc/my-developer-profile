@@ -1,162 +1,202 @@
-// components/featured/FeaturedAchievement.tsx
-// The visible "Featured Achievement" block on the home surface (mobile / classic
-// space experience). Self-contained and token-styled so it drops into a
-// MobileSpace <Station> without coupling to that file's internals. Reads the
-// featured contribution from the single source of truth in data/open-source.ts.
+'use client'
 
+// components/featured/FeaturedAchievement.tsx
+// The rotating pull-request card in the Open source station of the classic /
+// mobile experience (MobileSpace renders the station title and the merged
+// count above it). Reads every contribution from data/open-source.ts, newest
+// first, and steps through them with previous / next. No autoplay.
+//
+// Colour rules (DESIGN.md §2): ember only through the shared .btn--primary and
+// link hover; --flutter-accent is the Flutter logo only; --status-merged is the
+// "Merged" pill only. Everything else is ink on a solid surface.
+
+import { useState } from 'react'
 import Link from 'next/link'
-import { contributions } from '@/data/open-source'
+import { FaChevronLeft, FaChevronRight } from 'react-icons/fa6'
+import { contributions, type Contribution } from '@/data/open-source'
 import { FlutterLogo, GitHubLogo, MergedGlyph } from '@/components/featured/BrandLogos'
 
-const A = 'rgb(var(--os-accent))'
-const Aa = (a: number) => `rgb(var(--os-accent) / ${a})`
-const TXT = 'rgb(var(--text-primary))'
-const SUB = 'rgb(var(--text-secondary))'
-const FLUTTER = '#54C5F8'                       // decorative orb only
-const FLUTTER_T = 'rgb(var(--flutter-accent))'  // logo tint — AA in light
-const MERGED = 'rgb(var(--status-merged))'
-const REMOVED = 'rgb(var(--status-removed))'
+const STATUS_LABEL: Record<Contribution['status'], string> = {
+  merged: 'Merged',
+  'in-review': 'In review',
+  open: 'Open',
+}
 
-/**
- * @param active  drives the one-shot entrance animation (matches sibling stations)
- * @param n       display number in the station sequence (e.g. 5 → "05 · OPEN SOURCE")
- */
-export function FeaturedAchievement({ active = true, n = 5 }: { active?: boolean; n?: number }) {
-  const c = contributions[0]
+export function FeaturedAchievement() {
+  const [index, setIndex] = useState(0)
+  const n = contributions.length
+  if (n === 0) return null
+  const step = (d: number) => setIndex((v) => (v + d + n) % n)
 
   return (
-    <div>
-      {/* orb + eyebrow + heading — mirrors the mobile StationHead pattern */}
-      <div
-        aria-hidden
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: '50%',
-          marginBottom: 14,
-          background: `radial-gradient(circle at 34% 30%, ${FLUTTER}, ${Aa(0.15)} 68%, transparent)`,
-          boxShadow: `0 0 30px ${Aa(0.45)}`,
-          border: `1px solid ${Aa(0.4)}`,
-          animation: active ? 'mob-planet-in 0.7s cubic-bezier(0.22,1,0.36,1) both' : 'none',
-        }}
-      />
-      <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 11, letterSpacing: '0.22em', color: A, textTransform: 'uppercase' }}>
-        {String(n).padStart(2, '0')} · Open Source
+    <div className="fa">
+      {/* Every card sits in the same grid cell, so the block keeps the height
+          of the tallest one and the controls never jump. */}
+      <div className="fa-stack" aria-live="polite">
+        {contributions.map((c, i) => (
+          <article
+            key={c.id}
+            className={`fa-card${i === index ? ' is-active' : ''}`}
+            aria-hidden={i !== index}
+            aria-labelledby={`fa-title-${c.id}`}
+          >
+            <header className="fa-head">
+              {c.org === 'Flutter' ? (
+                <FlutterLogo size={20} title="Flutter" className="fa-logo" />
+              ) : (
+                <span className="fa-org">{c.org}</span>
+              )}
+              <span className="t-data fa-repo">{c.repo}</span>
+              <span className={`fa-pill${c.status === 'merged' ? ' fa-pill--merged' : ''}`}>
+                {c.status === 'merged' && <MergedGlyph size={12} />}
+                {STATUS_LABEL[c.status]}
+              </span>
+            </header>
+
+            <h3 id={`fa-title-${c.id}`} className="t-subtitle fa-title">{c.prTitle}</h3>
+            <p className="t-data fa-meta">
+              <span>#{c.prNumber}</span>
+              <span className="fa-dot" aria-hidden="true">·</span>
+              <time dateTime={c.mergedOn ?? c.openedOn}>{c.displayDate}</time>
+            </p>
+            <p className="fa-summary">{c.summary}</p>
+            <p className="t-data fa-diff">
+              {c.filesChanged} files<span className="fa-dot" aria-hidden="true">·</span>+{c.additions}
+              <span className="fa-dot" aria-hidden="true">·</span>&minus;{c.deletions}
+            </p>
+
+            <div className="fa-actions">
+              <Link
+                href={`/achievements/${c.id}`}
+                className="btn btn--primary btn--sm"
+                tabIndex={i === index ? undefined : -1}
+              >
+                Read case study
+              </Link>
+              <a
+                href={c.prUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn--ghost btn--sm"
+                aria-label={`View pull request #${c.prNumber} on GitHub`}
+                tabIndex={i === index ? undefined : -1}
+              >
+                <GitHubLogo size={14} /> View PR
+              </a>
+            </div>
+          </article>
+        ))}
       </div>
-      <h2 style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 800, fontSize: 'clamp(30px, 9vw, 44px)', lineHeight: 1, margin: '8px 0 0', color: TXT }}>
-        Merged into <span style={{ color: A }}>{c.org}</span>
-      </h2>
 
-      {/* the achievement card */}
-      <article
-        style={{
-          marginTop: 18,
-          borderRadius: 16,
-          padding: 16,
-          background: 'rgb(var(--bg-surface) / 0.5)',
-          backdropFilter: 'blur(10px)',
-          border: `1px solid ${Aa(0.18)}`,
-          boxShadow: `0 18px 50px rgb(0 0 0 / 0.28)`,
-        }}
-      >
-        {/* logos + merged badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {c.org === 'Flutter' ? (
-            <FlutterLogo size={26} title="Flutter" style={{ color: FLUTTER_T }} />
-          ) : (
-            <span aria-hidden style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 12, color: A }}>{c.org}</span>
-          )}
-          <GitHubLogo size={22} title="GitHub" style={{ color: TXT }} />
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              marginLeft: 'auto',
-              padding: '4px 10px',
-              borderRadius: 999,
-              fontFamily: 'var(--font-mono), monospace',
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: MERGED,
-              background: 'rgb(var(--status-merged) / 0.12)',
-              border: '1px solid rgb(var(--status-merged) / 0.4)',
-            }}
-          >
-            <MergedGlyph size={13} /> Merged
-          </span>
-        </div>
-
-        {/* PR title + explanation */}
-        <div style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 10.5, color: A, letterSpacing: '0.02em', marginTop: 14 }}>
-          {c.repo} · #{c.prNumber} · {c.displayDate}
-        </div>
-        <p style={{ fontSize: 13.5, fontWeight: 700, color: TXT, lineHeight: 1.4, margin: '6px 0 0' }}>
-          {c.prTitle}
-        </p>
-        <p style={{ fontSize: 12.5, color: SUB, lineHeight: 1.55, marginTop: 8 }}>
-          {c.summary}
-        </p>
-
-        {/* diff stat */}
-        <div style={{ display: 'flex', gap: 12, marginTop: 12, fontFamily: 'var(--font-mono), monospace', fontSize: 11 }}>
-          <span style={{ color: SUB }}>{c.filesChanged} files</span>
-          <span style={{ color: MERGED }}>+{c.additions}</span>
-          <span style={{ color: REMOVED }}>&minus;{c.deletions}</span>
-        </div>
-
-        {/* CTAs */}
-        <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-          <a
-            href={c.prUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '10px 16px',
-              borderRadius: 12,
-              background: A,
-              color: '#05070d',
-              fontFamily: 'var(--font-mono), monospace',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              textDecoration: 'none',
-            }}
-          >
-            <GitHubLogo size={14} /> View Pull Request ↗
-          </a>
-          <Link
-            href={`/achievements/${c.id}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '10px 16px',
-              borderRadius: 12,
-              background: 'transparent',
-              color: A,
-              fontFamily: 'var(--font-mono), monospace',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              textDecoration: 'none',
-              border: `1px solid ${Aa(0.4)}`,
-            }}
-          >
-            Read the case study →
-          </Link>
-        </div>
-      </article>
-
-      <div style={{ marginTop: 12 }}>
-        <Link href="/open-source" style={{ fontFamily: 'var(--font-mono), monospace', fontSize: 11, color: SUB, letterSpacing: '0.06em', textDecoration: 'none' }}>
-          ✦ all open-source work →
+      <div className="fa-nav">
+        {n > 1 && (
+          <>
+            <button type="button" className="btn btn--ghost fa-icon" aria-label="Previous pull request" onClick={() => step(-1)}>
+              <FaChevronLeft aria-hidden />
+            </button>
+            <span className="t-data fa-count" aria-hidden="true">
+              {index + 1} / {n}
+            </span>
+            <button type="button" className="btn btn--ghost fa-icon" aria-label="Next pull request" onClick={() => step(1)}>
+              <FaChevronRight aria-hidden />
+            </button>
+          </>
+        )}
+        <Link href="/open-source" className="link-quiet fa-all">
+          All open-source work
         </Link>
       </div>
+
+      <style jsx>{`
+        .fa { margin-top: 28px; }
+        /* minmax(0, 1fr): the line-clamped summary (legacy -webkit-box) would
+           otherwise report its max-content width and push the card off-screen. */
+        .fa-stack { display: grid; grid-template-columns: minmax(0, 1fr); }
+        .fa-card {
+          grid-area: 1 / 1;
+          min-width: 0;
+          padding: 18px 18px 20px;
+          border-radius: 18px;
+          border: 1px solid rgb(var(--line));
+          background: rgb(var(--surface) / 0.88);
+          box-shadow: 0 28px 60px -34px rgb(var(--space-0) / 0.9);
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity var(--dur-2) var(--ease-out), visibility 0s linear var(--dur-2);
+        }
+        .fa-card.is-active {
+          opacity: 1;
+          visibility: visible;
+          transition: opacity var(--dur-2) var(--ease-out);
+        }
+        :global(:root[data-theme='light']) .fa-card {
+          box-shadow: 0 24px 48px -30px rgb(var(--ink) / 0.28);
+        }
+
+        .fa-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .fa-head :global(.fa-logo) { flex: none; color: rgb(var(--flutter-accent)); }
+        .fa-org { font-size: 14px; font-weight: 600; color: rgb(var(--ink)); }
+        .fa-repo {
+          min-width: 0;
+          color: rgb(var(--ink-2));
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .fa-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          flex: none;
+          margin-left: auto;
+          padding: 4px 10px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 1.2;
+          color: rgb(var(--ink-2));
+          border: 1px solid rgb(var(--line));
+        }
+        .fa-pill--merged {
+          color: rgb(var(--status-merged));
+          background: rgb(var(--status-merged) / 0.1);
+          border-color: rgb(var(--status-merged) / 0.38);
+        }
+
+        .fa-title { margin-top: 16px; font-size: 19px; color: rgb(var(--ink)); }
+        .fa-meta { margin-top: 8px; color: rgb(var(--ink-3)); }
+        .fa-meta time { white-space: nowrap; }
+        .fa-dot { margin: 0 0.5em; color: rgb(var(--ink-3)); }
+        .fa-summary {
+          margin-top: 12px;
+          font-size: 15px;
+          line-height: 1.6;
+          color: rgb(var(--ink-2));
+          text-wrap: pretty;
+          display: -webkit-box;
+          -webkit-line-clamp: 5;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .fa-diff { margin-top: 12px; color: rgb(var(--ink-3)); }
+        .fa-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+
+        .fa-nav { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+        .fa-nav :global(.fa-icon) { --btn-h: 44px; width: 44px; padding: 0; flex: none; }
+        .fa-nav :global(.fa-icon svg) { width: 15px; height: 15px; }
+        .fa-count { min-width: 3.5em; text-align: center; color: rgb(var(--ink-2)); }
+        .fa-nav :global(.fa-all) {
+          margin-left: auto;
+          padding: 12px 0;
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .fa-card,
+          .fa-card.is-active { transition: none; }
+        }
+      `}</style>
     </div>
   )
 }
