@@ -77,15 +77,18 @@ export function SeoContent() {
         <section>
           <h2>Open Source Contributions</h2>
           <p>
-            Shah Fahad contributes to open source as a React and Flutter developer, with four pull
+            Shah Fahad contributes to open source as a React and Flutter developer, with five pull
             requests merged upstream: one in the{' '}
             <a href="https://github.com/supabase/supabase-flutter">Supabase Flutter SDK</a>{' '}
             (<code>supabase/supabase-flutter</code>) that replaced a comma-splitting shortcut with a
-            real Postgres array parser, and three in the{' '}
+            real Postgres array parser, and four in the{' '}
             <a href="https://github.com/flutter/flutter">official Flutter repository</a>{' '}
             (<code>flutter/flutter</code>) — one that improved the &ldquo;setState() called after
-            dispose()&rdquo; diagnostic message, and one that documented the super call order for{' '}
-            <code>State.didChangeDependencies</code>, and one that clarified why <code>initState</code> cannot depend on inherited widgets. See all{' '}
+            dispose()&rdquo; diagnostic message, one that documented the super call order for{' '}
+            <code>State.didChangeDependencies</code>, one that clarified why <code>initState</code> cannot
+            depend on inherited widgets, and one that documented that <code>Positioned</code> and its
+            animated and transition variants also work inside an <code>Overlay</code>, not only a{' '}
+            <code>Stack</code>. See all{' '}
             <a href="/open-source">open-source contributions</a>.
           </p>
           <ul>

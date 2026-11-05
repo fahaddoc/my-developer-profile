@@ -19,7 +19,7 @@ const FLUTTER_T = 'rgb(var(--flutter-accent))'  // Flutter blue for the logo/ico
 export const metadata: Metadata = {
   title: 'Open Source Contributions',
   description:
-    'Open-source contributions by Shah Fahad, a React and Flutter developer from Pakistan — four merged pull requests across the official Flutter repository (flutter/flutter) and the Supabase Flutter SDK.',
+    'Open-source contributions by Shah Fahad, a React and Flutter developer from Pakistan — five merged pull requests across the official Flutter repository (flutter/flutter) and the Supabase Flutter SDK.',
   alternates: { canonical: '/open-source' },
   keywords: [
     'Flutter open source contributor',
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Open Source Contributions — Shah Fahad',
     description:
-      'Four merged pull requests across Flutter and Supabase, including clearer initState diagnostics, lifecycle documentation, and a Postgres array parser.',
+      'Five merged pull requests across Flutter and Supabase: clearer setState() and initState() diagnostics, lifecycle and Positioned/Overlay documentation, and a Postgres array parser.',
   },
 }
 
@@ -86,8 +86,8 @@ export default function OpenSourcePage() {
           <p className="text-base sm:text-lg leading-relaxed max-w-2xl" style={{ color: SUB }}>
             I contribute to the tools I build with. As a React and Flutter developer from {AUTHOR.city}, {AUTHOR.countryName},
             I have had {stats.merged === 1 ? 'a pull request' : `${stats.merged} pull requests`} merged across the
-            official Flutter repository (flutter/flutter) and the Supabase Flutter SDK — most recently replacing a
-            comma-splitting shortcut that was quietly corrupting Postgres array values in realtime payloads.
+            official Flutter repository (flutter/flutter) and the Supabase Flutter SDK — most recently documenting
+            that Positioned and its animated and transition variants also work inside an Overlay, not only a Stack.
           </p>
 
           {/* stats */}

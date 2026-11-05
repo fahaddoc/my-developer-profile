@@ -184,7 +184,7 @@ export const STATIONS: StationDef[] = [
     short:     'OSS',
     t:         0.63,
     heading:   'Merged upstream',
-    tagline:   'Three pull requests merged into flutter/flutter and the Supabase Flutter SDK — a Postgres array parser that replaced a comma-splitting shortcut, a clearer "setState() called after dispose()" diagnostic with a framework test, and the documented super call order for State.didChangeDependencies.',
+    tagline:   'Five pull requests merged into flutter/flutter and the Supabase Flutter SDK — a Postgres array parser that replaced a comma-splitting shortcut, a clearer "setState() called after dispose()" diagnostic with a framework test, the documented super call order for State.didChangeDependencies, a clearer explanation of why initState() cannot depend on an inherited widget, and docs showing that Positioned also works inside an Overlay.',
     color:     '#5EEAD4',
     cta:       { text: 'view pull requests →', href: '/open-source' },
     subtitle:    'MERGED UPSTREAM',

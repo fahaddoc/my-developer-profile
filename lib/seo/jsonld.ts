@@ -198,9 +198,9 @@ export function openSourceCollectionSchema() {
     '@id': `${url}#collection`,
     url,
     name: `Open Source Contributions by ${AUTHOR.name}`,
-    description: `Open-source contributions by ${AUTHOR.name}, ${AUTHOR.jobTitle} — including ${
+    description: `Open-source contributions by ${AUTHOR.name}, ${AUTHOR.jobTitle} — ${
       contributions.filter((c) => c.status === 'merged').length
-    } pull requests merged into the official Flutter repository (flutter/flutter).`,
+    } merged pull requests across the official Flutter repository (flutter/flutter) and the Supabase Flutter SDK (supabase/supabase-flutter).`,
     inLanguage: 'en',
     isPartOf: { '@id': `${SITE_URL}/#website` },
     about: { '@id': `${SITE_URL}/#person` },

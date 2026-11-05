@@ -294,7 +294,7 @@ export async function renderOpenSourceOg(stats: { merged: number; repos: number;
         <div style={{ display: 'flex', fontSize: 24, letterSpacing: 8, color: TEAL, marginBottom: 14 }}>SHAH FAHAD</div>
         <div style={{ display: 'flex', fontSize: 116, fontWeight: 800, lineHeight: 0.98 }}>OPEN SOURCE</div>
         <div style={{ display: 'flex', fontSize: 30, color: SUB, marginTop: 22 }}>
-          Contributing to the tools I build with — starting with the Flutter framework.
+          Contributing to the tools I build with — the Flutter framework and the Supabase Flutter SDK.
         </div>
       </div>,
 

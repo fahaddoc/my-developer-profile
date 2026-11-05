@@ -80,6 +80,92 @@ export interface Contribution {
 
 export const contributions: Contribution[] = [
   {
+    id: 'flutter-positioned-overlay-docs',
+    title: 'Documented how Positioned works inside an Overlay',
+    role: 'Open-source contribution',
+    org: 'Flutter',
+    project: 'Flutter framework',
+    repo: 'flutter/flutter',
+    repoUrl: 'https://github.com/flutter/flutter',
+    status: 'merged',
+
+    prNumber: 190607,
+    prTitle: 'Document that Positioned also works inside an Overlay',
+    prUrl: 'https://github.com/flutter/flutter/pull/190607',
+    issueNumber: 107903,
+    issueUrl: 'https://github.com/flutter/flutter/issues/107903',
+    mergeCommit: 'c478de9',
+    mergeCommitUrl: 'https://github.com/flutter/flutter/commit/c478de9c08ccb9ad2f5e4eecb25c882049cf736e',
+
+    openedOn: '2026-08-05',
+    mergedOn: '2026-10-30',
+    displayDate: 'October 30, 2026',
+
+    filesChanged: 4,
+    additions: 91,
+    deletions: 28,
+
+    language: 'Dart',
+    tech: ['Flutter', 'Dart'],
+    area: [
+      'packages/flutter/lib/src/widgets/basic.dart',
+      'packages/flutter/lib/src/widgets/implicit_animations.dart',
+      'packages/flutter/lib/src/widgets/overlay.dart',
+      'packages/flutter/lib/src/widgets/transitions.dart',
+    ],
+
+    summary:
+      'Updated the Flutter API docs for Positioned, PositionedDirectional and their animated and transition variants so they cover Overlay as well as Stack, state which kinds of widgets may sit between a Positioned and its layout boundary, and point to new Overlay docs on alignment and sizing. Documentation only.',
+    bullets: [
+      'Documented that Positioned and its variants work inside an Overlay, not only a Stack, closing flutter/flutter issue #107903, open since July 2022',
+      'Restated the path rule against an explicit boundary for each case, in wording the reviewer proposed: widgets that only build other widgets, including InheritedWidgets, may sit on the path; RenderObjectWidgets and other ParentDataWidgets such as Expanded may not',
+      'Added a paragraph to the Overlay class docs on how it aligns positioned children and sizes the rest, linking OverlayEntry.canSizeOverlay and alwaysSizeToContent; its final wording is the reviewer’s correction of my first draft',
+      'Merged into flutter/flutter on October 30, 2026 after almost three months of review; 4 files, documentation only',
+    ],
+
+    caseStudy: {
+      story:
+        'Flutter issue #107903, filed in July 2022, asked for the Positioned docs to mention that Overlay also uses Positioned; they only described Stack. I opened a one-file change to basic.dart, +11 / −8. Review turned it into a four-file pass over Positioned, its five variants and the Overlay docs, and it took almost three months.',
+      problem:
+        'Positioned and PositionedDirectional said they must be a descendant of a Stack, with only StatelessWidgets or StatefulWidgets on the path to it. AnimatedPositioned, AnimatedPositionedDirectional, PositionedTransition and RelativePositionedTransition each said “Only works if it\'s the child of a [Stack].” None of it mentioned Overlay. The overlay side already did: the OverlayEntry docs said entries can use Positioned and AnimatedPositioned because an Overlay uses a Stack layout, and OverlayPortal listed Positioned under See also. But the Overlay class docs mentioned only Positioned.directional, in passing, and nothing said how an Overlay aligns a positioned child that leaves an axis unspecified. Adding Overlay to the existing path rule would also have made the rule false, because the path from a Positioned up to the Overlay widget passes through _Theater, a RenderObjectWidget the overlay builds internally.',
+      changed: [
+        'Rewrote the Positioned and PositionedDirectional class docs (packages/flutter/lib/src/widgets/basic.dart) to say the widget works inside a Stack, or inside the subtree an Overlay lays out: the widget returned by OverlayEntry.builder, by OverlayPortal.overlayChildBuilder, or by the builder passed to OverlayPortal.overlayChildLayoutBuilder. The summary line, the paragraph on the edge properties and the three constructor docs now say Stack or Overlay.',
+        'Stated the path rule against a named boundary, the Stack itself or the widget the overlay builder returns, in wording the reviewer proposed. The path may contain widgets that only build other widgets, such as StatelessWidget, StatefulWidget and InheritedWidget, and must not contain RenderObjectWidgets or other ParentDataWidgets such as Expanded.',
+        'Kept the Stack.alignment and non-positioned sizing sentences in Positioned, added that an Overlay has no alignment property, and pointed to the Overlay docs for how it aligns and sizes such children. Added Overlay, OverlayPortal and CompositedTransformFollower to the See also lists of both classes.',
+        'Added a paragraph to the Overlay class docs (overlay.dart): a positioned child is placed the way a positioned Stack child would be, an unspecified axis aligns as if Stack.alignment were AlignmentDirectional.topStart, and other children normally fill the overlay as with StackFit.expand, with links to OverlayEntry.canSizeOverlay and alwaysSizeToContent. The final text is the reviewer’s replacement, adapted to cover OverlayPortal as well as overlay entries. Positioned is now in Overlay’s See also.',
+        'Changed the short note in AnimatedPositioned and AnimatedPositionedDirectional (implicit_animations.dart) and PositionedTransition and RelativePositionedTransition (transitions.dart) to “Only works inside a [Stack] or an [Overlay]”, pointing at Positioned or PositionedDirectional for the exact restrictions. Net change: 4 files, +91 / −28. Documentation only, no behaviour or API change.',
+      ],
+      codeBefore:
+        '/// A widget that controls where a child of a [Stack] is positioned.\n///\n/// A [Positioned] widget must be a descendant of a [Stack], and the path from\n/// the [Positioned] widget to its enclosing [Stack] must contain only\n/// [StatelessWidget]s or [StatefulWidget]s (not other kinds of widgets, like\n/// [RenderObjectWidget]s).',
+      codeAfter:
+        '/// A widget that positions its child within a [Stack] or an [Overlay].\n///\n/// A [Positioned] widget must be inside a [Stack], or inside the widget\n/// subtree that an [Overlay] lays out: the widget returned by\n/// [OverlayEntry.builder], by [OverlayPortal.overlayChildBuilder] or by the\n/// builder passed to [OverlayPortal.overlayChildLayoutBuilder]. A [Stack] and\n/// an [Overlay] both lay their children out with the stack layout algorithm\n/// (see [RenderStack]). In either case, the path from the [Positioned] up to\n/// that boundary must contain only widgets that build other widgets rather\n/// than render anything themselves, such as [StatelessWidget]s,\n/// [StatefulWidget]s and [InheritedWidget]s; it must not contain\n/// [RenderObjectWidget]s or other [ParentDataWidget]s (such as [Expanded]).\n///\n/// For a [Stack], the boundary is the [Stack] itself. For an [Overlay], it is\n/// the widget the builder returns, which is itself on that path and so must be\n/// the [Positioned] or something that builds it, rather than a\n/// [RenderObjectWidget] or another [ParentDataWidget].',
+      review:
+        'The path rule was the hard part. My first version only added “or of an [Overlay]” to the existing rule, and an automated reviewer flagged within two minutes of the PR opening that this made it false, since the path up to Overlay crosses _Theater. The main reviewer, Victor Sanni, raised the same contradiction in August and again in September as I generalised the wording, suggested stating the rule in a general form first, then proposed wording built on an explicit boundary, which I took. In mid-October the reviewer asked whether Overlay actually documented the alignment and sizing the Positioned docs now pointed to. The Overlay class docs did not: sizing was covered only under OverlayEntry.canSizeOverlay and Overlay.alwaysSizeToContent, and the topStart alignment was not documented at all, so I added a paragraph to the Overlay class docs. On October 21 the reviewer caught two errors I had introduced in that round: the rule said the path must not contain any RenderObjectWidgets, but Stack > Expanded > Positioned throws even though Expanded renders nothing; and the new Overlay paragraph said non-positioned entries are aligned to topStart, though that alignment only affects positioned children, and that the overlay does not size itself to its entries, though in the cases documented under OverlayEntry.canSizeOverlay and alwaysSizeToContent it does. I took the reviewer’s replacements for both, adapting the Overlay one to cover OverlayPortal, after checking that Expanded, Flexible and a nested Positioned on the path throw Incorrect use of ParentDataWidget while a Builder is fine. Victor Sanni approved on October 22 and another reviewer approved on October 30.',
+      merge:
+        'The reviewer who approved it on October 30 added it to GitHub’s merge queue minutes later, and it was squash-merged into flutter/flutter that day (merge commit c478de9), closing issue #107903 after it had been open since July 2022.',
+      whyItMatters:
+        'The docs for Positioned and its five variants described them as Stack-only widgets, even though a Positioned is also how a widget shown through OverlayEntry or OverlayPortal can be placed on an Overlay. The docs now say where these widgets work, which kinds of widgets may sit on the path to the layout boundary, and how an Overlay aligns and sizes its children, with links to OverlayEntry.canSizeOverlay and Overlay.alwaysSizeToContent for the cases where a child sizes the overlay. No framework behaviour changed.',
+      lessons: [
+        'Reading where a value is declared is not verification; trace where it is consumed. I described the overlay’s alignment after reading _alignmentCache, without following it to see that the resolved alignment only affects where positioned children are placed.',
+        'Test a “must not contain” rule against counterexamples, not only the cases it was written for. Expanded is not a RenderObjectWidget and still breaks the path.',
+        'When the same objection comes back round after round, the structure is wrong, not the sentence. The overlay path contradiction was raised three times until the rule was stated once against an explicit boundary.',
+      ],
+    },
+
+    keywords: [
+      'Flutter contributor',
+      'Flutter open source contributor',
+      'Flutter Positioned',
+      'Flutter Overlay',
+      'OverlayEntry',
+      'OverlayPortal',
+      'ParentDataWidget',
+      'Flutter API documentation',
+      'Shah Fahad Flutter',
+      'Flutter developer Pakistan',
+    ],
+  },
+  {
     "id": "flutter-initstate-inherited-widget-diagnostic",
     "title": "Clarified why initState cannot depend on inherited widgets",
     "role": "Open-source contribution",
