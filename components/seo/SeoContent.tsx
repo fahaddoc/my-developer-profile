@@ -10,6 +10,11 @@
 //
 // This is the accessible/SEO text alternative to the canvas — real page content,
 // not hidden keyword stuffing.
+//
+// Every link carries tabIndex={-1}: the links stay crawlable and stay in the
+// accessibility tree (screen readers can still follow them), but they leave
+// the Tab sequence. Clipped to 1px they would otherwise be ~33 invisible tab
+// stops (no focus ring can show) before the visible UI.
 
 import { projects, experience, skills } from '@/data/projects'
 import { contributions } from '@/data/open-source'
@@ -63,7 +68,7 @@ export function SeoContent() {
             {projects.map((p) => (
               <li key={p.id}>
                 <h3>
-                  <a href={`/projects/${p.id}`}>{p.title}</a>
+                  <a tabIndex={-1} href={`/projects/${p.id}`}>{p.title}</a>
                   {p.company ? ` — ${p.company}` : ''} ({p.year})
                 </h3>
                 <p>{p.tagline}</p>
@@ -79,28 +84,28 @@ export function SeoContent() {
           <p>
             Shah Fahad contributes to open source as a React and Flutter developer, with five pull
             requests merged upstream: one in the{' '}
-            <a href="https://github.com/supabase/supabase-flutter">Supabase Flutter SDK</a>{' '}
+            <a tabIndex={-1} href="https://github.com/supabase/supabase-flutter">Supabase Flutter SDK</a>{' '}
             (<code>supabase/supabase-flutter</code>) that replaced a comma-splitting shortcut with a
             real Postgres array parser, and four in the{' '}
-            <a href="https://github.com/flutter/flutter">official Flutter repository</a>{' '}
+            <a tabIndex={-1} href="https://github.com/flutter/flutter">official Flutter repository</a>{' '}
             (<code>flutter/flutter</code>) — one that improved the &ldquo;setState() called after
             dispose()&rdquo; diagnostic message, one that documented the super call order for{' '}
             <code>State.didChangeDependencies</code>, one that clarified why <code>initState</code> cannot
             depend on inherited widgets, and one that documented that <code>Positioned</code> and its
             animated and transition variants also work inside an <code>Overlay</code>, not only a{' '}
             <code>Stack</code>. See all{' '}
-            <a href="/open-source">open-source contributions</a>.
+            <a tabIndex={-1} href="/open-source">open-source contributions</a>.
           </p>
           <ul>
             {contributions.map((c) => (
               <li key={c.id}>
                 <h3>
-                  <a href={`/achievements/${c.id}`}>{c.title}</a> — {c.prTitle} ({c.displayDate})
+                  <a tabIndex={-1} href={`/achievements/${c.id}`}>{c.title}</a> — {c.prTitle} ({c.displayDate})
                 </h3>
                 <p>{c.summary}</p>
                 <p>
                   Merged pull request:{' '}
-                  <a href={c.prUrl}>
+                  <a tabIndex={-1} href={c.prUrl}>
                     {c.repo} #{c.prNumber}
                   </a>
                   . Built with: {c.tech.join(', ')}.
@@ -113,10 +118,10 @@ export function SeoContent() {
         <section>
           <h2>Contact</h2>
           <p>
-            Email: <a href={`mailto:${AUTHOR.email}`}>{AUTHOR.email}</a>. Based in {AUTHOR.city},{' '}
+            Email: <a tabIndex={-1} href={`mailto:${AUTHOR.email}`}>{AUTHOR.email}</a>. Based in {AUTHOR.city},{' '}
             {AUTHOR.countryName}. Connect on{' '}
-            <a href="https://github.com/fahaddoc">GitHub</a> and{' '}
-            <a href="https://www.linkedin.com/in/fahaddoc600">LinkedIn</a>.
+            <a tabIndex={-1} href="https://github.com/fahaddoc">GitHub</a> and{' '}
+            <a tabIndex={-1} href="https://www.linkedin.com/in/fahaddoc600">LinkedIn</a>.
           </p>
         </section>
       </article>

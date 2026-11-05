@@ -4,6 +4,8 @@
 // under the chrome cluster; the hero portrait is sized to start below it, so
 // it never covers the portrait the visitor just clicked. Plays while the
 // shared sound state is true, at any station; the close button stops it.
+// Poster: a 360px WebP (~13KB, 2x for the 184px player) instead of the 400KB
+// PNG; preload="none" keeps the video itself off the wire until first play.
 
 import { useEffect, useRef } from 'react'
 import { FaXmark } from 'react-icons/fa6'
@@ -54,7 +56,7 @@ export function IntroMiniPlayer() {
       <div className={styles.playerVideo}>
         <video
           ref={videoRef}
-          poster="/videos/shah-intro-poster.png"
+          poster="/videos/shah-intro-poster-360.webp"
           playsInline
           preload="none"
         >

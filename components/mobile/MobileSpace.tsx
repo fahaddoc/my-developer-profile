@@ -5,13 +5,25 @@
 // copy as the desktop tunnel (DESIGN.md §8), told as seven scenes in one
 // scroller over the CSS starfield.
 //
+// Three compositions from one markup:
+// - phones (<640px): one column, 44px left gutter for the rail.
+// - tablets and narrow windows (640-1023px): the column widens to 880px and
+//   centres; the hero planet flattens so its ember rim stays above the copy.
+// - >=1024px (iPad landscape, reduced-motion desktops): stations split into
+//   two columns (copy left, proof right) inside a centred 1120px frame, and
+//   the hero puts the name left with the portrait standing on the planet to
+//   the right, the horizon kept below the copy.
+//
 // Performance contract (DESIGN.md §9): no framer / GSAP / R3F / Lenis here.
-// - One passive rAF-throttled scroll listener writes ONE CSS var on the
-//   starfield root (StarfieldBackground owns it, fed by `scrollRef`).
+// - StarfieldBackground owns the parallax: one passive rAF-throttled scroll
+//   listener writing transforms on its four moving layers (fed by `scrollRef`).
 // - One IntersectionObserver tracks the station under the centre line for the
-//   rail; one one-shot observer plays reveals once and then lets go.
+//   rail; one one-shot observer plays reveals once and then lets go; one more
+//   warms the contact drawer chunk when Contact comes into view.
 // - Reveals only hide content after JS sets `data-ms-ready`; reduced motion
-//   never sets it, so content is visible by default.
+//   never sets it, so content is visible by default. Focus reveals at once.
+// - The project sheet is plain CSS transitions + a pointer-captured drag that
+//   writes the panel transform directly.
 
 import {
   Fragment,
@@ -22,6 +34,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
 import Image from 'next/image'
@@ -40,6 +53,7 @@ import {
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { StarfieldBackground } from '@/components/mobile/StarfieldBackground'
 import { FeaturedAchievement } from '@/components/featured/FeaturedAchievement'
+import { prefetchDrawer } from '@/components/ui/drawerPrefetch'
 import { projects, experience, skills } from '@/data/projects'
 import type { Project } from '@/data/projects'
 import { engineeringDemos } from '@/data/engineering-demos'
@@ -49,21 +63,31 @@ import { openSourceStats } from '@/data/open-source'
 // ── content ──────────────────────────────────────────────────────────────────
 const STATIONS = ['Intro', 'About', 'Skills', 'Work', 'Open source', 'Experience', 'Contact'] as const
 const STATION_IDS = ['intro', 'about', 'skills', 'work', 'open-source', 'experience', 'contact'] as const
+const WORK = 3
+const CONTACT = 6
 const EMAIL = 'hello@shahfahad.dev'
 const RESUME = '/Shah_Fahad_Resume.pdf'
 const CAL = 'https://cal.com/shahfahad'
+const INTRO_POSTER = '/videos/shah-intro-poster-360.webp'
 
 const DEMO_IDS = new Set(engineeringDemos.map((p) => p.id))
-const WORK_GROUPS: { label: string; items: Project[] }[] = [
-  { label: 'Shipped products', items: projects.filter((p) => !DEMO_IDS.has(p.id)) },
-  { label: 'Engineering demos', items: projects.filter((p) => DEMO_IDS.has(p.id)) },
-]
-// Star x positions (% of the chart width) — a meander in the right-hand band.
-const STAR_X = [87, 95, 80, 91, 77, 85, 96, 81, 93, 78, 89, 83]
-const ROW = 56 // px per star row: a 44px+ hit target for every project
+const SHIPPED = projects.filter((p) => !DEMO_IDS.has(p.id))
+const DEMOS = projects.filter((p) => DEMO_IDS.has(p.id))
+// The lead project: the newest featured shipped product (the same one the
+// desktop showcase opens on, since `projects` is sorted newest first).
+const FEATURED: Project | undefined = SHIPPED.find((p) => p.featured) ?? SHIPPED[0] ?? projects[0]
+const WORK_GROUPS = [
+  { id: 'shipped', label: 'Shipped products', items: SHIPPED.filter((p) => p !== FEATURED) },
+  { id: 'demos', label: 'Engineering demos', items: DEMOS.filter((p) => p !== FEATURED) },
+].filter((g) => g.items.length > 0)
+// Derived from the data, in the wording the desktop library uses too.
+const WORK_COUNT = `${SHIPPED.length} shipped · ${DEMOS.length} ${DEMOS.length === 1 ? 'demo' : 'demos'}`
 const CATEGORY: Record<Project['category'], string> = { web: 'Web', mobile: 'Mobile', realtime: 'Real-time' }
 
 const shortTitle = (p: Project) => p.title.split(' — ')[0]
+// Screenshots crop a little below the top (phone mockups keep their screen);
+// the demo posters are left-aligned title cards, so they keep their left edge.
+const coverPosition = (p: Project) => (p.image.endsWith('.svg') ? 'left center' : 'center 22%')
 const projectSlug = (p: Project) => {
   const s = (p as Project & { slug?: unknown }).slug
   return typeof s === 'string' && s ? s : p.id
@@ -106,7 +130,22 @@ export default function MobileSpace() {
       { root, rootMargin: '0px 0px -8% 0px', threshold: 0 },
     )
     root.querySelectorAll('[data-reveal], [data-mask]').forEach((el) => io.observe(el))
+
+    // Focus must never land on something invisible: every reveal around the
+    // focused element shows at once (data-now skips the animation, so it does
+    // not replay when focus moves on).
+    const onFocusIn = (e: FocusEvent) => {
+      let el = e.target instanceof Element ? e.target.closest('[data-reveal], [data-mask]') : null
+      while (el) {
+        el.setAttribute('data-in', '')
+        el.setAttribute('data-now', '')
+        io.unobserve(el)
+        el = el.parentElement ? el.parentElement.closest('[data-reveal], [data-mask]') : null
+      }
+    }
+    root.addEventListener('focusin', onFocusIn)
     return () => {
+      root.removeEventListener('focusin', onFocusIn)
       io.disconnect()
       root.removeAttribute('data-ms-ready')
     }
@@ -131,6 +170,24 @@ export default function MobileSpace() {
     return () => io.disconnect()
   }, [])
 
+  // Warm the contact drawer chunk (framer-motion + the shell) as Contact
+  // comes into view, so the first tap on "Write to me" is never dead.
+  useEffect(() => {
+    const root = scrollRef.current
+    const el = stationEls.current[CONTACT]
+    if (!root || !el || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return
+        prefetchDrawer()
+        io.disconnect()
+      },
+      { root, rootMargin: '0px 0px 20% 0px', threshold: 0 },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
   const goTo = useCallback((i: number, focus = false) => {
     const el = stationEls.current[i]
     if (!el) return
@@ -149,15 +206,24 @@ export default function MobileSpace() {
       <div ref={scrollRef} className="mob-scroll" data-lenis-prevent data-ms-inert>
         <main>
           <Station i={0} setRef={setStationRef(0)} className="ms-st--hero">
-            <Hero onWork={() => goTo(3, true)} />
+            <Hero onWork={() => goTo(WORK, true)} />
           </Station>
-          <Station i={1} setRef={setStationRef(1)}>
+          <Station
+            i={1}
+            setRef={setStationRef(1)}
+            className="ms-st--about"
+            after={
+              <div className="ms-horizon" aria-hidden="true">
+                <div className="ms-horizon-orb" />
+              </div>
+            }
+          >
             <About />
           </Station>
           <Station i={2} setRef={setStationRef(2)}>
             <Skills />
           </Station>
-          <Station i={3} setRef={setStationRef(3)}>
+          <Station i={3} setRef={setStationRef(3)} className="ms-st--work">
             <Work onOpen={setOpenProject} />
           </Station>
           <Station i={4} setRef={setStationRef(4)}>
@@ -166,7 +232,12 @@ export default function MobileSpace() {
           <Station i={5} setRef={setStationRef(5)}>
             <Experience />
           </Station>
-          <Station i={6} setRef={setStationRef(6)} className="ms-st--contact">
+          <Station
+            i={6}
+            setRef={setStationRef(6)}
+            className="ms-st--contact"
+            after={<div className="ms-home-planet" aria-hidden="true" />}
+          >
             <Contact />
           </Station>
         </main>
@@ -195,17 +266,21 @@ export default function MobileSpace() {
         }
 
         .ms-st {
+          --pad-t: 92px;
+          --pad-b: 76px;
+          --pad-l: calc(44px + env(safe-area-inset-left));
+          --pad-r: max(20px, env(safe-area-inset-right));
           position: relative;
           min-height: 100svh;
           display: flex;
           flex-direction: column;
           justify-content: center;
-          padding: 92px max(20px, env(safe-area-inset-right)) 76px calc(44px + env(safe-area-inset-left));
+          padding: var(--pad-t) var(--pad-r) var(--pad-b) var(--pad-l);
           scroll-snap-align: start;
           color: rgb(var(--ink));
         }
         .ms-st:focus { outline: none; }
-        .ms-inner { position: relative; width: 100%; max-width: 560px; }
+        .ms-inner { position: relative; z-index: 1; width: 100%; max-width: 560px; }
 
         .ms-title-mask {
           overflow: hidden;
@@ -228,6 +303,11 @@ export default function MobileSpace() {
           font-weight: 600;
           font-variant-numeric: tabular-nums;
         }
+        /* The one highlighted numeral in a lead is set large and bold, so it
+           clears the large-text contrast bar on the daylight sky as well. */
+        .ms-lead .ms-em { font-size: 1.2em; font-weight: 700; line-height: 1; }
+
+        .ms-nw { white-space: nowrap; }
 
         /* Square icon variant of the shared ghost button. */
         .btn.ms-icon {
@@ -237,6 +317,32 @@ export default function MobileSpace() {
           flex: none;
         }
         .btn.ms-icon svg { width: 15px; height: 15px; }
+
+        /* Wider screens: a centred frame that uses the width (DESIGN.md §4). */
+        @media (min-width: 640px) {
+          .ms-st {
+            --pad-t: 104px;
+            --pad-b: 88px;
+            --pad-l: calc(72px + env(safe-area-inset-left));
+            --pad-r: max(40px, env(safe-area-inset-right));
+          }
+          .ms-inner { max-width: 880px; margin-inline: auto; }
+          .ms-title { font-size: clamp(44px, 5.6vw, 64px); }
+          .ms-lead { font-size: 18px; max-width: 46ch; }
+        }
+        @media (min-width: 1024px) {
+          .ms-st { --pad-t: 112px; --pad-b: 96px; }
+          .ms-inner { max-width: 1120px; }
+          .ms-split {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
+            column-gap: clamp(56px, 6.5vw, 112px);
+            align-items: center;
+          }
+          /* The proof column starts flush; a reveal wrapper passes it on. */
+          .ms-split > .ms-col-b > :first-child,
+          .ms-split > .ms-col-b > [data-reveal]:first-child > :first-child { margin-top: 0; }
+        }
 
         /* ── reveals (one-shot; only after data-ms-ready) ───────────────── */
         [data-ms-ready] [data-reveal]:not([data-in]) { opacity: 0; transform: translate3d(0, 10px, 0); }
@@ -258,6 +364,13 @@ export default function MobileSpace() {
           animation: ms-mask-up var(--dur-3) var(--ease-out-expo) both;
           animation-delay: calc(var(--i, 0) * 70ms);
         }
+        /* Focus inside a reveal shows it instantly (keyboard, screen readers). */
+        [data-ms-ready] [data-reveal]:focus-within,
+        [data-ms-ready] [data-reveal][data-now],
+        [data-ms-ready] [data-reveal]:focus-within .ms-si,
+        [data-ms-ready] [data-reveal][data-now] .ms-si,
+        [data-ms-ready] [data-mask]:focus-within > *,
+        [data-ms-ready] [data-mask][data-now] > * { opacity: 1; transform: none; animation: none; }
         @keyframes ms-fade-up {
           from { opacity: 0; transform: translate3d(0, 10px, 0); }
           to   { opacity: 1; transform: none; }
@@ -270,6 +383,7 @@ export default function MobileSpace() {
           from { transform: translate3d(0, 105%, 0); }
           to   { transform: none; }
         }
+        @keyframes ms-fade { from { opacity: 0; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) {
           [data-ms-ready] [data-reveal],
           [data-ms-ready] [data-reveal] .ms-si,
@@ -315,7 +429,9 @@ export default function MobileSpace() {
           font-size: 16px;
           letter-spacing: -0.012em;
           cursor: pointer;
+          transition: transform var(--dur-1) var(--ease-out);
         }
+        .ms-wordmark:active { transform: scale(0.97); transition-duration: 80ms; }
 
         /* ── rail: a labelled progress spine ─────────────────────────────── */
         .ms-rail {
@@ -346,6 +462,7 @@ export default function MobileSpace() {
           border: 0;
           background: none;
           cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
         }
         .ms-rail-btn:focus-visible { outline-offset: -2px; }
         .ms-rail-tick {
@@ -356,10 +473,14 @@ export default function MobileSpace() {
           transform-origin: left center;
           transition: transform var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out);
         }
-        .ms-rail-btn:hover .ms-rail-tick { background: rgb(var(--ink)); }
+        .ms-rail-btn:active .ms-rail-tick { background: rgb(var(--ink)); transform: scaleX(1.4); transition-duration: 80ms; }
         .ms-rail-btn[aria-current='step'] .ms-rail-tick {
           background: rgb(var(--accent));
           transform: scaleX(1.72) scaleY(2);
+        }
+        @media (hover: hover) and (pointer: fine) {
+          .ms-rail-btn:hover .ms-rail-tick { background: rgb(var(--ink)); }
+          .ms-rail-btn[aria-current='step']:hover .ms-rail-tick { background: rgb(var(--accent)); }
         }
         .ms-rail-label {
           position: absolute;
@@ -386,7 +507,6 @@ export default function MobileSpace() {
           color: rgb(var(--ink));
           animation: ms-fade var(--dur-2) var(--ease-out) both;
         }
-        @keyframes ms-fade { from { opacity: 0; } to { opacity: 1; } }
         @media (max-height: 520px) {
           .ms-rail { --item-h: 32px; top: calc(50% + 22px); }
         }
@@ -394,6 +514,14 @@ export default function MobileSpace() {
           .ms-rail-label { transition: none; }
           .ms-rail-label span { animation: none; }
           .ms-rail-tick { transition: none; }
+        }
+        /* Windows High Contrast: backgrounds are dropped, so paint the spine
+           and ticks in system colours and mark the current station. */
+        @media (forced-colors: active) {
+          .ms-rail ol::before { forced-color-adjust: none; background: CanvasText; }
+          .ms-rail-tick { forced-color-adjust: none; background: CanvasText; }
+          .ms-rail-btn[aria-current='step'] .ms-rail-tick { background: Highlight; }
+          .ms-rail-label span { forced-color-adjust: none; color: CanvasText; }
         }
 
         /* ── 0 · intro ───────────────────────────────────────────────────── */
@@ -405,6 +533,10 @@ export default function MobileSpace() {
           --photo-w: calc(var(--photo-h) * 0.7534);
           --sink: 0.16; /* share of the photo hidden behind the horizon */
           --apex: 60%;
+          /* Planet diameter. Wide enough that the rim drops less than
+             --copy-gap across the copy's left edge, so it never crosses it. */
+          --orb: max(300vw, 1000px);
+          --copy-gap: 36px;
           justify-content: flex-start;
           padding-top: var(--top);
           overflow: hidden;
@@ -413,8 +545,8 @@ export default function MobileSpace() {
         .ms-hero-scene {
           position: relative;
           height: var(--scene-h);
-          margin-left: calc(-44px - env(safe-area-inset-left));
-          margin-right: calc(-1 * max(20px, env(safe-area-inset-right)));
+          margin-left: calc(-1 * var(--pad-l));
+          margin-right: calc(-1 * var(--pad-r));
         }
         .ms-sunrise {
           position: absolute;
@@ -451,7 +583,7 @@ export default function MobileSpace() {
           inset: 0;
           display: block;
           transform-style: preserve-3d;
-          transition: transform 760ms var(--ease-out);
+          transition: transform 560ms var(--ease-in-out);
         }
         .ms-intro[data-flipped='true'] .ms-intro-inner { transform: rotateY(180deg); }
         .ms-intro-face {
@@ -490,13 +622,20 @@ export default function MobileSpace() {
           font-weight: 500;
           white-space: nowrap;
           cursor: pointer;
-          transition: border-color var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out);
+          transition:
+            border-color var(--dur-1) var(--ease-out),
+            background-color var(--dur-1) var(--ease-out),
+            transform var(--dur-1) var(--ease-out);
         }
         .ms-intro-ctl::before { content: ''; position: absolute; inset: -5px -2px; }
         .ms-intro-ctl svg { width: 11px; height: 11px; flex: none; }
         .ms-intro-ctl--sound svg { width: 14px; height: 14px; }
-        .ms-intro-card:hover .ms-intro-ctl,
-        .ms-intro-ctl:hover { border-color: rgb(var(--ink) / 0.42); }
+        .ms-intro-card:active .ms-intro-ctl,
+        .ms-intro-ctl:active { transform: scale(0.97); transition-duration: 80ms; }
+        @media (hover: hover) and (pointer: fine) {
+          .ms-intro-card:hover .ms-intro-ctl,
+          .ms-intro-ctl:hover { border-color: rgb(var(--ink) / 0.42); }
+        }
         .ms-intro-ctl:focus-visible { outline-offset: 3px; border-radius: 999px; }
         /* Reduced motion: no 3D turn, the two faces crossfade instead. */
         @media (prefers-reduced-motion: reduce) {
@@ -523,7 +662,7 @@ export default function MobileSpace() {
           position: absolute;
           top: 160px;
           left: var(--apex);
-          width: max(250vw, 900px);
+          width: var(--orb);
           aspect-ratio: 1;
           border-radius: 50%;
           transform: translateX(-50%);
@@ -536,7 +675,7 @@ export default function MobileSpace() {
         }
         /* The scene, planet and copy position against the section itself. */
         .ms-st--hero .ms-inner { position: static; max-width: none; }
-        .ms-hero-copy { position: relative; z-index: 3; margin-top: 22px; max-width: 560px; }
+        .ms-hero-copy { position: relative; z-index: 3; margin-top: var(--copy-gap); max-width: 560px; }
         .ms-hero-name {
           font-size: clamp(44px, 13.5vw, 64px);
           color: rgb(var(--ink));
@@ -559,6 +698,51 @@ export default function MobileSpace() {
             0 -22px 70px -8px rgb(var(--accent) / 0.12);
         }
         :root[data-theme='light'] .ms-intro-ctl { background: rgb(var(--surface) / 0.86); }
+
+        /* Tablets and narrow windows: the portrait stands centred on a flatter
+           planet and the copy sits below the rim's lowest point across its own
+           width (a 4x-viewport planet drops < 48px over half the screen). */
+        @media (min-width: 640px) and (min-height: 541px) {
+          .ms-st--hero {
+            --top: 72px;
+            --scene-h: clamp(240px, calc(100svh - 500px), 640px);
+            --apex: 50%;
+            --orb: max(400vw, 1600px);
+            --copy-gap: 72px;
+          }
+          .ms-st--hero .ms-inner { width: 100%; max-width: 880px; margin-inline: auto; }
+          .ms-hero-scene { position: absolute; left: 0; right: 0; top: var(--top); margin: 0; }
+          .ms-hero-copy { margin-top: calc(var(--scene-h) + var(--copy-gap)); max-width: 640px; }
+          .ms-hero-name { font-size: clamp(64px, 9vw, 88px); }
+          .ms-hero-lead { font-size: 18px; margin-top: 18px; max-width: 44ch; }
+          .ms-ctas { margin-top: 28px; }
+          .ms-sunrise { width: min(120%, 980px); }
+        }
+
+        /* >=1024px: two columns in a centred 1120px frame. The name sits left,
+           centred in the sky above the horizon; the portrait stands on the
+           planet on the right. The horizon is below the copy, so the rim can
+           only ever pass under it. */
+        @media (min-width: 1024px) and (min-height: 541px) {
+          .ms-st--hero {
+            --inner: min(1120px, calc(100vw - 112px));
+            --scene-h: min(calc(82svh - var(--top)), 640px);
+            --apex: calc(50% + 16px + var(--inner) * 0.26);
+            --sink: 0.12;
+            --orb: max(250vw, 2400px);
+            justify-content: center;
+            padding-bottom: calc(100svh - var(--horizon) + 48px);
+          }
+          .ms-st--hero .ms-inner { max-width: var(--inner); }
+          .ms-hero-copy { margin-top: 0; max-width: calc(var(--inner) * 0.52); }
+          .ms-hero-name { font-size: clamp(56px, 5.6vw, 88px); }
+          /* Fade only below the photo's hidden lower edge (the planet's top is
+             160px above the horizon), so the cut never shows through. */
+          .ms-planet {
+            -webkit-mask-image: linear-gradient(#000 calc(176px + var(--photo-h) * var(--sink)), transparent);
+            mask-image: linear-gradient(#000 calc(176px + var(--photo-h) * var(--sink)), transparent);
+          }
+        }
 
         /* Landscape phones: copy sits in the sky on the left, the planet rises
            across the bottom and the photo stands on it to the right. */
@@ -597,6 +781,51 @@ export default function MobileSpace() {
         }
         .ms-fact dt { font-size: 14px; color: rgb(var(--ink-3)); }
         .ms-fact dd { margin-left: auto; color: rgb(var(--ink)); text-align: right; }
+        @media (min-width: 640px) {
+          .ms-fact { padding: 18px 0; }
+          .ms-fact dt { font-size: 15px; }
+        }
+
+        /* The station's one visual: a cool planet rising in the lower right,
+           lit from the upper left (DESIGN.md §7). It sits in flow under the
+           copy, so the copy centres in the space above it and never overlaps. */
+        .ms-st--about { overflow: hidden; overflow: clip; }
+        .ms-st--about > .ms-inner { margin-block: auto; }
+        .ms-horizon {
+          position: relative;
+          flex: none;
+          height: clamp(110px, 24svh, 300px);
+          margin: 24px calc(-1 * var(--pad-r)) calc(-1 * var(--pad-b)) calc(-1 * var(--pad-l));
+          overflow: hidden;
+          pointer-events: none;
+          -webkit-mask-image: linear-gradient(#000 40%, transparent);
+          mask-image: linear-gradient(#000 40%, transparent);
+        }
+        .ms-horizon-orb {
+          position: absolute;
+          top: 26%;
+          left: 72%;
+          width: max(150vw, 560px);
+          aspect-ratio: 1;
+          border-radius: 50%;
+          transform: translateX(-50%);
+          background: radial-gradient(120% 120% at 24% 4%, rgb(var(--surface-2)) 0%, rgb(var(--space-1)) 20%, rgb(var(--space-0)) 44%);
+          box-shadow:
+            inset 2px 2px 0 -0.5px rgb(var(--ink) / 0.32),
+            inset 22px 18px 34px -22px rgb(var(--ink) / 0.16),
+            0 -16px 60px -16px rgb(var(--nebula-a) / 0.75);
+        }
+        :root[data-theme='light'] .ms-horizon-orb {
+          background: radial-gradient(120% 120% at 24% 4%, rgb(var(--surface)) 0%, rgb(var(--surface-2)) 24%, rgb(var(--space-1)) 50%);
+          box-shadow:
+            inset 2px 2px 0 -0.5px rgb(var(--surface)),
+            inset -40px -10px 60px -30px rgb(var(--ink) / 0.1),
+            0 -16px 60px -16px rgb(var(--nebula-a) / 0.95),
+            0 0 0 1px rgb(var(--ink) / 0.06);
+        }
+        @media (min-width: 1024px) {
+          .ms-horizon-orb { left: 76%; width: max(110vw, 1200px); top: 30%; }
+        }
 
         /* ── 2 · skills ──────────────────────────────────────────────────── */
         .ms-skills { list-style: none; margin-top: 32px; border-top: 1px solid rgb(var(--line)); }
@@ -609,104 +838,144 @@ export default function MobileSpace() {
           .ms-skill-row { display: grid; grid-template-columns: 170px 1fr; gap: 16px; align-items: baseline; }
           .ms-skill-list { margin-top: 0; }
         }
+        @media (min-width: 640px) {
+          .ms-skill-row { grid-template-columns: 200px 1fr; padding: 20px 0 21px; }
+          .ms-skill-list { font-size: 17px; }
+        }
 
-        /* ── 3 · work: the star chart ────────────────────────────────────── */
-        .ms-chart-head {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          gap: 12px;
-          margin-top: 32px;
-          padding-bottom: 10px;
-          border-bottom: 1px solid rgb(var(--line));
-        }
-        .ms-chart-head h3 { font-size: 18px; color: rgb(var(--ink)); }
-        .ms-chart-head .t-data { color: rgb(var(--ink-3)); }
-        .ms-chart { position: relative; margin-top: 6px; }
-        .ms-chart-path { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-        .ms-chart-path polyline {
-          fill: none;
-          stroke: rgb(var(--ink) / 0.22);
-          stroke-width: 1;
-          stroke-dasharray: 2 5;
-          vector-effect: non-scaling-stroke;
-        }
-        .ms-node {
-          position: absolute;
-          left: 0;
-          right: 0;
-          height: ${ROW}px;
+        /* ── 3 · work: a featured shot, then the library ─────────────────── */
+        .ms-work-count { margin-top: 14px; color: rgb(var(--ink-2)); }
+        .ms-feat {
+          position: relative;
           display: block;
+          width: 100%;
+          margin-top: 28px;
           padding: 0;
           border: 0;
-          border-radius: 10px;
+          border-radius: 18px;
           background: none;
           color: inherit;
           font: inherit;
           text-align: left;
           cursor: pointer;
           -webkit-tap-highlight-color: transparent;
+          transition: transform var(--dur-1) var(--ease-out);
         }
-        .ms-node:focus-visible { outline-offset: -2px; border-radius: 10px; }
-        .ms-node-star {
-          position: absolute;
-          top: 50%;
-          left: var(--x);
-          width: 7px;
-          height: 7px;
-          margin: -3.5px 0 0 -3.5px;
-          border-radius: 50%;
-          background: rgb(var(--ink-2));
-          transition: background-color var(--dur-1) var(--ease-out), transform var(--dur-2) var(--ease-out);
-        }
-        .ms-node--featured .ms-node-star {
-          width: 11px;
-          height: 11px;
-          margin: -5.5px 0 0 -5.5px;
-          background: rgb(var(--ink));
-          box-shadow: 0 0 0 5px rgb(var(--space-0)), 0 0 0 6px rgb(var(--ink) / 0.3);
-        }
-        .ms-node--demo .ms-node-star {
-          background: rgb(var(--space-0));
-          box-shadow: inset 0 0 0 1.5px rgb(var(--ink-3));
-        }
-        .ms-node-text {
-          position: absolute;
-          left: 0;
-          right: 30%;
-          top: 50%;
-          transform: translateY(-50%);
-        }
-        .ms-node-title {
+        .ms-feat:focus-visible { outline-offset: 6px; border-radius: 20px; }
+        .ms-feat:active { transform: scale(0.985); transition-duration: 80ms; }
+        .ms-feat-media {
+          position: relative;
           display: block;
-          font-size: 15px;
-          font-weight: 600;
-          line-height: 1.2;
+          aspect-ratio: 16 / 10;
+          overflow: hidden;
+          border-radius: 18px;
+          border: 1px solid rgb(var(--line));
+          background: rgb(var(--surface-2));
+          box-shadow: 0 28px 60px -34px rgb(var(--space-0) / 0.9);
+        }
+        :root[data-theme='light'] .ms-feat-media { box-shadow: 0 24px 48px -30px rgb(var(--ink) / 0.3); }
+        .ms-feat-media img { transition: transform var(--dur-3) var(--ease-out); }
+        .ms-feat-body { display: block; padding-top: 16px; }
+        .ms-feat-meta { display: block; font-size: 13px; color: rgb(var(--ink-2)); }
+        .ms-feat-title {
+          display: block;
+          margin-top: 6px;
+          font-size: 24px;
           color: rgb(var(--ink));
           transition: color var(--dur-1) var(--ease-out);
         }
-        .ms-node-meta {
+        .ms-feat-tag {
+          display: block;
+          margin-top: 8px;
+          font-size: 15px;
+          line-height: 1.55;
+          color: rgb(var(--ink-2));
+          text-wrap: pretty;
+        }
+
+        .ms-group { margin-top: 36px; }
+        .ms-group-h {
+          padding-bottom: 10px;
+          border-bottom: 1px solid rgb(var(--line));
+          font-size: 18px;
+          color: rgb(var(--ink));
+        }
+        .ms-rows { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); }
+        .ms-rows > li { min-width: 0; border-bottom: 1px solid rgb(var(--line)); }
+        .ms-row {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          width: calc(100% + 16px);
+          min-height: 72px;
+          margin: 0 -8px;
+          padding: 8px;
+          border: 0;
+          border-radius: 12px;
+          background: transparent;
+          color: inherit;
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          transition: transform var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out);
+        }
+        .ms-row:focus-visible { outline-offset: -2px; border-radius: 12px; }
+        .ms-row:active { transform: scale(0.97); background: rgb(var(--ink) / 0.06); transition-duration: 80ms; }
+        .ms-row-thumb {
+          position: relative;
+          flex: none;
+          width: 56px;
+          height: 56px;
+          overflow: hidden;
+          border-radius: 10px;
+          border: 1px solid rgb(var(--line));
+          background: rgb(var(--surface-2));
+        }
+        .ms-row-text { min-width: 0; }
+        .ms-row-title {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          font-size: 15px;
+          font-weight: 600;
+          line-height: 1.25;
+          color: rgb(var(--ink));
+          transition: color var(--dur-1) var(--ease-out);
+        }
+        .ms-row-meta {
           display: block;
           margin-top: 3px;
           font-size: 13px;
-          line-height: 1.2;
-          color: rgb(var(--ink-3));
+          line-height: 1.3;
+          color: rgb(var(--ink-2));
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        .ms-node:hover .ms-node-title,
-        .ms-node:focus-visible .ms-node-title { color: rgb(var(--accent-text)); }
-        .ms-node:hover .ms-node-star,
-        .ms-node:focus-visible .ms-node-star { background: rgb(var(--accent)); transform: scale(1.25); }
-        .ms-node:active .ms-node-star { transform: scale(0.9); }
-        .ms-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; }
-        .ms-pager .t-data { color: rgb(var(--ink-2)); }
-        .ms-pager .btn { gap: 8px; }
-        .ms-pager .btn svg { width: 11px; height: 11px; }
+        @media (hover: hover) and (pointer: fine) {
+          .ms-feat:hover .ms-feat-title { color: rgb(var(--accent-text)); }
+          .ms-feat:hover .ms-feat-media img { transform: scale(1.02); }
+          .ms-row:hover { background: rgb(var(--ink) / 0.04); }
+          .ms-row:hover .ms-row-title { color: rgb(var(--accent-text)); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ms-feat-media img { transition: none; }
+        }
+        @media (min-width: 640px) {
+          .ms-rows { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
+          .ms-feat-title { font-size: 28px; }
+          .ms-feat-tag { font-size: 16px; max-width: 52ch; }
+        }
+        @media (min-width: 1200px) {
+          .ms-rows { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
 
         /* ── 5 · experience ──────────────────────────────────────────────── */
-        .ms-tl { position: relative; list-style: none; margin-top: 32px; }
+        /* On phones the list is indented so its spine (x >= 60) never runs as
+           a second vertical beside the station rail. */
+        .ms-tl { position: relative; list-style: none; margin: 32px 0 0 16px; }
         .ms-tl::before {
           content: '';
           position: absolute;
@@ -734,6 +1003,9 @@ export default function MobileSpace() {
         .ms-tl-date { display: block; color: rgb(var(--ink-3)); white-space: nowrap; }
         .ms-tl-role { margin-top: 6px; font-size: 19px; color: rgb(var(--ink)); text-wrap: pretty; }
         .ms-tl-co { margin-top: 3px; font-size: 15px; color: rgb(var(--ink-2)); }
+        @media (min-width: 640px) {
+          .ms-tl { margin-left: 0; }
+        }
 
         .ms-quote { margin-top: 20px; padding-top: 28px; border-top: 1px solid rgb(var(--line)); }
         .ms-quote-stack { display: grid; }
@@ -758,13 +1030,18 @@ export default function MobileSpace() {
         .ms-quote-role { font-size: 13px; color: rgb(var(--ink-3)); }
         .ms-quote-nav { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
         .ms-quote-nav .t-data { color: rgb(var(--ink-2)); min-width: 3.5em; text-align: center; }
+        @media (min-width: 640px) {
+          .ms-quote-text { max-width: 54ch; }
+        }
+        @media (min-width: 1024px) {
+          .ms-quote-text { font-size: 22px; }
+        }
         @media (prefers-reduced-motion: reduce) {
           .ms-quote-item, .ms-quote-item.is-active { transition: none; }
         }
 
         /* ── 6 · contact ─────────────────────────────────────────────────── */
         .ms-st--contact { overflow: hidden; overflow: clip; padding-bottom: 104px; }
-        .ms-st--contact .ms-inner { position: static; }
         .ms-email {
           display: inline-block;
           margin-top: 28px;
@@ -783,8 +1060,26 @@ export default function MobileSpace() {
           text-decoration-color: rgb(var(--ink) / 0.3);
           transition: color var(--dur-1) var(--ease-out), text-decoration-color var(--dur-1) var(--ease-out);
         }
-        .ms-email:hover,
         .ms-email:active { color: rgb(var(--accent-text)); text-decoration-color: currentColor; }
+        @media (hover: hover) and (pointer: fine) {
+          .ms-email:hover { color: rgb(var(--accent-text)); text-decoration-color: currentColor; }
+        }
+        @media (min-width: 1024px) {
+          .ms-email { font-size: clamp(32px, 3vw, 42px); }
+        }
+        /* Pending state while the drawer chunk is still downloading. */
+        .ms-spin {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          border: 2px solid currentColor;
+          border-right-color: transparent;
+          animation: ms-spin 700ms linear infinite;
+        }
+        @keyframes ms-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) {
+          .ms-spin { animation: none; border-right-color: currentColor; opacity: 0.6; }
+        }
         .ms-links { list-style: none; margin-top: 30px; border-top: 1px solid rgb(var(--line)); }
         .ms-link {
           display: flex;
@@ -793,14 +1088,18 @@ export default function MobileSpace() {
           min-height: 58px;
           border-bottom: 1px solid rgb(var(--line));
           color: rgb(var(--ink));
+          transition: transform var(--dur-1) var(--ease-out);
         }
+        .ms-link:active { transform: scale(0.97); transition-duration: 80ms; }
         .ms-link svg { width: 17px; height: 17px; flex: none; color: rgb(var(--ink-2)); transition: color var(--dur-1) var(--ease-out); }
         .ms-link-label { font-size: 16px; font-weight: 600; }
         .ms-link-value { margin-left: auto; font-size: 14px; color: rgb(var(--ink-3)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
         .ms-link-arrow { color: rgb(var(--ink-3)); transition: transform var(--dur-2) var(--ease-out), color var(--dur-1) var(--ease-out); }
-        .ms-link:hover .ms-link-arrow,
         .ms-link:focus-visible .ms-link-arrow { color: rgb(var(--accent-text)); transform: translate(2px, -2px); }
-        .ms-link:hover svg { color: rgb(var(--ink)); }
+        @media (hover: hover) and (pointer: fine) {
+          .ms-link:hover .ms-link-arrow { color: rgb(var(--accent-text)); transform: translate(2px, -2px); }
+          .ms-link:hover svg { color: rgb(var(--ink)); }
+        }
         .ms-footer {
           position: relative;
           z-index: 1;
@@ -826,8 +1125,14 @@ export default function MobileSpace() {
           background: linear-gradient(180deg, rgb(var(--surface)) 0px, rgb(var(--surface-2)) 90px);
           box-shadow: inset 0 1px 0 rgb(var(--ink) / 0.14), 0 -14px 60px -12px rgb(var(--nebula-a) / 0.9);
         }
+        @media (min-width: 1024px) {
+          .ms-home-planet { width: max(160vw, 1800px); }
+        }
 
         /* ── project sheet (dialog) ──────────────────────────────────────── */
+        /* CSS transitions (not keyframes), so every change of direction - a
+           tap on the scrim mid-entrance, a drag, a snap back - starts from
+           where the panel is. The drag writes the transform inline. */
         .ms-sheet {
           position: fixed;
           inset: 0;
@@ -835,37 +1140,73 @@ export default function MobileSpace() {
           display: flex;
           align-items: flex-end;
           justify-content: center;
-          background: rgb(var(--space-0) / 0.66);
-          animation: ms-fade var(--dur-2) var(--ease-out) both;
+          overflow: hidden;
         }
-        .ms-sheet[data-state='closing'] { animation: ms-fade-out var(--dur-2) var(--ease-out) both; }
+        .ms-sheet-scrim {
+          position: absolute;
+          inset: 0;
+          background: rgb(var(--space-0) / 0.66);
+          opacity: 0;
+          transition: opacity 360ms var(--ease-out);
+          -webkit-tap-highlight-color: transparent;
+        }
+        .ms-sheet[data-state='open'] .ms-sheet-scrim { opacity: 1; }
+        .ms-sheet[data-state='closing'] .ms-sheet-scrim { opacity: 0; transition-duration: var(--dur-2); }
+        :root[data-theme='light'] .ms-sheet-scrim { background: rgb(var(--ink) / 0.32); }
         .ms-sheet-panel {
           position: relative;
+          display: flex;
+          flex-direction: column;
           width: 100%;
           max-width: 640px;
           max-height: 88svh;
-          overflow-y: auto;
-          overscroll-behavior: contain;
-          padding: 10px 20px calc(28px + env(safe-area-inset-bottom));
           border-radius: 18px 18px 0 0;
           border: 1px solid rgb(var(--line));
           border-bottom: 0;
           background: rgb(var(--surface));
           box-shadow: 0 -24px 60px -20px rgb(var(--space-0) / 0.8);
-          animation: ms-sheet-in 460ms var(--ease-out-expo) both;
+          transform: translate3d(0, 100%, 0);
+          transition: transform 500ms cubic-bezier(0.32, 0.72, 0, 1);
+          will-change: transform;
         }
-        .ms-sheet[data-state='closing'] .ms-sheet-panel { animation: ms-sheet-out var(--dur-2) var(--ease-out) both; }
+        /* Surface under the panel, seen only when it is pulled upward. */
+        .ms-sheet-panel::after {
+          content: '';
+          position: absolute;
+          left: -1px;
+          right: -1px;
+          top: 100%;
+          height: 120px;
+          background: rgb(var(--surface));
+          border-inline: 1px solid rgb(var(--line));
+        }
+        .ms-sheet[data-state='open'] .ms-sheet-panel { transform: translate3d(0, 0, 0); }
+        .ms-sheet[data-state='closing'] .ms-sheet-panel {
+          transform: translate3d(0, 100%, 0);
+          transition: transform var(--dur-2) var(--ease-out);
+        }
+        :root[data-theme='light'] .ms-sheet-panel { box-shadow: 0 -24px 60px -24px rgb(var(--ink) / 0.3); }
         .ms-sheet-panel:focus { outline: none; }
-        @keyframes ms-fade-out { from { opacity: 1; } to { opacity: 0; } }
-        @keyframes ms-sheet-in { from { transform: translate3d(0, 100%, 0); } to { transform: none; } }
-        @keyframes ms-sheet-out { from { transform: none; } to { transform: translate3d(0, 100%, 0); } }
         @media (prefers-reduced-motion: reduce) {
           .ms-sheet-panel,
-          .ms-sheet[data-state='closing'] .ms-sheet-panel { animation: ms-fade var(--dur-2) linear both; }
-          .ms-sheet[data-state='closing'] .ms-sheet-panel { animation-name: ms-fade-out; }
+          .ms-sheet[data-state='open'] .ms-sheet-panel,
+          .ms-sheet[data-state='closing'] .ms-sheet-panel {
+            transform: none;
+            opacity: 0;
+            transition: opacity 200ms linear;
+          }
+          .ms-sheet[data-state='open'] .ms-sheet-panel { opacity: 1; }
         }
-        :root[data-theme='light'] .ms-sheet { background: rgb(var(--ink) / 0.32); }
-        :root[data-theme='light'] .ms-sheet-panel { box-shadow: 0 -24px 60px -24px rgb(var(--ink) / 0.3); }
+        /* Drag handle: the grip and the whole header. */
+        .ms-sheet-head {
+          flex: none;
+          padding: 10px 20px 14px;
+          touch-action: none;
+          cursor: grab;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .ms-sheet-head[data-dragging] { cursor: grabbing; }
         .ms-sheet-grip {
           width: 36px;
           height: 4px;
@@ -873,13 +1214,20 @@ export default function MobileSpace() {
           border-radius: 2px;
           background: rgb(var(--ink) / 0.22);
         }
+        .ms-sheet-body {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          padding: 0 20px calc(28px + env(safe-area-inset-bottom));
+        }
         .ms-sheet-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
         .ms-sheet-meta { padding-top: 12px; font-size: 14px; color: rgb(var(--ink-3)); }
         .ms-sheet-meta .t-data { font-size: 13px; }
         .ms-sheet-title { margin-top: 6px; font-size: 26px; color: rgb(var(--ink)); }
         .ms-sheet-cover {
           position: relative;
-          margin-top: 18px;
+          margin-top: 4px;
           aspect-ratio: 16 / 9;
           border-radius: 12px;
           overflow: hidden;
@@ -899,10 +1247,12 @@ export default function MobileSpace() {
 }
 
 // ── shell ───────────────────────────────────────────────────────────────────
-function Station({ i, setRef, className, children }: {
+function Station({ i, setRef, className, after, children }: {
   i: number
   setRef: (el: HTMLElement | null) => void
   className?: string
+  /** Full-bleed decoration rendered after the content frame (planets). */
+  after?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -915,6 +1265,7 @@ function Station({ i, setRef, className, children }: {
       className={`ms-st${className ? ` ${className}` : ''}`}
     >
       <div className="ms-inner">{children}</div>
+      {after}
     </section>
   )
 }
@@ -1004,7 +1355,9 @@ function Hero({ onWork }: { onWork: () => void }) {
 }
 
 // The sticker photo standing on the horizon. Tap (or Enter / Space) flips it
-// to the intro video; the pill becomes a mute toggle while it plays.
+// to the intro video; the pill becomes a mute toggle while it plays. The video
+// fetches nothing (no poster, no preload) until the card is flipped, so it
+// never competes with the sticker for LCP.
 function IntroCard() {
   const [flipped, setFlipped] = useState(false)
   const [muted, setMuted] = useState(false)
@@ -1025,7 +1378,7 @@ function IntroCard() {
         setMuted(true)
         v.play().catch(() => {})
       })
-    } else {
+    } else if (!v.paused || v.currentTime > 0) {
       v.pause()
       v.currentTime = 0
     }
@@ -1049,7 +1402,7 @@ function IntroCard() {
               alt="Shah Fahad"
               fill
               priority
-              sizes="(max-width: 540px) 280px, 320px"
+              sizes="(min-width: 1024px) 540px, (min-width: 640px) 500px, 320px"
               className="ms-intro-media"
               style={{ objectFit: 'contain', objectPosition: 'bottom' }}
             />
@@ -1058,9 +1411,9 @@ function IntroCard() {
             <video
               ref={videoRef}
               className="ms-intro-video ms-intro-media"
-              poster="/videos/shah-intro-poster.png"
+              poster={flipped ? INTRO_POSTER : undefined}
               playsInline
-              preload="metadata"
+              preload={flipped ? 'auto' : 'none'}
               onEnded={() => setFlipped(false)}
               aria-hidden="true"
               tabIndex={-1}
@@ -1094,129 +1447,134 @@ function IntroCard() {
 // ── 1 · about ───────────────────────────────────────────────────────────────
 function About() {
   return (
-    <>
-      <StationTitle i={1}>I ship products people use.</StationTitle>
-      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
-        8+ years turning ideas into shipped software, from Miletap&apos;s real-time video platform to
-        DigitalHire&apos;s hiring system.
-      </p>
-      <dl className="ms-facts" data-reveal="group">
-        <div className="ms-fact ms-si" style={iv(0)}>
-          <dt>Experience</dt>
-          <dd className="t-data"><span className="ms-em">8+</span> years</dd>
-        </div>
-        <div className="ms-fact ms-si" style={iv(1)}>
-          <dt>Teams</dt>
-          <dd className="t-data">DigitalHire · Kistpay · Miletap</dd>
-        </div>
-        <div className="ms-fact ms-si" style={iv(2)}>
-          <dt>Based in</dt>
-          <dd className="t-data">Karachi, PK</dd>
-        </div>
-      </dl>
-    </>
+    <div className="ms-split">
+      <div className="ms-col-a">
+        <StationTitle i={1}>I ship products people use.</StationTitle>
+        <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+          8+ years turning ideas into shipped software, from Miletap&apos;s real-time video platform to
+          DigitalHire&apos;s hiring system.
+        </p>
+      </div>
+      <div className="ms-col-b">
+        <dl className="ms-facts" data-reveal="group">
+          <div className="ms-fact ms-si" style={iv(0)}>
+            <dt>Experience</dt>
+            <dd className="t-data"><span className="ms-em">8+</span> years</dd>
+          </div>
+          <div className="ms-fact ms-si" style={iv(1)}>
+            <dt>Teams</dt>
+            <dd className="t-data">DigitalHire · Kistpay · Miletap</dd>
+          </div>
+          <div className="ms-fact ms-si" style={iv(2)}>
+            <dt>Based in</dt>
+            <dd className="t-data">Karachi, PK</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
   )
 }
 
 // ── 2 · skills ──────────────────────────────────────────────────────────────
 function Skills() {
   return (
-    <>
-      <StationTitle i={2}>Eight years of craft.</StationTitle>
-      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
-        React and Next.js on the web, Flutter on mobile, WebRTC and SignalR when it has to be live.
-      </p>
-      <ul className="ms-skills" data-reveal="group">
-        {skills.map((cat, i) => (
-          <li key={cat.label} className="ms-skill-row ms-si" style={iv(i)}>
-            <h3 className="t-subtitle ms-skill-cat">{sentenceCase(cat.label)}</h3>
-            <p className="t-lead ms-skill-list">
-              {cat.skills.map((s, j) => (
-                <Fragment key={s}>
-                  {j > 0 && <span className="ms-sep" aria-hidden="true"> · </span>}
-                  <span className="ms-skill">{s}</span>
-                </Fragment>
-              ))}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </>
+    <div className="ms-split">
+      <div className="ms-col-a">
+        <StationTitle i={2}>Eight years of craft.</StationTitle>
+        <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+          React and Next.js on the web, Flutter on mobile, WebRTC and SignalR when it has to be live.
+        </p>
+      </div>
+      <div className="ms-col-b">
+        <ul className="ms-skills" data-reveal="group">
+          {skills.map((cat, i) => (
+            <li key={cat.label} className="ms-skill-row ms-si" style={iv(i)}>
+              <h3 className="t-subtitle ms-skill-cat">{sentenceCase(cat.label)}</h3>
+              <p className="t-lead ms-skill-list">
+                {cat.skills.map((s, j) => (
+                  <Fragment key={s}>
+                    {j > 0 && <span className="ms-sep" aria-hidden="true"> · </span>}
+                    <span className="ms-skill">{s}</span>
+                  </Fragment>
+                ))}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   )
 }
 
 // ── 3 · work ────────────────────────────────────────────────────────────────
+// The featured product leads as a full-width shot (same asset as the desktop
+// showcase), then the library: 56px thumbnails, title, category and year.
+// Every row opens the project sheet.
 function Work({ onOpen }: { onOpen: (p: Project) => void }) {
-  const [page, setPage] = useState(0)
-  const prevRef = useRef<HTMLButtonElement>(null)
-  const nextRef = useRef<HTMLButtonElement>(null)
-  const pages = WORK_GROUPS.length
-  const group = WORK_GROUPS[page]
-  const height = group.items.length * ROW
-  const points = group.items
-    .map((_, i) => `${STAR_X[i % STAR_X.length]},${i * ROW + ROW / 2}`)
-    .join(' ')
-
-  const go = (d: number) => {
-    const np = Math.min(pages - 1, Math.max(0, page + d))
-    setPage(np)
-    // The pressed button may now be disabled; keep focus inside the pager.
-    requestAnimationFrame(() => {
-      const el = document.activeElement
-      if (!el || el === document.body || (el as HTMLButtonElement).disabled) {
-        ;(np === pages - 1 ? prevRef : nextRef).current?.focus()
-      }
-    })
-  }
-
   return (
     <>
-      <StationTitle i={3}>Selected work.</StationTitle>
-      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
-        Shipped products and engineering demos. Tap a star for the story behind it.
-      </p>
-
-      <div className="ms-chart-head" data-reveal style={iv(2)}>
-        <h3 className="t-subtitle" aria-live="polite">{group.label}</h3>
-        <span className="t-data">{group.items.length} projects</span>
-      </div>
-
-      <div className="ms-chart" style={{ height }} data-reveal="group">
-        <svg className="ms-chart-path" viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" aria-hidden="true">
-          <polyline key={page} points={points} />
-        </svg>
-        {group.items.map((p, i) => {
-          const demo = DEMO_IDS.has(p.id)
-          return (
-            <button
-              key={p.id}
-              type="button"
-              className={`ms-node ms-si${p.featured ? ' ms-node--featured' : ''}${demo ? ' ms-node--demo' : ''}`}
-              style={{ top: i * ROW, ['--x' as string]: `${STAR_X[i % STAR_X.length]}%`, ['--i' as string]: i } as CSSProperties}
-              aria-haspopup="dialog"
-              onClick={() => onOpen(p)}
-            >
-              <span className="ms-node-star" aria-hidden="true" />
-              <span className="ms-node-text">
-                <span className="ms-node-title">{shortTitle(p)}</span>
-                <span className="ms-node-meta">
-                  {CATEGORY[p.category]} · <span className="t-data">{p.year}</span>
+      <div className="ms-split">
+        <div className="ms-col-a">
+          <StationTitle i={3}>Selected work.</StationTitle>
+          <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+            Shipped products and engineering demos.
+          </p>
+          <p className="t-data ms-work-count" data-reveal style={iv(2)}>{WORK_COUNT}</p>
+        </div>
+        {FEATURED && (
+          <div className="ms-col-b">
+            <div data-reveal style={iv(2)}>
+              <button type="button" className="ms-feat" aria-haspopup="dialog" onClick={() => onOpen(FEATURED)}>
+                <span className="ms-feat-media">
+                  <Image
+                    src={FEATURED.image}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 600px, (min-width: 640px) 880px, 100vw"
+                    style={{ objectFit: 'cover', objectPosition: coverPosition(FEATURED) }}
+                  />
                 </span>
-              </span>
-            </button>
-          )
-        })}
+                <span className="ms-feat-body">
+                  <span className="ms-feat-meta">
+                    {CATEGORY[FEATURED.category]} · <span className="t-data">{FEATURED.year}</span>
+                  </span>
+                  <span className="t-subtitle ms-feat-title">{shortTitle(FEATURED)}</span>
+                  <span className="ms-feat-tag">{FEATURED.tagline}</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      <nav className="ms-pager" aria-label="Project groups">
-        <button ref={prevRef} type="button" className="btn btn--ghost btn--sm" disabled={page === 0} onClick={() => go(-1)}>
-          <FaChevronLeft aria-hidden /> Previous
-        </button>
-        <span className="t-data" aria-hidden="true">{page + 1} / {pages}</span>
-        <button ref={nextRef} type="button" className="btn btn--ghost btn--sm" disabled={page === pages - 1} onClick={() => go(1)}>
-          Next <FaChevronRight aria-hidden />
-        </button>
-      </nav>
+      {WORK_GROUPS.map((g) => (
+        <div key={g.id} className="ms-group">
+          <h3 className="t-subtitle ms-group-h" data-reveal>{g.label}</h3>
+          <ul className="ms-rows" data-reveal="group">
+            {g.items.map((p, i) => (
+              <li key={p.id} className="ms-si" style={iv(i)}>
+                <button type="button" className="ms-row" aria-haspopup="dialog" onClick={() => onOpen(p)}>
+                  <span className="ms-row-thumb">
+                    <Image
+                      src={p.image}
+                      alt=""
+                      fill
+                      sizes="56px"
+                      style={{ objectFit: 'cover', objectPosition: coverPosition(p) }}
+                    />
+                  </span>
+                  <span className="ms-row-text">
+                    <span className="ms-row-title">{shortTitle(p)}</span>
+                    <span className="ms-row-meta">
+                      {CATEGORY[p.category]} · <span className="t-data">{p.year}</span>
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </>
   )
 }
@@ -1225,15 +1583,19 @@ function Work({ onOpen }: { onOpen: (p: Project) => void }) {
 function OpenSource() {
   const merged = openSourceStats().merged
   return (
-    <>
-      <StationTitle i={4}>Merged upstream.</StationTitle>
-      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
-        <span className="ms-em">{merged}</span> pull requests merged into Flutter and the Supabase Flutter SDK.
-      </p>
-      <div data-reveal style={iv(2)}>
-        <FeaturedAchievement />
+    <div className="ms-split">
+      <div className="ms-col-a">
+        <StationTitle i={4}>Merged upstream.</StationTitle>
+        <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+          <span className="ms-em">{merged}</span> pull requests merged into Flutter and the Supabase Flutter SDK.
+        </p>
       </div>
-    </>
+      <div className="ms-col-b">
+        <div data-reveal style={iv(2)}>
+          <FeaturedAchievement />
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -1242,62 +1604,66 @@ function Experience() {
   const [ti, setTi] = useState(0)
   const n = testimonials.length
   return (
-    <>
-      <StationTitle i={5}>Where I&apos;ve worked.</StationTitle>
-      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
-        DigitalHire, Kistpay and Miletap, plus part-time work for E-Ocean and Entertech: frontend, real-time and
-        mobile.
-      </p>
+    <div className="ms-split">
+      <div className="ms-col-a">
+        <StationTitle i={5}>Where I&apos;ve worked.</StationTitle>
+        <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+          DigitalHire, Kistpay and Miletap, plus part-time work for <span className="ms-nw">E-Ocean</span> and
+          Entertech: frontend, real-time and mobile.
+        </p>
 
-      <ol className="ms-tl" data-reveal="group">
-        {experience.map((e, i) => (
-          <li key={e.id} className={`ms-tl-item ms-si${e.current ? ' is-current' : ''}`} style={iv(i)}>
-            <span className="ms-tl-dot" aria-hidden="true" />
-            <span className="t-data ms-tl-date">{e.period}</span>
-            <h3 className="t-subtitle ms-tl-role">{e.role}</h3>
-            <p className="ms-tl-co">
-              {e.company}
-              {e.current && <span className="sr-only">, current role</span>}
-            </p>
-          </li>
-        ))}
-      </ol>
-
-      <figure className="ms-quote" data-reveal aria-label="Recommendations from LinkedIn">
-        <div className="ms-quote-stack" aria-live="polite">
-          {testimonials.map((t, i) => (
-            <div key={t.name} className={`ms-quote-item${i === ti ? ' is-active' : ''}`} aria-hidden={i !== ti}>
-              <blockquote>
-                <p className="ms-quote-text">&ldquo;{t.short}&rdquo;</p>
-              </blockquote>
-              <figcaption className="ms-quote-by">
-                <span className="ms-quote-name">{t.name}</span>
-                <span className="ms-quote-role">{t.role}</span>
-              </figcaption>
-            </div>
+        <ol className="ms-tl" data-reveal="group">
+          {experience.map((e, i) => (
+            <li key={e.id} className={`ms-tl-item ms-si${e.current ? ' is-current' : ''}`} style={iv(i)}>
+              <span className="ms-tl-dot" aria-hidden="true" />
+              <span className="t-data ms-tl-date">{e.period}</span>
+              <h3 className="t-subtitle ms-tl-role">{e.role}</h3>
+              <p className="ms-tl-co">
+                {e.company}
+                {e.current && <span className="sr-only">, current role</span>}
+              </p>
+            </li>
           ))}
-        </div>
-        <div className="ms-quote-nav">
-          <button
-            type="button"
-            className="btn btn--ghost ms-icon"
-            aria-label="Previous recommendation"
-            onClick={() => setTi((v) => (v - 1 + n) % n)}
-          >
-            <FaChevronLeft aria-hidden />
-          </button>
-          <span className="t-data" aria-hidden="true">{ti + 1} / {n}</span>
-          <button
-            type="button"
-            className="btn btn--ghost ms-icon"
-            aria-label="Next recommendation"
-            onClick={() => setTi((v) => (v + 1) % n)}
-          >
-            <FaChevronRight aria-hidden />
-          </button>
-        </div>
-      </figure>
-    </>
+        </ol>
+      </div>
+
+      <div className="ms-col-b">
+        <figure className="ms-quote" data-reveal aria-label="Recommendations from LinkedIn">
+          <div className="ms-quote-stack" aria-live="polite">
+            {testimonials.map((t, i) => (
+              <div key={t.name} className={`ms-quote-item${i === ti ? ' is-active' : ''}`} aria-hidden={i !== ti}>
+                <blockquote>
+                  <p className="ms-quote-text">&ldquo;{t.short}&rdquo;</p>
+                </blockquote>
+                <figcaption className="ms-quote-by">
+                  <span className="ms-quote-name">{t.name}</span>
+                  <span className="ms-quote-role">{t.role}</span>
+                </figcaption>
+              </div>
+            ))}
+          </div>
+          <div className="ms-quote-nav">
+            <button
+              type="button"
+              className="btn btn--ghost ms-icon"
+              aria-label="Previous recommendation"
+              onClick={() => setTi((v) => (v - 1 + n) % n)}
+            >
+              <FaChevronLeft aria-hidden />
+            </button>
+            <span className="t-data" aria-hidden="true">{ti + 1} / {n}</span>
+            <button
+              type="button"
+              className="btn btn--ghost ms-icon"
+              aria-label="Next recommendation"
+              onClick={() => setTi((v) => (v + 1) % n)}
+            >
+              <FaChevronRight aria-hidden />
+            </button>
+          </div>
+        </figure>
+      </div>
+    </div>
   )
 }
 
@@ -1309,56 +1675,142 @@ function Contact() {
   ]
   return (
     <>
-      <StationTitle i={6}>Let&apos;s build something.</StationTitle>
-      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
-        Open to senior frontend and real-time roles, full-time or contract.
-      </p>
-      <a className="ms-email" href={`mailto:${EMAIL}`} data-reveal style={iv(2)}>{EMAIL}</a>
-      <div className="ms-ctas" data-reveal style={iv(3)}>
-        <button
-          type="button"
-          className="btn btn--primary"
-          onClick={() => window.dispatchEvent(new Event('contact-drawer-open'))}
-        >
-          Write to me
-        </button>
-        <a className="btn btn--ghost" href={CAL} target="_blank" rel="noopener noreferrer">
-          Book a 15-min call
-        </a>
-      </div>
-      <ul className="ms-links" data-reveal="group">
-        {links.map(({ label, value, href, Icon }, i) => (
-          <li key={label} className="ms-si" style={iv(i)}>
-            <a className="ms-link" href={href} target="_blank" rel="noopener noreferrer">
-              <Icon aria-hidden />
-              <span className="ms-link-label">{label}</span>
-              <span className="ms-link-value">{value}</span>
-              <span className="ms-link-arrow" aria-hidden="true">↗</span>
+      <div className="ms-split">
+        <div className="ms-col-a">
+          <StationTitle i={6}>Let&apos;s build something.</StationTitle>
+          <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+            Open to senior frontend and real-time roles, full-time or contract.
+          </p>
+          <a className="ms-email" href={`mailto:${EMAIL}`} data-reveal style={iv(2)}>{EMAIL}</a>
+          <div className="ms-ctas" data-reveal style={iv(3)}>
+            <WriteToMe />
+            <a className="btn btn--ghost" href={CAL} target="_blank" rel="noopener noreferrer">
+              Book a 15-min call
             </a>
-          </li>
-        ))}
-      </ul>
+          </div>
+        </div>
+        <div className="ms-col-b">
+          <ul className="ms-links" data-reveal="group">
+            {links.map(({ label, value, href, Icon }, i) => (
+              <li key={label} className="ms-si" style={iv(i)}>
+                <a className="ms-link" href={href} target="_blank" rel="noopener noreferrer">
+                  <Icon aria-hidden />
+                  <span className="ms-link-label">{label}</span>
+                  <span className="ms-link-value">{value}</span>
+                  <span className="ms-link-arrow" aria-hidden="true">↗</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
       <footer className="ms-footer">© 2026 Shah Fahad</footer>
-      <div className="ms-home-planet" aria-hidden="true" />
     </>
+  )
+}
+
+// Opens the shared contact drawer. The chunk is warmed on press (and when the
+// Contact station comes into view); if it is still downloading 120ms after the
+// tap, the button says so instead of looking dead.
+function WriteToMe() {
+  const [busy, setBusy] = useState(false)
+  const open = () => {
+    let ready = false
+    const t = window.setTimeout(() => { if (!ready) setBusy(true) }, 120)
+    prefetchDrawer().then(() => {
+      ready = true
+      window.clearTimeout(t)
+      setBusy(false)
+    })
+    window.dispatchEvent(new Event('contact-drawer-open'))
+  }
+  const warm = () => { prefetchDrawer() }
+  return (
+    <button
+      type="button"
+      className="btn btn--primary"
+      aria-busy={busy || undefined}
+      onPointerDown={warm}
+      onTouchStart={warm}
+      onFocus={warm}
+      onClick={open}
+    >
+      Write to me
+      {busy && <span className="ms-spin" aria-hidden="true" />}
+    </button>
   )
 }
 
 // ── project sheet: a real modal dialog ──────────────────────────────────────
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+const SHEET_OUT_MS = 280
+const DISMISS_SHARE = 0.25 // of the panel height
+const DISMISS_VELOCITY = 0.3 // px/ms, downward
+
+type SheetState = 'enter' | 'open' | 'closing'
+type Drag = {
+  id: number
+  startY: number
+  base: number // panel offset when the press began (mid-transition presses included)
+  y: number
+  h: number
+  lastY: number
+  lastT: number
+  v: number
+  active: boolean
+}
+
+/** Current translateY of an element, read from its computed transform. */
+function currentY(el: HTMLElement) {
+  const t = getComputedStyle(el).transform
+  if (!t || t === 'none') return 0
+  try {
+    return new DOMMatrixReadOnly(t).m42
+  } catch {
+    return 0
+  }
+}
 
 function ProjectSheet({ project, onClose }: { project: Project; onClose: () => void }) {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const scrimRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
-  const [closing, setClosing] = useState(false)
-  const requestClose = useCallback(() => setClosing(true), [])
+  const drag = useRef<Drag | null>(null)
+  const closingRef = useRef(false)
+  const [state, setState] = useState<SheetState>('enter')
+  const [dragging, setDragging] = useState(false)
 
-  // Exit: let the slide-down finish, then unmount.
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return
+    closingRef.current = true
+    // Set on the DOM first, so the transition targets the closed state in the
+    // same frame any inline drag styles are cleared.
+    if (rootRef.current) rootRef.current.dataset.state = 'closing'
+    setState('closing')
+  }, [])
+
+  // Enter: commit the off-screen state, flush it, then open, so the CSS
+  // transition runs from translateY(100%).
+  useLayoutEffect(() => {
+    panelRef.current?.getBoundingClientRect()
+    setState((s) => (s === 'enter' ? 'open' : s))
+  }, [])
+
+  // Exit: unmount once the slide-down (or fade) has finished.
   useEffect(() => {
-    if (!closing) return
-    const t = window.setTimeout(onClose, prefersReducedMotion() ? 120 : 280)
-    return () => window.clearTimeout(t)
-  }, [closing, onClose])
+    if (state !== 'closing') return
+    const panel = panelRef.current
+    const onEnd = (e: TransitionEvent) => {
+      if (e.target === panel) onClose()
+    }
+    panel?.addEventListener('transitionend', onEnd)
+    const t = window.setTimeout(onClose, (prefersReducedMotion() ? 200 : SHEET_OUT_MS) + 120)
+    return () => {
+      panel?.removeEventListener('transitionend', onEnd)
+      window.clearTimeout(t)
+    }
+  }, [state, onClose])
 
   // Modal: background inert + scroll-locked, focus in, focus back on close.
   useEffect(() => {
@@ -1398,64 +1850,151 @@ function ProjectSheet({ project, onClose }: { project: Project; onClose: () => v
     }
   }
 
+  // ── drag to dismiss (grip + header) ──
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (closingRef.current || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return
+    // Buttons and links in the header keep their own click.
+    if (e.target instanceof Element && e.target.closest('button, a')) return
+    const panel = panelRef.current
+    if (!panel) return
+    drag.current = {
+      id: e.pointerId,
+      startY: e.clientY,
+      base: currentY(panel),
+      y: 0,
+      h: panel.offsetHeight,
+      lastY: e.clientY,
+      lastT: e.timeStamp,
+      v: 0,
+      active: false,
+    }
+  }
+
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = drag.current
+    const panel = panelRef.current
+    const scrim = scrimRef.current
+    if (!d || e.pointerId !== d.id || !panel || !scrim) return
+    const raw = e.clientY - d.startY
+    if (!d.active) {
+      if (Math.abs(raw) < 4) return
+      d.active = true
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+      } catch {
+        // Pointer already gone (or synthetic): the drag still works uncaptured.
+      }
+      panel.style.transition = 'none'
+      scrim.style.transition = 'none'
+      setDragging(true)
+    }
+    let y = d.base + raw
+    // Upward: damped rubber band that tops out around 48px.
+    if (y < 0) y = -48 * (1 - 1 / (1 + -y / 160))
+    panel.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`
+    scrim.style.opacity = String(Math.max(0, Math.min(1, 1 - y / d.h)))
+    const dt = e.timeStamp - d.lastT
+    if (dt > 0) d.v = 0.7 * ((e.clientY - d.lastY) / dt) + 0.3 * d.v
+    d.lastY = e.clientY
+    d.lastT = e.timeStamp
+    d.y = y
+  }
+
+  const endDrag = (e: ReactPointerEvent<HTMLDivElement>, cancelled: boolean) => {
+    const d = drag.current
+    if (!d || e.pointerId !== d.id) return
+    drag.current = null
+    if (!d.active) return
+    const panel = panelRef.current
+    const scrim = scrimRef.current
+    setDragging(false)
+    if (!panel || !scrim) return
+    // A finger that stopped before lifting has no flick left in it.
+    const v = e.timeStamp - d.lastT > 90 ? 0 : d.v
+    const dismiss = !cancelled && (d.y > d.h * DISMISS_SHARE || v > DISMISS_VELOCITY)
+    panel.style.transition = ''
+    scrim.style.transition = ''
+    scrim.style.opacity = ''
+    if (dismiss) {
+      // Reduced motion fades out where it was dropped; otherwise the panel
+      // carries on down from its current offset.
+      if (!prefersReducedMotion()) panel.style.transform = ''
+      requestClose()
+    } else {
+      // Snap back: the open-state transition runs from the current offset.
+      panel.style.transform = ''
+    }
+  }
+
   const titleId = `sheet-title-${project.id}`
   return (
-    <div className="ms-sheet" data-state={closing ? 'closing' : 'open'} onClick={requestClose}>
+    <div ref={rootRef} className="ms-sheet" data-state={state}>
+      <div ref={scrimRef} className="ms-sheet-scrim" aria-hidden="true" onClick={requestClose} />
       <div
         ref={panelRef}
         className="ms-sheet-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
         onKeyDown={trapTab}
       >
-        <div className="ms-sheet-grip" aria-hidden="true" />
-        <div className="ms-sheet-top">
-          <div>
-            <p className="ms-sheet-meta">
-              {project.company} · <span className="t-data">{project.year}</span>
-            </p>
-            <h2 id={titleId} className="t-subtitle ms-sheet-title">{project.title}</h2>
+        <div
+          className="ms-sheet-head"
+          data-dragging={dragging ? '' : undefined}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={(e) => endDrag(e, false)}
+          onPointerCancel={(e) => endDrag(e, true)}
+        >
+          <div className="ms-sheet-grip" aria-hidden="true" />
+          <div className="ms-sheet-top">
+            <div>
+              <p className="ms-sheet-meta">
+                {project.company} · <span className="t-data">{project.year}</span>
+              </p>
+              <h2 id={titleId} className="t-subtitle ms-sheet-title">{project.title}</h2>
+            </div>
+            <button ref={closeRef} type="button" className="btn btn--ghost ms-icon" aria-label="Close" onClick={requestClose}>
+              <FaXmark aria-hidden />
+            </button>
           </div>
-          <button ref={closeRef} type="button" className="btn btn--ghost ms-icon" aria-label="Close" onClick={requestClose}>
-            <FaXmark aria-hidden />
-          </button>
         </div>
 
-        <div className="ms-sheet-cover">
-          <Image
-            src={project.image}
-            alt={`${shortTitle(project)} screenshot`}
-            fill
-            sizes="(max-width: 640px) 100vw, 640px"
-            style={{ objectFit: 'cover' }}
-          />
-        </div>
+        <div className="ms-sheet-body">
+          <div className="ms-sheet-cover">
+            <Image
+              src={project.image}
+              alt={`${shortTitle(project)} screenshot`}
+              fill
+              sizes="(max-width: 640px) 100vw, 640px"
+              style={{ objectFit: 'cover', objectPosition: coverPosition(project) }}
+            />
+          </div>
 
-        <p className="ms-sheet-tagline">{project.tagline}</p>
-        <p className="ms-sheet-desc">{project.description}</p>
+          <p className="ms-sheet-tagline">{project.tagline}</p>
+          <p className="ms-sheet-desc">{project.description}</p>
 
-        <h3 className="ms-sheet-h">Highlights</h3>
-        <ul className="ms-sheet-list">
-          {project.features.slice(0, 4).map((f) => <li key={f}>{f}</li>)}
-        </ul>
-        <p className="ms-sheet-tech">{project.tech.join(' · ')}</p>
+          <h3 className="ms-sheet-h">Highlights</h3>
+          <ul className="ms-sheet-list">
+            {project.features.slice(0, 4).map((f) => <li key={f}>{f}</li>)}
+          </ul>
+          <p className="ms-sheet-tech">{project.tech.join(' · ')}</p>
 
-        <div className="ms-sheet-actions">
-          <Link className="btn btn--primary" href={`/projects/${projectSlug(project)}`}>
-            Read case study <span className="btn-arrow" aria-hidden="true">→</span>
-          </Link>
-          {project.liveUrl && (
-            <a className="btn btn--ghost" href={project.liveUrl} target="_blank" rel="noopener noreferrer">
-              Live site <span className="btn-arrow" aria-hidden="true">↗</span>
-            </a>
-          )}
-          {project.githubUrl && (
-            <a className="btn btn--ghost" href={project.githubUrl} target="_blank" rel="noopener noreferrer">
-              <FaGithub aria-hidden /> GitHub
-            </a>
-          )}
+          <div className="ms-sheet-actions">
+            <Link className="btn btn--primary" href={`/projects/${projectSlug(project)}`}>
+              Read case study <span className="btn-arrow" aria-hidden="true">→</span>
+            </Link>
+            {project.liveUrl && (
+              <a className="btn btn--ghost" href={project.liveUrl} target="_blank" rel="noopener noreferrer">
+                Live site <span className="btn-arrow" aria-hidden="true">↗</span>
+              </a>
+            )}
+            {project.githubUrl && (
+              <a className="btn btn--ghost" href={project.githubUrl} target="_blank" rel="noopener noreferrer">
+                <FaGithub aria-hidden /> GitHub
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -5,11 +5,11 @@ import { Archivo, JetBrains_Mono } from 'next/font/google'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import Script from 'next/script'
 import { SmoothScroll } from '@/components/providers/SmoothScroll'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { ProjectDrawerProvider } from '@/components/providers/ProjectDrawerProvider'
 import { ContactDrawerProvider } from '@/components/providers/ContactDrawerProvider'
+import { LeFluxEmbed } from '@/components/ui/LeFluxEmbed'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { personSchema, websiteSchema } from '@/lib/seo/jsonld'
 import { SITE_URL, SITE_NAME, AUTHOR, KEYWORDS, SOCIALS } from '@/lib/seo/site'
@@ -99,11 +99,15 @@ export const viewport: Viewport = {
   ],
 }
 
-// Inline script that runs BEFORE React hydrates. Reads localStorage (or
-// prefers-color-scheme) and sets data-theme on <html> so the CSS variables
-// apply on the very first paint — no flash of dark theme when the user has
-// selected light, or vice versa.
-const NO_FLASH_SCRIPT = `(function(){try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`
+// Inline script that runs BEFORE React hydrates.
+//  - Reads localStorage (or prefers-color-scheme) and sets data-theme on
+//    <html> so the CSS variables apply on the very first paint — no flash of
+//    dark theme when the user has selected light, or vice versa.
+//  - Marks the loader state for the first paint: data-booted when this
+//    session has already seen the title card (the server-rendered card is
+//    hidden at once instead of flashing until hydration), else data-booting
+//    on the home route while the card plays (see components/ui/LoadingScreen).
+const NO_FLASH_SCRIPT = `(function(){var d=document.documentElement;try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}d.setAttribute('data-theme',t);}catch(e){d.setAttribute('data-theme','dark');}try{if(sessionStorage.getItem('sf-booted')==='1'){d.setAttribute('data-booted','');}else if(location.pathname==='/'){d.setAttribute('data-booting','');}}catch(e){}})();`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
@@ -130,7 +134,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             show up in the Vercel dashboard (Analytics tab) once enabled. */}
         <Analytics />
         <SpeedInsights />
-        <Script src="https://leflux.xrlabs.app/embed.js" strategy="afterInteractive" />
+        {/* Chat widget: injected after the first interaction or ≥5s idle,
+            never during the loader or hydration (lazyOnload). */}
+        <LeFluxEmbed />
       </body>
     </html>
   )

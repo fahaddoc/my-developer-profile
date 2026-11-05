@@ -16,6 +16,7 @@ import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { projects, type Project } from '@/data/projects'
+import { prefetchDrawer } from '@/components/ui/drawerPrefetch'
 import styles from '@/components/ui/Drawer.module.css'
 
 interface DrawerContextValue {
@@ -34,8 +35,11 @@ export function useProjectDrawer() {
   return useContext(DrawerContext)
 }
 
-const loadDrawer = () => import('@/components/ui/Drawer')
-const Drawer = dynamic(() => loadDrawer().then((m) => m.Drawer), { ssr: false })
+// The shared shell's one cached import (components/ui/drawerPrefetch).
+const Drawer = dynamic(
+  () => prefetchDrawer().then(() => import('@/components/ui/Drawer')).then((m) => m.Drawer),
+  { ssr: false },
+)
 
 const CATEGORY_LABEL: Record<Project['category'], string> = {
   web:      'Web app',
@@ -48,23 +52,12 @@ export function ProjectDrawerProvider({ children }: { children: React.ReactNode 
   const [everOpened, setEverOpened] = useState(false)
   const titleId = useId()
 
-  // Warm the drawer chunk on idle for desktop pointers (see ContactDrawerProvider).
-  useEffect(() => {
-    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
-    let idle = 0
-    const timer = window.setTimeout(() => {
-      const run = () => { loadDrawer().catch(() => {}) }
-      if ('requestIdleCallback' in window) idle = window.requestIdleCallback(run, { timeout: 4000 })
-      else run()
-    }, 6000)
-    return () => {
-      window.clearTimeout(timer)
-      if (idle && 'cancelIdleCallback' in window) window.cancelIdleCallback(idle)
-    }
-  }, [])
+  // The idle warm-up of the shared drawer chunk lives in
+  // ContactDrawerProvider (one import serves both drawers).
 
   const open = useCallback((id: string) => {
     if (!projects.some((p) => p.id === id)) return
+    void prefetchDrawer()
     setEverOpened(true)
     setOpenId(id)
   }, [])

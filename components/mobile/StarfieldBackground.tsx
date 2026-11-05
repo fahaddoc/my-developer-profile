@@ -12,10 +12,12 @@
 //
 // Performance contract (DESIGN.md §9):
 // - Stars come from a seeded PRNG, so SSR and client markup are identical.
-// - Parallax is ONE CSS variable (--sf-scroll) written on this component's own
-//   root (never documentElement) by one passive, rAF-throttled scroll listener,
-//   and only when a `scrollRef` is passed (MobileSpace's inner scroller).
-//   Subpages pass nothing and stay static. No per-frame React work.
+// - Parallax: one passive, rAF-throttled scroll listener writes `transform`
+//   straight onto the four moving elements (three star layers + the nebula),
+//   and only when a `scrollRef` is passed (MobileSpace's inner scroller). No
+//   inherited custom property, so a scroll frame restyles 4 elements, not the
+//   ~160 stars under them. Subpages pass nothing and stay static. No per-frame
+//   React work; unchanged values are never rewritten.
 // - Each star layer is a stack of identical tiles and its travel is clamped to
 //   the overscan, so stars never run out at the bottom of a long page.
 // - Twinkle animates opacity only, on a subset of stars, dark theme only, and
@@ -54,6 +56,10 @@ const LAYERS = [
   { count: 12, factor: 0.08,  tiles: 3, size: [1.8, 2.6], alpha: [0.6, 0.95] },
 ] as const
 
+// The nebula wash is 160% of the viewport tall, so it may travel 60% of the
+// viewport before its bottom edge rises into view.
+const NEBULA = { factor: 0.012, overscan: 0.6 } as const
+
 const rand = mulberry32(20260603)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
@@ -80,6 +86,8 @@ export interface StarfieldBackgroundProps {
 
 export function StarfieldBackground({ scrollRef }: StarfieldBackgroundProps = {}) {
   const rootRef = useRef<HTMLDivElement>(null)
+  const nebulaRef = useRef<HTMLDivElement>(null)
+  const layerRefs = useRef<(HTMLDivElement | null)[]>([])
   const parallax = Boolean(scrollRef)
 
   useEffect(() => {
@@ -87,23 +95,54 @@ export function StarfieldBackground({ scrollRef }: StarfieldBackgroundProps = {}
     const scroller = scrollRef?.current
     if (!root || !scroller) return
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+    // Travel = factor x scroll, clamped to the overscan (in viewport heights)
+    // so a layer's bottom edge never rises into view.
+    const targets = [
+      ...LAYERS.map((L, i) => ({ el: layerRefs.current[i], factor: L.factor, overscan: L.tiles - 1, step: 10, last: '' })),
+      // The nebula moves ~1px per 80px of scroll: whole pixels only, so it is
+      // rewritten (and repainted) a few times per screen, not every frame.
+      { el: nebulaRef.current, factor: NEBULA.factor, overscan: NEBULA.overscan, step: 1, last: '' },
+    ]
+    let h = root.clientHeight
     let raf = 0
 
     const write = () => {
       raf = 0
-      root.style.setProperty('--sf-scroll', String(Math.round(scroller.scrollTop)))
+      const y = scroller.scrollTop
+      for (const t of targets) {
+        if (!t.el) continue
+        const travel = Math.round(Math.min(y * t.factor, t.overscan * h) * t.step) / t.step
+        const v = `translate3d(0, ${-travel}px, 0)`
+        if (v !== t.last) {
+          t.el.style.transform = v
+          t.last = v
+        }
+      }
     }
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(write)
     }
+    const onResize = () => {
+      h = root.clientHeight
+      onScroll()
+    }
+    const clear = () => {
+      for (const t of targets) {
+        if (t.el) t.el.style.transform = ''
+        t.last = ''
+      }
+    }
     const bind = () => {
       scroller.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onResize)
       if (raf) { cancelAnimationFrame(raf); raf = 0 }
       if (reduced.matches) {
-        root.style.removeProperty('--sf-scroll')
+        clear()
         return
       }
       scroller.addEventListener('scroll', onScroll, { passive: true })
+      window.addEventListener('resize', onResize, { passive: true })
       write()
     }
     bind()
@@ -111,29 +150,26 @@ export function StarfieldBackground({ scrollRef }: StarfieldBackgroundProps = {}
     return () => {
       reduced.removeEventListener('change', bind)
       scroller.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onResize)
       if (raf) cancelAnimationFrame(raf)
-      root.style.removeProperty('--sf-scroll')
+      clear()
     }
   }, [scrollRef])
 
   return (
     <div ref={rootRef} className="sf" aria-hidden="true">
       <div className="sf-sky" />
-      <div className="sf-nebula" />
+      <div ref={nebulaRef} className="sf-nebula" />
 
       {LAYERS.map((L, li) => {
         const tiles = parallax ? L.tiles : 1
         return (
           <div
             key={li}
+            ref={(el) => { layerRefs.current[li] = el }}
             className="sf-layer"
             style={{
               height: `${tiles * 100}%`,
-              // Travel = factor × scroll, clamped to the overscan so the
-              // layer's bottom edge never rises into view.
-              transform: parallax
-                ? `translate3d(0, max(calc(var(--sf-scroll, 0) * -${L.factor}px), -${(((tiles - 1) / tiles) * 100).toFixed(3)}%), 0)`
-                : undefined,
               willChange: parallax ? 'transform' : undefined,
             }}
           >
@@ -181,8 +217,9 @@ export function StarfieldBackground({ scrollRef }: StarfieldBackgroundProps = {}
             rgb(var(--space-0));
         }
 
-        /* A second, slower wash that drifts with the scroll: sparse cold
-           filaments, not a flat blue fill. Gradients only, no blur filter. */
+        /* A second, slower wash that drifts with the scroll (transform written
+           by the effect above): sparse cold filaments, not a flat blue fill.
+           Gradients only, no blur filter. */
         .sf-nebula {
           position: absolute;
           left: 0;
@@ -193,7 +230,6 @@ export function StarfieldBackground({ scrollRef }: StarfieldBackgroundProps = {}
             radial-gradient(38% 14% at 72% 22%, rgb(var(--nebula-a) / 0.16), transparent 70%),
             radial-gradient(30% 10% at 24% 58%, rgb(var(--nebula-b) / 0.12), transparent 70%),
             radial-gradient(44% 12% at 64% 86%, rgb(var(--nebula-a) / 0.12), transparent 70%);
-          transform: translate3d(0, max(calc(var(--sf-scroll, 0) * -0.012px), -37.5%), 0);
         }
 
         .sf-layer {

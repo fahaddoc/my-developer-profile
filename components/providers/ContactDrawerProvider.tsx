@@ -11,6 +11,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { FaCircleExclamation } from 'react-icons/fa6'
+import { prefetchDrawer } from '@/components/ui/drawerPrefetch'
 import styles from '@/components/ui/Drawer.module.css'
 
 interface CtxValue {
@@ -25,17 +26,23 @@ export function useContactDrawer() { return useContext(Ctx) }
 const EMAIL = 'hello@shahfahad.dev'
 const CITY  = 'Karachi, Pakistan'
 
-const loadDrawer = () => import('@/components/ui/Drawer')
-const Drawer = dynamic(() => loadDrawer().then((m) => m.Drawer), { ssr: false })
+// One cached import for the shared shell (components/ui/drawerPrefetch), so a
+// warm-up from anywhere (idle here, a tap on an opener in MobileSpace) is the
+// same download the first open waits on.
+const Drawer = dynamic(
+  () => prefetchDrawer().then(() => import('@/components/ui/Drawer')).then((m) => m.Drawer),
+  { ssr: false },
+)
 
-/** Warm the drawer chunk on idle, desktop pointers only (the mobile path
- *  loads it on first open so it never pays for framer-motion up front). */
+/** Warm the shared drawer chunk on idle, desktop pointers only (the mobile
+ *  path warms it on intent, so it never pays for framer-motion up front).
+ *  This one warm-up serves both drawers. */
 function usePrefetchDrawer() {
   useEffect(() => {
     if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
     let idle = 0
     const timer = window.setTimeout(() => {
-      const run = () => { loadDrawer().catch(() => {}) }
+      const run = () => { void prefetchDrawer() }
       if ('requestIdleCallback' in window) idle = window.requestIdleCallback(run, { timeout: 4000 })
       else run()
     }, 6000)
@@ -53,7 +60,7 @@ export function ContactDrawerProvider({ children }: { children: React.ReactNode 
 
   usePrefetchDrawer()
 
-  const doOpen  = useCallback(() => { setEverOpen(true); setOpen(true) }, [])
+  const doOpen  = useCallback(() => { void prefetchDrawer(); setEverOpen(true); setOpen(true) }, [])
   const doClose = useCallback(() => setOpen(false), [])
 
   useEffect(() => {

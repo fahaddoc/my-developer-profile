@@ -2,33 +2,45 @@
 
 // TunnelScene — the desktop WebGL journey (DESIGN.md section 7).
 //
-// The camera flies a CatmullRom curve driven by scroll progress. Each station
-// on the curve owns one planet from a single restrained family (graphite,
-// stone, ice, dust, a desaturated Earth), lit by one warm key light from the
-// upper left with a soft terminator and a cold rim. Ember appears only as the
-// hero planet's lit limb. A quiet station name hangs under each planet while
-// the camera is near. The sky (nebula + stars) lives in NebulaBackground.
+// The camera flies a CatmullRom curve driven by scroll progress through a long
+// lens (fov 38: compressed depth, the film look). Every station is one
+// art-directed shot rather than a stamped "text left, ball right":
 //
-// Colours come from useScenePalette() (lib/palette.ts, a hex mirror of the CSS
-// tokens) and flip in place on a theme change: the Canvas is never keyed on
-// theme. Cost scales with the quality preset (stars, nebula octaves, warp).
+//   Intro       a far graphite giant behind the portrait, ember on its lit limb
+//   About       a huge body cropped by the right and bottom edges, mostly in
+//               shadow with a lit crescent
+//   Skills      the tile orbit owns the right half (SkillsOrbit), a small ice
+//               planet at its centre
+//   Work        a small ringed body top right, clear of the showcase panels
+//   Open source a small far moon; the PR card is the dominant object
+//   Experience  a smaller ice giant low right; the timeline owns the upper right
+//   Contact     Earth rising from the bottom edge as a horizon
 //
-// Performance guards kept on purpose: frameloop="demand" + RenderDriver at
-// 36fps (paused while the tab is hidden), dpr 1, ProximityGate around every
-// drei <Html>, context-loss remount, material/geometry disposal, time-based
-// animation only.
+// Planets come from one restrained family lit by a single warm key light from
+// the side (a real terminator, 35-50% of each disc in shadow) with a cold rim
+// on the dark limb. An anamorphic correction in the vertex shader keeps every
+// off-axis disc round. Colours come from useScenePalette() (lib/palette.ts):
+// each theme has its own planet albedos and lighting, and a theme flip writes
+// uniforms in place (the Canvas is never keyed on theme). The sky (nebula +
+// stars) lives in NebulaBackground.
+//
+// Performance guards kept on purpose: frameloop="demand" with a RenderDriver
+// that renders every frame (capped at 60) only while something moves and
+// falls back to 36fps when settled, pauses while the tab is hidden or a drawer
+// is open; dpr 1; ProximityGate (with hysteresis) around the drei <Html>
+// orbit; context-loss remount; material/geometry disposal; time-based
+// animation only; cost scales with the quality preset.
 
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { FaGithub, FaLinkedinIn, FaRegEnvelope } from 'react-icons/fa6'
 import { type QualityPreset, PRESETS } from '@/lib/quality'
-import { type ScenePalette, useScenePalette } from '@/lib/palette'
+import { type PlanetId, type ScenePalette, useScenePalette } from '@/lib/palette'
+import { DRAWER_OPEN_EVENT, DRAWER_CLOSE_EVENT } from '@/components/ui/drawerPrefetch'
 import { NebulaBackground } from '@/components/r3f/NebulaBackground'
-import { SkillsOrbit } from '@/components/r3f/SkillsOrbit'
+import { SkillsOrbit, SKILL_TILE } from '@/components/r3f/SkillsOrbit'
 
 // Shared scroll progress — read each frame inside R3F, also subscribed via the
 // useScrollProgress hook (lib/tunnel.ts) for HUD/UI updates outside the canvas.
@@ -62,15 +74,36 @@ export {
 } from '@/lib/tunnel'
 import { STATIONS, type StationDef } from '@/lib/tunnel'
 
-// Station names as wayfinding (same names as the rail, DESIGN.md section 5).
-const STATION_NAMES: Record<string, string> = {
-  hero:       'Intro',
-  about:      'About',
-  skills:     'Skills',
-  projects:   'Work',
-  opensource: 'Open source',
-  experience: 'Experience',
-  contact:    'Contact',
+// ─────────────────────────────────────────────────────────────────────────────
+// Lens + camera constants. Planet placement below is authored for these: at a
+// station the camera sits exactly on the station's anchor frame, so a planet
+// offset IS its camera-space position at rest (x right, y up, -z ahead).
+// ─────────────────────────────────────────────────────────────────────────────
+const CAMERA_FOV  = 38
+const LOOK_AHEAD  = 0.015   // curve progress the camera looks ahead by
+const CAM_LAMBDA  = 9       // progress damping; Lenis is the one real smoother
+const BANK_GAIN   = 1.5     // roll per unit of tangent change
+const BANK_MAX    = 0.08    // rad (DESIGN.md: small roll, <= 0.08)
+const BANK_SPEED  = 0.06    // progress/s at which the full bank applies
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Render activity, shared between the camera, the planets, the skills orbit
+// and the RenderDriver. Module-level so it costs nothing per frame.
+// ─────────────────────────────────────────────────────────────────────────────
+const sceneState = {
+  /** damped camera progress (what is on screen) */
+  camT:        0,
+  /** camera progress, look direction or roll still converging */
+  settling:    true,
+  /** performance.now() until which the driver renders at the full rate */
+  activeUntil: 0,
+  /** a drawer covers the canvas: render nothing */
+  drawerOpen:  false,
+}
+/** Keep the RenderDriver at the full frame rate for `ms` more. */
+function kick(ms = 250) {
+  if (typeof performance === 'undefined') return
+  sceneState.activeUntil = Math.max(sceneState.activeUntil, performance.now() + ms)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,40 +140,47 @@ function useReducedMotion(): boolean {
   return reduced
 }
 
-// Places a group on the curve at `t`, facing the approaching camera: the
-// group's +Z points back along the path, so its axes line up with the
-// camera's (x right, y up, -z ahead) when the camera reaches `t`.
+// Places a group on the curve at `t` with the camera's resting orientation
+// there: +Z points back along the camera's look direction (the curve point
+// LOOK_AHEAD further on), so the group's axes are exactly the camera's
+// (x right, y up, -z ahead) when the camera rests at `t` with no roll.
 function useCurveAnchor(curve: THREE.CatmullRomCurve3, t: number) {
   const ref = useRef<THREE.Group>(null)
   useEffect(() => {
     if (!ref.current) return
-    const pos     = new THREE.Vector3()
-    const tangent = new THREE.Vector3()
+    const pos   = new THREE.Vector3()
+    const ahead = new THREE.Vector3()
     curve.getPointAt(t, pos)
-    curve.getTangentAt(t, tangent)
+    curve.getPointAt(Math.min(0.9999, t + LOOK_AHEAD), ahead)
+    const dir = ahead.sub(pos).normalize()
     ref.current.position.copy(pos)
-    ref.current.lookAt(pos.clone().sub(tangent))
+    ref.current.lookAt(pos.clone().sub(dir))
   }, [curve, t])
   return ref
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Planets — one restrained family. Offsets are in station space (x right,
-// y up, -z ahead of the camera when it reaches the station), so every planet
-// sits in the right half of the frame: the left belongs to the HUD copy.
+// Planets. Offsets are camera space at rest; screen positions at 1440x900
+// are noted per shot (the HUD places its DOM overlays in the clear space).
+// Colours are per theme in lib/palette.ts; this table is shape and light.
 // ─────────────────────────────────────────────────────────────────────────────
+interface Halo {
+  scale:    number             // shell radius multiple
+  color:    'accent' | 'rim'
+  strength: number
+  around:   number             // 0 = lit limb only, 1 = whole limb
+}
+
 interface PlanetConfig {
-  deep:        string
-  mid:         string
-  bright:      string
   brightMix:   number              // how far the bright tone takes over
   brightEdge:  [number, number]    // smoothstep window for the bright tone
+  midEdge?:    [number, number]    // smoothstep window deep → mid (contrast)
   bands:       number              // 0 = noise only, 1 = latitude bands
   bandFreq:    number
   noiseScale:  number
   polarCap:    number
   cloud:       number
-  rimStrength: number              // cold rim on the shadow side
+  rimStrength: number              // cold rim on the dark limb
   atmo:        'accent' | 'key' | 'rim'
   atmoStrength: number             // lit-limb atmosphere
   radius:      number
@@ -148,105 +188,152 @@ interface PlanetConfig {
   tilt:        number              // axial tilt (rad)
   spin:        number              // rad/s
   segments:    [number, number]
-  halo?:       number              // ember shell radius multiple (hero only)
-  ring?:       { inner: number; outer: number; tiltX: number; tiltZ: number; color: string; opacity: number }
-  midEdge?:    [number, number]    // smoothstep window deep → mid (contrast)
-  capColor?:   string
-  cloudColor?: string
-  labelY?:     number              // override for the station-name height
-  showLabel?:  boolean             // false where HUD content owns that part of the frame
+  /** view-space key light for this shot (default: palette.keyLight.dir) */
+  keyDir?:     [number, number, number]
+  /** keep the disc round off-axis (off for the Contact horizon) */
+  anamorph?:   boolean
+  halo?:       Halo
+  ring?:       { inner: number; outer: number; tiltX: number; tiltZ: number; opacity: number }
+  /** visibility vs camera progress relative to the station:
+      fades in over `approach` (before it), out over `leave` (after it) */
+  approach:    [number, number] | null
+  leave:       [number, number] | null
 }
 
-const PLANETS: Record<string, PlanetConfig> = {
-  // Graphite giant, far and large, with the one ember limb.
+const APPROACH: [number, number] = [-0.115, -0.05]
+const LEAVE:    [number, number] = [0.035, 0.08]
+
+const PLANETS: Record<PlanetId, PlanetConfig> = {
+  // Intro: a far graphite giant behind the portrait. Landing frame (t 0):
+  // centre ~(1140, 478) r ~290; at t 0.04 ~(1229, 475) r ~339. Ember on the
+  // lit (left) limb frames the portrait; the right side falls into shadow.
   hero: {
-    // Low-contrast surface on purpose: it is a backdrop for the intro.
-    deep: '#0d0f12', mid: '#1f2227', bright: '#3a3e45',
     brightMix: 0.45, brightEdge: [0.6, 0.92], midEdge: [0.1, 0.9],
     bands: 0.55, bandFreq: 13, noiseScale: 2.2,
     polarCap: 0, cloud: 0,
-    rimStrength: 0.45, atmo: 'accent', atmoStrength: 1.3,
-    radius: 7.5, offset: [14.5, 4.4, -21.5], tilt: 0.32, spin: 0.012,
-    segments: [96, 64], halo: 1.075,
-    // The intro owns its frame (name, portrait); a label over this planet
-    // runs into the top bar as the camera closes in.
-    showLabel: false,
+    rimStrength: 0.4, atmo: 'accent', atmoStrength: 1.05,
+    radius: 13.0, offset: [19.03, -0.93, -51.77], tilt: 0.32, spin: 0.01,
+    segments: [96, 64],
+    keyDir: [-0.85, 0.42, -0.22],
+    halo: { scale: 1.06, color: 'accent', strength: 0.55, around: 0 },
+    approach: null, leave: LEAVE,
   },
-  // Stone: warm grey, rocky noise.
+  // About: a huge stone body cropped by the right and bottom edges, mostly in
+  // shadow with a lit crescent on its upper-left limb. Centre ~(1480, 1130),
+  // r ~760: the limb runs from (756, 900) to (1440, 371).
   about: {
-    deep: '#1b1b1b', mid: '#484643', bright: '#828079',
     brightMix: 0.5, brightEdge: [0.6, 0.88],
-    bands: 0, bandFreq: 0, noiseScale: 4.2,
+    bands: 0, bandFreq: 0, noiseScale: 5.0,
     polarCap: 0, cloud: 0,
-    rimStrength: 0.5, atmo: 'key', atmoStrength: 0.18,
-    radius: 2.3, offset: [5.0, -0.7, -10], tilt: 0.2, spin: 0.05,
-    segments: [56, 40],
+    rimStrength: 0.35, atmo: 'key', atmoStrength: 0.3,
+    radius: 15.215, offset: [14.21, -12.71, -30], tilt: 0.2, spin: 0.012,
+    segments: [96, 64],
+    // From behind and above-left: only the upper-left limb catches light.
+    keyDir: [-0.3, 0.3, -0.9],
+    approach: APPROACH, leave: LEAVE,
   },
-  // Ice: pale blue-grey, faint bands, caps. The skills orbit circles it.
+  // Skills: a small ice planet at the centre of the tile orbit. Offset and
+  // radius are replaced at runtime by useSkillsLayout (viewport-aware).
   skills: {
-    deep: '#253039', mid: '#62788b', bright: '#c3d0dc',
     brightMix: 0.55, brightEdge: [0.58, 0.88],
     bands: 0.25, bandFreq: 7, noiseScale: 3.4,
-    polarCap: 0.7, cloud: 0, capColor: '#d5dde4',
+    polarCap: 0.7, cloud: 0,
     rimStrength: 0.6, atmo: 'rim', atmoStrength: 0.22,
-    radius: 1.3, offset: [4.4, 0.25, -9], tilt: 0.28, spin: 0.06,
-    segments: [48, 32], labelY: 2.7,
+    radius: 1.19, offset: [4.75, 0.37, -20.5], tilt: 0.28, spin: 0.06,
+    segments: [48, 32],
+    approach: APPROACH, leave: LEAVE,
   },
-  // Dust: banded, desaturated sand gas giant with a thin ring.
+  // Work: a small dust giant with a thin ring, top right above the project
+  // library and fully visible. Centre ~(1250, 128), r ~46; ring ~x 1155-1345.
   projects: {
-    deep: '#25231f', mid: '#55504a', bright: '#9b958b',
     brightMix: 0.45, brightEdge: [0.62, 0.92], midEdge: [0.12, 0.88],
     bands: 0.8, bandFreq: 11, noiseScale: 2.6,
     polarCap: 0, cloud: 0,
     rimStrength: 0.45, atmo: 'key', atmoStrength: 0.16,
-    radius: 2.6, offset: [6.6, 1.1, -13], tilt: 0.38, spin: 0.05,
-    segments: [56, 40],
-    ring: { inner: 1.45, outer: 2.15, tiltX: 1.2, tiltZ: 0.35, color: '#8a867f', opacity: 0.42 },
-    // The Work HUD (showcase + library) covers this side of the frame, so a
-    // label here would only peek out cut in half.
-    showLabel: false,
+    radius: 0.915, offset: [10.53, 6.4, -26], tilt: 0.38, spin: 0.05,
+    segments: [48, 32],
+    ring: { inner: 1.5, outer: 2.05, tiltX: 1.18, tiltZ: 0.3, opacity: 0.55 },
+    approach: APPROACH, leave: LEAVE,
   },
-  // Graphite, cool and small: a moon-like body.
+  // Open source: a small far moon, upper right; the PR card dominates.
+  // Centre ~(1160, 236), r ~44.
   opensource: {
-    deep: '#121519', mid: '#30363e', bright: '#69717c',
     brightMix: 0.55, brightEdge: [0.6, 0.86],
     bands: 0, bandFreq: 0, noiseScale: 5.5,
     polarCap: 0, cloud: 0,
     rimStrength: 0.55, atmo: 'key', atmoStrength: 0.12,
-    radius: 1.6, offset: [4.3, -0.5, -8], tilt: 0.1, spin: 0.045,
+    radius: 1.01, offset: [10.09, 4.91, -30], tilt: 0.1, spin: 0.04,
     segments: [48, 32],
+    approach: APPROACH, leave: LEAVE,
   },
-  // Ice giant: soft bands, cold.
+  // Experience: a smaller ice giant low right, leaving the upper right clear
+  // for the DOM timeline. Centre ~(1185, 700), r ~125.
   experience: {
-    deep: '#18232d', mid: '#44596a', bright: '#93a5b4',
-    brightMix: 0.35, brightEdge: [0.6, 0.92],
-    bands: 0.6, bandFreq: 8, noiseScale: 3.0, midEdge: [0.15, 0.85],
-    polarCap: 0.25, cloud: 0, capColor: '#b9c4cf',
+    brightMix: 0.35, brightEdge: [0.6, 0.92], midEdge: [0.15, 0.85],
+    bands: 0.6, bandFreq: 8, noiseScale: 3.0,
+    polarCap: 0.25, cloud: 0,
     rimStrength: 0.6, atmo: 'rim', atmoStrength: 0.25,
-    radius: 2.5, offset: [6.0, 0.5, -12], tilt: 0.24, spin: 0.05,
-    segments: [56, 40],
-    // The HUD timeline wraps this planet; the planet is its backdrop.
-    showLabel: false,
-  },
-  // Natural, desaturated Earth.
-  contact: {
-    deep: '#0c1d2c', mid: '#1c3b55', bright: '#4b5039',
-    brightMix: 0.85, brightEdge: [0.555, 0.615],
-    bands: 0, bandFreq: 0, noiseScale: 2.8,
-    polarCap: 0.85, cloud: 0.5, capColor: '#d9dfe4', cloudColor: '#e3e7ea',
-    rimStrength: 0.5, atmo: 'rim', atmoStrength: 0.45,
-    radius: 2.2, offset: [4.6, -0.3, -9], tilt: 0.41, spin: 0.04,
+    radius: 2.286, offset: [8.47, -4.55, -24], tilt: 0.24, spin: 0.04,
     segments: [64, 48],
+    approach: APPROACH, leave: LEAVE,
+  },
+  // Contact: Earth rising from the bottom edge as a horizon (the mobile arc,
+  // at desktop scale). Limb top ~(960, 680), meets the bottom edge near
+  // x 430 and the right edge at y ~823. It stays on through the finale.
+  contact: {
+    brightMix: 0.85, brightEdge: [0.555, 0.615],
+    bands: 0, bandFreq: 0, noiseScale: 3.2,
+    polarCap: 0.85, cloud: 0.5,
+    rimStrength: 0.7, atmo: 'rim', atmoStrength: 0.55,
+    // Axis tipped toward the viewer's right so the visible cap is temperate
+    // latitudes (ocean, land, cloud), not the polar ice.
+    radius: 58, offset: [17, -74, -86], tilt: 1.25, spin: 0.005,
+    segments: [160, 96],
+    keyDir: [-0.8, 0.5, -0.3],
+    anamorph: false,
+    halo: { scale: 1.022, color: 'rim', strength: 0.55, around: 0.45 },
+    approach: APPROACH, leave: null,
   },
 }
 
-// Per-theme lighting that is not a token: ambient fill and key intensity.
-// Daylight gets a cool sky fill so the shadow side reads as haze, not ink.
-function lightingFor(palette: ScenePalette) {
-  return palette.mode === 'light'
-    ? { ambient: [0.30, 0.33, 0.38] as const, keyIntensity: 1.2, rimScale: 0.55, fade: [12, 38, 1.0] as const, haloScale: 0.5, haze: 0.24 }
-    : { ambient: [0.010, 0.013, 0.022] as const, keyIntensity: 1.55, rimScale: 1.0, fade: [12, 38, 1.0] as const, haloScale: 1.0, haze: 0 }
+const smooth01 = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)))
+  return t * t * (3 - 2 * t)
 }
+
+function visibilityAt(cfg: PlanetConfig, d: number): number {
+  const a = cfg.approach ? smooth01(cfg.approach[0], cfg.approach[1], d) : 1
+  const l = cfg.leave ? 1 - smooth01(cfg.leave[0], cfg.leave[1], d) : 1
+  return a * l
+}
+
+// Off-axis spheres under a rectilinear lens project as ellipses stretched
+// toward the frame edge (about 1/cos of the off-axis angle: the "egg"). This
+// squashes the body about its own centre along the in-plane radial direction
+// so the disc is round wherever it sits in frame. The factor is the geometric
+// mean of the small-body (cos theta) and silhouette-cone solutions, measured
+// within 0.6% for bodies up to ~30 degrees across. Faded out far off-axis
+// (bodies passing the camera). Lighting still uses the true sphere normals.
+const ANAMORPH_GLSL = /* glsl */ `
+  uniform float uAnamorph;
+  uniform float uRadius;
+  vec3 anamorph(vec3 p) {
+    if (uAnamorph < 0.5) return p;
+    vec3 c = (modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+    float dist = length(c);
+    if (dist < 1e-4) return p;
+    vec3 u = c / dist;
+    float cosT = max(-u.z, 0.2);
+    float sinA = min(uRadius / dist, 0.99);
+    float cosA = sqrt(1.0 - sinA * sinA);
+    float se = sqrt(max(cosT * cosT - sinA * sinA, 0.0025)) / cosA;
+    float s = clamp(sqrt(se * cosT), 0.2, 1.0);
+    s = mix(1.0, s, smoothstep(0.35, 0.6, cosT));
+    vec3 a = vec3(-u.z * u.x, -u.z * u.y, 1.0 - u.z * u.z);
+    float aa = max(dot(a, a), 1e-6);
+    return p - (1.0 - s) * dot(a, p - c) / aa * a;
+  }
+`
 
 const NOISE3_GLSL = /* glsl */ `
   float hash13(vec3 p3) {
@@ -282,12 +369,13 @@ const PLANET_VERT = /* glsl */ `
   varying vec3 vObjNormal;
   varying vec3 vViewNormal;
   varying vec3 vViewPos;
+  ${ANAMORPH_GLSL}
   void main() {
     vObjNormal  = normalize(normal);
     vViewNormal = normalize(normalMatrix * normal);
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vViewPos = mv.xyz;
-    gl_Position = projectionMatrix * mv;
+    gl_Position = projectionMatrix * vec4(anamorph(mv.xyz), 1.0);
   }
 `
 
@@ -309,15 +397,15 @@ const PLANET_FRAG = /* glsl */ `
   uniform vec3  uLightDir;
   uniform vec3  uLightColor;
   uniform float uKeyIntensity;
-  uniform vec3  uAmbient;
+  uniform vec3  uShadow;
   uniform vec3  uRim;
   uniform float uRimStrength;
   uniform vec3  uAtmo;
   uniform float uAtmoStrength;
   uniform float uAtmoPow;
   uniform vec3  uBg;
-  uniform vec3  uFade;
-  uniform float uHaze;       // daylight: constant aerial haze toward the sky
+  uniform float uVis;        // 0..1 presence (approach / leave windows)
+  uniform float uSink;       // how far a fading body sinks toward the sky
   varying vec3 vObjNormal;
   varying vec3 vViewNormal;
   varying vec3 vViewPos;
@@ -345,42 +433,42 @@ const PLANET_FRAG = /* glsl */ `
       albedo = mix(albedo, uCloudColor, smoothstep(0.52, 0.78, c) * uCloud);
     }
 
-    // Key light from the upper left, soft (wrapped) terminator.
+    // One key light from the side: a crisp terminator (smoothstep -0.05..0.3)
+    // with a Lambert falloff on the lit side for volume. The shadow side gets
+    // the theme's fill: near black at night, a soft cool tint in daylight.
     vec3 N = normalize(vViewNormal);
     vec3 V = normalize(-vViewPos);
     vec3 L = normalize(uLightDir);
     float ndl  = dot(N, L);
-    // Full-face gradient (gives volume) with a soft, wrapped terminator.
-    float diff = smoothstep(-0.14, 1.0, ndl);
-    vec3 col = albedo * (uAmbient + uLightColor * diff * uKeyIntensity);
+    float term = smoothstep(-0.05, 0.3, ndl);
+    float diff = term * (0.45 + 0.55 * clamp(ndl, 0.0, 1.0));
+    vec3 col = albedo * mix(uShadow, uLightColor * uKeyIntensity, diff);
 
     float fres = 1.0 - clamp(dot(N, V), 0.0, 1.0);
-    // Cold rim from behind: lives on the shadow side of the silhouette.
-    col += uRim * pow(fres, 3.0) * smoothstep(0.35, -0.55, ndl) * uRimStrength;
-    // Lit-limb atmosphere (ember on the hero, neutral elsewhere).
-    // Tight exponent: lighting is linear, so a soft falloff would wash the
-    // whole face; this keeps it to a thin crescent on the lit limb.
-    col += uAtmo * pow(fres, uAtmoPow) * smoothstep(0.0, 0.7, ndl) * uAtmoStrength;
+    // Cold rim on the dark limb.
+    col += uRim * pow(fres, 3.0) * smoothstep(0.2, -0.5, ndl) * uRimStrength;
+    // Lit-limb atmosphere (ember on the hero, neutral or cold elsewhere).
+    // Tight exponent: it stays a thin crescent on the lit limb.
+    col += uAtmo * pow(fres, uAtmoPow) * smoothstep(-0.02, 0.5, ndl) * uAtmoStrength;
 
-    // Depth: with distance the planet sinks toward the sky colour and
-    // dissolves into whatever nebula is behind it (alpha), so far planets
-    // read as haze rather than dark discs. Gamma-ish mix for an even fade.
-    float fade = smoothstep(uFade.x, uFade.y, length(vViewPos)) * uFade.z;
-    col = pow(mix(sqrt(max(col, 0.0)), sqrt(uBg), uHaze + (1.0 - uHaze) * fade * 0.45), vec3(2.0));
+    // Presence: a fading body sinks toward the sky colour and dissolves.
+    float k = (1.0 - uVis) * uSink;
+    col = pow(mix(sqrt(max(col, 0.0)), sqrt(uBg), k), vec3(2.0));
 
-    gl_FragColor = vec4(col, 1.0 - fade);
+    gl_FragColor = vec4(col, uVis);
     #include <colorspace_fragment>
   }
 `
 
-// Ember shell around the hero planet: a thin back-face halo, brightest at the
-// planet's lit limb, gone on the shadow side.
+// Thin shell around a body: brightest at the silhouette, on the lit limb
+// (and, with uAround > 0, faintly all the way round, for Earth's atmosphere).
 const HALO_FRAG = /* glsl */ `
   uniform vec3  uColor;
   uniform vec3  uLightDir;
   uniform float uStrength;
   uniform float uInner;      // -dot(N,V) at the planet silhouette
-  uniform vec3  uFade;
+  uniform float uAround;
+  uniform float uVis;
   varying vec3 vViewNormal;
   varying vec3 vViewPos;
   void main() {
@@ -389,64 +477,68 @@ const HALO_FRAG = /* glsl */ `
     float k = clamp(-dot(N, V) / uInner, 0.0, 1.0);
     float glow = k * k * k;
     vec2 side = normalize(N.xy + 1e-4);
-    float lit = smoothstep(-0.15, 0.85, dot(side, normalize(uLightDir.xy)));
-    float fade = 1.0 - smoothstep(uFade.x, uFade.y, length(vViewPos)) * uFade.z;
-    gl_FragColor = vec4(uColor, glow * lit * uStrength * fade);
+    float lit = smoothstep(-0.15, 0.85, dot(side, normalize(uLightDir.xy + 1e-4)));
+    lit = mix(lit, 1.0, uAround);
+    gl_FragColor = vec4(uColor, glow * lit * uStrength * uVis);
     #include <colorspace_fragment>
   }
 `
 
 const RING_VERT = /* glsl */ `
   varying vec2 vLocal;
-  varying vec3 vViewPos;
+  ${ANAMORPH_GLSL}
   void main() {
     vLocal = position.xy;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    vViewPos = mv.xyz;
-    gl_Position = projectionMatrix * mv;
+    gl_Position = projectionMatrix * vec4(anamorph(mv.xyz), 1.0);
   }
 `
 
+// A thin solid band: soft, derivative-aware edges and a gentle density
+// falloff, no fine banding (fine bands aliased into moire on a small ring).
 const RING_FRAG = /* glsl */ `
   uniform vec3  uColor;
   uniform float uOpacity;
   uniform float uInner;
   uniform float uOuter;
-  uniform vec3  uLight;      // already multiplied: ambient + key * 0.7
+  uniform vec3  uLight;
   uniform vec3  uBg;
-  uniform vec3  uFade;
+  uniform float uVis;
+  uniform float uSink;
   varying vec2 vLocal;
-  varying vec3 vViewPos;
   void main() {
     float r = length(vLocal);
-    float t = clamp((r - uInner) / (uOuter - uInner), 0.0, 1.0);
-    float bands = 0.6 + 0.4 * sin(t * 46.0 + sin(t * 11.0) * 2.0);
-    float edge  = smoothstep(0.0, 0.07, t) * (1.0 - smoothstep(0.86, 1.0, t));
-    float gap   = 1.0 - 0.8 * (1.0 - smoothstep(0.0, 0.035, abs(t - 0.64)));
+    float t = (r - uInner) / (uOuter - uInner);
+    float w = fwidth(t) * 1.5 + 0.02;
+    float band = smoothstep(0.0, w, t) * (1.0 - smoothstep(1.0 - w, 1.0, t));
+    float dens = mix(1.0, 0.55, smoothstep(0.0, 1.0, t));
     vec3 col = uColor * uLight;
-    float fade = smoothstep(uFade.x, uFade.y, length(vViewPos)) * uFade.z;
-    col = pow(mix(sqrt(max(col, 0.0)), sqrt(uBg), fade), vec3(2.0));
-    gl_FragColor = vec4(col, edge * bands * gap * uOpacity * (1.0 - fade));
+    float k = (1.0 - uVis) * uSink;
+    col = pow(mix(sqrt(max(col, 0.0)), sqrt(uBg), k), vec3(2.0));
+    gl_FragColor = vec4(col, band * dens * uOpacity * uVis);
     #include <colorspace_fragment>
   }
 `
 
-function Planet({ cfg, palette, motion }: {
-  cfg:     PlanetConfig
-  palette: ScenePalette
-  motion:  number
+function Planet({ id, cfg, palette, motion, stationT, offset, radius }: {
+  id:       PlanetId
+  cfg:      PlanetConfig
+  palette:  ScenePalette
+  motion:   number
+  stationT: number
+  offset:   [number, number, number]
+  radius:   number
 }) {
   const spinRef = useRef<THREE.Mesh>(null)
-  // Big planets stay readable from further away: the dissolve distance
-  // scales with size, so small bodies emerge late and the giant early.
-  const fadeK = Math.max(1, cfg.radius / 2.4)
+  const rootRef = useRef<THREE.Group>(null)
+  const anam    = cfg.anamorph === false ? 0 : 1
 
   const mat = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
       uTime:         { value: 0 },
-      uDeep:         { value: new THREE.Color(cfg.deep) },
-      uMid:          { value: new THREE.Color(cfg.mid) },
-      uBright:       { value: new THREE.Color(cfg.bright) },
+      uDeep:         { value: new THREE.Color() },
+      uMid:          { value: new THREE.Color() },
+      uBright:       { value: new THREE.Color() },
       uBrightMix:    { value: cfg.brightMix },
       uBrightEdge:   { value: new THREE.Vector2(...cfg.brightEdge) },
       uBands:        { value: cfg.bands },
@@ -455,42 +547,47 @@ function Planet({ cfg, palette, motion }: {
       uPolarCap:     { value: cfg.polarCap },
       uCloud:        { value: cfg.cloud },
       uMidEdge:      { value: new THREE.Vector2(...(cfg.midEdge ?? [0.28, 0.72])) },
-      uCapColor:     { value: new THREE.Color(cfg.capColor ?? '#c9d0d6') },
-      uCloudColor:   { value: new THREE.Color(cfg.cloudColor ?? '#dfe3e7') },
+      uCapColor:     { value: new THREE.Color('#c9d0d6') },
+      uCloudColor:   { value: new THREE.Color('#dfe3e7') },
       uLightDir:     { value: new THREE.Vector3() },
       uLightColor:   { value: new THREE.Color() },
       uKeyIntensity: { value: 1 },
-      uAmbient:      { value: new THREE.Color() },
+      uShadow:       { value: new THREE.Color() },
       uRim:          { value: new THREE.Color() },
       uRimStrength:  { value: cfg.rimStrength },
       uAtmo:         { value: new THREE.Color() },
       uAtmoStrength: { value: cfg.atmoStrength },
       uAtmoPow:      { value: cfg.atmo === 'accent' ? 6.0 : 4.0 },
       uBg:           { value: new THREE.Color() },
-      uFade:         { value: new THREE.Vector3() },
-      uHaze:         { value: 0 },
+      uVis:          { value: 1 },
+      uSink:         { value: 0.45 },
+      uAnamorph:     { value: anam },
+      uRadius:       { value: 1 },
     },
     vertexShader:   PLANET_VERT,
     fragmentShader: PLANET_FRAG,
-    // Transparent only for the distance dissolve; it still writes depth, and
+    // Transparent only for the presence dissolve; it still writes depth, and
     // renderOrder keeps each planet ahead of its own ring and halo.
     transparent: true,
     depthWrite:  true,
     toneMapped:  false,
-  }), [cfg])
+  }), [cfg, anam])
   useEffect(() => () => mat.dispose(), [mat])
 
   const haloMat = useMemo(() => {
     if (!cfg.halo) return null
     // -dot(N,V) on the shell's back face where it meets the planet silhouette
-    const inner = Math.sqrt(1 - 1 / (cfg.halo * cfg.halo))
+    const inner = Math.sqrt(1 - 1 / (cfg.halo.scale * cfg.halo.scale))
     return new THREE.ShaderMaterial({
       uniforms: {
         uColor:    { value: new THREE.Color() },
         uLightDir: { value: new THREE.Vector3() },
         uStrength: { value: 1 },
         uInner:    { value: inner },
-        uFade:     { value: new THREE.Vector3() },
+        uAround:   { value: cfg.halo.around },
+        uVis:      { value: 1 },
+        uAnamorph: { value: anam },
+        uRadius:   { value: 1 },
       },
       vertexShader:   PLANET_VERT,
       fragmentShader: HALO_FRAG,
@@ -500,20 +597,23 @@ function Planet({ cfg, palette, motion }: {
       blending:    THREE.AdditiveBlending,
       toneMapped:  false,
     })
-  }, [cfg])
+  }, [cfg, anam])
   useEffect(() => () => { haloMat?.dispose() }, [haloMat])
 
   const ringMat = useMemo(() => {
     if (!cfg.ring) return null
     return new THREE.ShaderMaterial({
       uniforms: {
-        uColor:   { value: new THREE.Color(cfg.ring.color) },
-        uOpacity: { value: cfg.ring.opacity },
-        uInner:   { value: cfg.radius * cfg.ring.inner },
-        uOuter:   { value: cfg.radius * cfg.ring.outer },
-        uLight:   { value: new THREE.Color() },
-        uBg:      { value: new THREE.Color() },
-        uFade:    { value: new THREE.Vector3() },
+        uColor:    { value: new THREE.Color() },
+        uOpacity:  { value: cfg.ring.opacity },
+        uInner:    { value: cfg.ring.inner },
+        uOuter:    { value: cfg.ring.outer },
+        uLight:    { value: new THREE.Color() },
+        uBg:       { value: new THREE.Color() },
+        uVis:      { value: 1 },
+        uSink:     { value: 0.45 },
+        uAnamorph: { value: anam },
+        uRadius:   { value: 1 },
       },
       vertexShader:   RING_VERT,
       fragmentShader: RING_FRAG,
@@ -522,134 +622,158 @@ function Planet({ cfg, palette, motion }: {
       depthWrite:  false,
       toneMapped:  false,
     })
-  }, [cfg])
+  }, [cfg, anam])
   useEffect(() => () => { ringMat?.dispose() }, [ringMat])
+
+  // World radius drives the anamorphic factor (all three draws share it).
+  useEffect(() => {
+    mat.uniforms.uRadius.value = radius
+    if (haloMat) haloMat.uniforms.uRadius.value = radius
+    if (ringMat) ringMat.uniforms.uRadius.value = radius
+  }, [radius, mat, haloMat, ringMat])
 
   // Theme: write palette + lighting into the existing uniforms.
   useEffect(() => {
-    const lt = lightingFor(palette)
-    const [lx, ly, lz] = palette.keyLight.dir
+    const pl   = palette.planetLight
+    const alb  = palette.planets[id]
+    const [lx, ly, lz] = cfg.keyDir ?? palette.keyLight.dir
     const u = mat.uniforms
+    ;(u.uDeep.value as THREE.Color).set(alb.deep)
+    ;(u.uMid.value as THREE.Color).set(alb.mid)
+    ;(u.uBright.value as THREE.Color).set(alb.bright)
+    if (alb.cap)   (u.uCapColor.value as THREE.Color).set(alb.cap)
+    if (alb.cloud) (u.uCloudColor.value as THREE.Color).set(alb.cloud)
     ;(u.uLightDir.value as THREE.Vector3).set(lx, ly, lz).normalize()
     ;(u.uLightColor.value as THREE.Color).set(palette.keyLight.color)
-    u.uKeyIntensity.value = lt.keyIntensity
-    ;(u.uAmbient.value as THREE.Color).setRGB(lt.ambient[0], lt.ambient[1], lt.ambient[2])
+    u.uKeyIntensity.value = pl.keyIntensity
+    ;(u.uShadow.value as THREE.Color).setRGB(pl.shadow[0], pl.shadow[1], pl.shadow[2])
     ;(u.uRim.value as THREE.Color).set(palette.keyLight.rim)
-    u.uRimStrength.value = cfg.rimStrength * lt.rimScale
+    u.uRimStrength.value = cfg.rimStrength * pl.rimScale
     const atmo = cfg.atmo === 'accent' ? palette.accent : cfg.atmo === 'rim' ? palette.keyLight.rim : palette.keyLight.color
     ;(u.uAtmo.value as THREE.Color).set(atmo)
+    u.uAtmoStrength.value = cfg.atmoStrength * pl.atmoScale
     ;(u.uBg.value as THREE.Color).set(palette.bg)
-    ;(u.uFade.value as THREE.Vector3).set(lt.fade[0] * fadeK, lt.fade[1] * fadeK, lt.fade[2])
-    u.uHaze.value = lt.haze
+    u.uSink.value = pl.sink
 
-    if (haloMat) {
+    if (haloMat && cfg.halo) {
       const h = haloMat.uniforms
-      ;(h.uColor.value as THREE.Color).set(palette.accent)
+      ;(h.uColor.value as THREE.Color).set(cfg.halo.color === 'accent' ? palette.accent : palette.keyLight.rim)
       ;(h.uLightDir.value as THREE.Vector3).set(lx, ly, lz).normalize()
-      h.uStrength.value = 0.7 * lt.haloScale
-      ;(h.uFade.value as THREE.Vector3).set(lt.fade[0] * fadeK, lt.fade[1] * fadeK, lt.fade[2])
+      h.uStrength.value = cfg.halo.strength * pl.haloScale
       haloMat.blending = palette.mode === 'light' ? THREE.NormalBlending : THREE.AdditiveBlending
     }
     if (ringMat) {
       const r = ringMat.uniforms
-      const key = new THREE.Color(palette.keyLight.color).multiplyScalar(0.75 * lt.keyIntensity)
-      ;(r.uLight.value as THREE.Color).setRGB(lt.ambient[0] + key.r, lt.ambient[1] + key.g, lt.ambient[2] + key.b)
+      ;(r.uColor.value as THREE.Color).set(alb.ring ?? alb.mid)
+      // Ring lighting: mostly key, a little shadow fill (it is lit edge-on).
+      const key = new THREE.Color(palette.keyLight.color).multiplyScalar(pl.keyIntensity)
+      ;(r.uLight.value as THREE.Color).setRGB(
+        pl.shadow[0] * 0.3 + key.r * 0.7,
+        pl.shadow[1] * 0.3 + key.g * 0.7,
+        pl.shadow[2] * 0.3 + key.b * 0.7,
+      )
       ;(r.uBg.value as THREE.Color).set(palette.bg)
-      ;(r.uFade.value as THREE.Vector3).set(lt.fade[0] * fadeK, lt.fade[1] * fadeK, lt.fade[2])
+      r.uSink.value = pl.sink
     }
-  }, [palette, mat, haloMat, ringMat, cfg, fadeK])
+  }, [palette, id, mat, haloMat, ringMat, cfg])
 
-  // Past the fade-out distance a planet is pure sky colour: skip the draw.
-  const rootRef = useRef<THREE.Group>(null)
-  const tmp     = useMemo(() => new THREE.Vector3(), [])
-  const cullAt  = lightingFor(palette).fade[1] * fadeK + cfg.radius * (cfg.ring ? cfg.ring.outer : cfg.halo ?? 1)
-
-  useFrame(({ camera }, delta) => {
+  const lastVis = useRef(-1)
+  useFrame((_, delta) => {
     const root = rootRef.current
-    if (root) {
-      const visible = root.getWorldPosition(tmp).distanceTo(camera.position) < cullAt
-      if (root.visible !== visible) root.visible = visible
-      if (!visible) return
+    const vis  = visibilityAt(cfg, sceneState.camT - stationT)
+    if (Math.abs(vis - lastVis.current) > 1e-4) {
+      lastVis.current = vis
+      mat.uniforms.uVis.value = vis
+      if (haloMat) haloMat.uniforms.uVis.value = vis
+      if (ringMat) ringMat.uniforms.uVis.value = vis
     }
+    const visible = vis > 0.002
+    if (root && root.visible !== visible) root.visible = visible
+    if (!visible) return
     const dt = Math.min(delta, 0.25) * motion
     mat.uniforms.uTime.value += dt
     if (spinRef.current) spinRef.current.rotation.y += dt * cfg.spin
   })
 
   return (
-    <group ref={rootRef} position={cfg.offset}>
-      <group rotation={[0, 0, cfg.tilt]}>
-        <mesh ref={spinRef} material={mat} renderOrder={1}>
-          <sphereGeometry args={[cfg.radius, cfg.segments[0], cfg.segments[1]]} />
-        </mesh>
-        {cfg.ring && ringMat && (
-          <mesh rotation={[cfg.ring.tiltX, 0, cfg.ring.tiltZ]} material={ringMat} renderOrder={2}>
-            <ringGeometry args={[cfg.radius * cfg.ring.inner, cfg.radius * cfg.ring.outer, 128, 1]} />
+    <group ref={rootRef} position={offset}>
+      <group scale={radius}>
+        <group rotation={[0, 0, cfg.tilt]}>
+          <mesh ref={spinRef} material={mat} renderOrder={1}>
+            <sphereGeometry args={[1, cfg.segments[0], cfg.segments[1]]} />
+          </mesh>
+          {cfg.ring && ringMat && (
+            <mesh rotation={[cfg.ring.tiltX, 0, cfg.ring.tiltZ]} material={ringMat} renderOrder={2}>
+              <ringGeometry args={[cfg.ring.inner, cfg.ring.outer, 128, 1]} />
+            </mesh>
+          )}
+        </group>
+        {haloMat && cfg.halo && (
+          <mesh material={haloMat} renderOrder={3}>
+            <sphereGeometry args={[cfg.halo.scale, cfg.segments[0], cfg.segments[1]]} />
           </mesh>
         )}
       </group>
-      {haloMat && cfg.halo && (
-        <mesh material={haloMat} renderOrder={3}>
-          <sphereGeometry args={[cfg.radius * cfg.halo, cfg.segments[0], cfg.segments[1]]} />
-        </mesh>
-      )}
     </group>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Station name in space — quiet wayfinding, not a headline. Archivo wide 600,
-// ink at half alpha (large-text AA in both themes), sentence case, no float.
-// Mounted only near its station (ProximityGate), faded + scaled by proximity.
+// Skills layout — the orbit owns the right half at any desktop size. Tiles are
+// DOM at a fixed CSS size (labels must stay >= 13px), so the ring is sized in
+// screen pixels: clear of the HUD copy on the left, inside the right edge,
+// and tilted just enough that neighbouring tiles never overlap at any
+// rotation (the back half projects ~0.78x the front half).
 // ─────────────────────────────────────────────────────────────────────────────
-const LABEL_WINDOW  = 0.07
-const LABEL_FONT_PX = 96
-// world units per screen px at distance d ≈ d / 643 (fov 70, 900px tall);
-// one CSS px = 0.025 world units in drei transform mode (distanceFactor 10).
-const LABEL_SCALE_PER_UNIT = 26 / 643 / (LABEL_FONT_PX * 0.025)
+interface SkillsLayout {
+  offset:       [number, number, number]
+  orbitRadius:  number
+  planetRadius: number
+  tilt:         [number, number, number]
+}
 
-function StationLabel({ station, cfg }: { station: StationDef; cfg: PlanetConfig }) {
-  const groupRef = useRef<THREE.Group>(null)
-  const elRef    = useRef<HTMLDivElement>(null)
-  const dist     = Math.hypot(cfg.offset[0], cfg.offset[1], cfg.offset[2])
-  const scale    = LABEL_SCALE_PER_UNIT * dist
-  // Above the planet by default (the upper frame is empty; the HUD copy and
-  // its actions sit mid-left and low).
-  const y        = cfg.labelY ?? cfg.offset[1] + cfg.radius + 0.06 * dist + 0.3
-  const name     = STATION_NAMES[station.id] ?? station.id
+const SKILLS_DEPTH = 20.5
 
-  useFrame(() => {
-    const p = Math.max(0, 1 - Math.abs(scrollRef.current - station.t) / LABEL_WINDOW)
-    const e = p * p * (3 - 2 * p)
-    if (elRef.current) elRef.current.style.opacity = e.toFixed(3)
-    if (groupRef.current) groupRef.current.scale.setScalar(scale * (0.94 + 0.06 * e))
-  })
+function computeSkillsLayout(W: number, H: number): SkillsLayout {
+  const f     = H / 2 / Math.tan((CAMERA_FOV * Math.PI) / 360)
+  const front = SKILL_TILE.maxScale
+  const left  = Math.min(640, W * 0.5)            // HUD title/lead end ~560-660px
+  const right = W - 40
+  const semi  = THREE.MathUtils.clamp((right - left) / 2 - (SKILL_TILE.width * front) / 2, 200, H * 0.36)
+  const cx    = Math.min((left + right) / 2, right - semi - (SKILL_TILE.width * front) / 2)
+  const cy    = H * 0.48
+  const orbitRadius = (semi * SKILLS_DEPTH) / f
+  const offset: [number, number, number] = [
+    ((cx - W / 2) * SKILLS_DEPTH) / f,
+    ((H / 2 - cy) * SKILLS_DEPTH) / f,
+    -SKILLS_DEPTH,
+  ]
+  // Elevation of the line of sight over the ring plane so adjacent tiles
+  // clear each other: where they just fail horizontally they must clear
+  // vertically.
+  const A     = 0.765 * semi * 0.78
+  const wq    = Math.min(0.95, (SKILL_TILE.width * front) / A)
+  const need  = (SKILL_TILE.height * front) / (A * Math.sqrt(1 - wq * wq))
+  const elev  = Math.asin(THREE.MathUtils.clamp(need, 0.45, 0.86))
+  // Ring normal after rotating about X by a is (0, cos a, sin a); solve
+  // |dz| sin a - dy cos a = sin(elev) for the view direction d to the centre.
+  const len = Math.hypot(offset[0], offset[1], offset[2])
+  const dy  = offset[1] / len
+  const dz  = Math.abs(offset[2] / len)
+  const amp = Math.hypot(dy, dz)
+  const tiltX = Math.asin(Math.min(1, Math.sin(elev) / amp)) + Math.atan2(dy, dz)
+  return {
+    offset,
+    orbitRadius,
+    planetRadius: (1.05 * orbitRadius) / 4.5,
+    tilt: [tiltX, 0, -0.05],
+  }
+}
 
-  return (
-    <group ref={groupRef} position={[cfg.offset[0], y, cfg.offset[2]]} scale={scale}>
-      <Html transform center zIndexRange={[18, 0]} pointerEvents="none">
-        <div
-          ref={elRef}
-          aria-hidden="true"
-          style={{
-            opacity: 0,
-            fontFamily: 'var(--font-display), system-ui, sans-serif',
-            fontVariationSettings: "'wdth' 125",
-            fontWeight: 600,
-            fontSize: LABEL_FONT_PX,
-            letterSpacing: '0.01em',
-            lineHeight: 1,
-            whiteSpace: 'nowrap',
-            color: 'rgb(var(--ink) / 0.5)',
-            userSelect: 'none',
-            pointerEvents: 'none',
-          }}
-        >
-          {name}
-        </div>
-      </Html>
-    </group>
-  )
+function useSkillsLayout(): SkillsLayout {
+  const width  = useThree((s) => s.size.width)
+  const height = useThree((s) => s.size.height)
+  return useMemo(() => computeSkillsLayout(Math.max(1, width), Math.max(1, height)), [width, height])
 }
 
 function Station({ curve, station, palette, motion }: {
@@ -658,121 +782,37 @@ function Station({ curve, station, palette, motion }: {
   palette: ScenePalette
   motion:  number
 }) {
-  const ref = useCurveAnchor(curve, station.t)
-  const cfg = PLANETS[station.id] ?? PLANETS.hero
+  const ref    = useCurveAnchor(curve, station.t)
+  const id     = (station.id in PLANETS ? station.id : 'hero') as PlanetId
+  const cfg    = PLANETS[id]
+  const skills = useSkillsLayout()
+  const offset = id === 'skills' ? skills.offset : cfg.offset
+  const radius = id === 'skills' ? skills.planetRadius : cfg.radius
   return (
     <group ref={ref}>
-      <Planet cfg={cfg} palette={palette} motion={motion} />
-      {cfg.showLabel !== false && (
-        <ProximityGate stationT={station.t} threshold={LABEL_WINDOW + 0.02}>
-          <StationLabel station={station} cfg={cfg} />
-        </ProximityGate>
-      )}
+      <Planet id={id} cfg={cfg} palette={palette} motion={motion} stationT={station.t} offset={offset} radius={radius} />
     </group>
   )
 }
 
-// SkillsAnchor — places its children exactly where the skills planet sits, so
-// the tile orbit circles the visible planet.
-function SkillsAnchor({ curve, stationT, children }: {
+// SkillsAnchor — places the orbit exactly where the skills planet sits.
+function SkillsAnchor({ curve, stationT, motion }: {
   curve:    THREE.CatmullRomCurve3
   stationT: number
-  children: React.ReactNode
+  motion:   number
 }) {
-  const ref = useCurveAnchor(curve, stationT)
+  const ref    = useCurveAnchor(curve, stationT)
+  const layout = useSkillsLayout()
   return (
     <group ref={ref}>
-      <group position={PLANETS.skills.offset}>{children}</group>
-    </group>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SocialsEnd3D — a calm sign-off at the very end of the line: one title and
-// three links. Ink, accent on hover (.link-quiet), tokens only. It peaks at
-// the bottom of the page (progress 1), after the Contact HUD has faded, and
-// sits just ahead of where the camera parks (curve t 0.999).
-// ─────────────────────────────────────────────────────────────────────────────
-const SOCIALS_T      = 1.0
-const SOCIALS_WINDOW = 0.05
-const SOCIALS = [
-  { href: 'https://github.com/fahaddoc',             label: 'GitHub',   Icon: FaGithub,      external: true  },
-  { href: 'https://www.linkedin.com/in/fahaddoc600', label: 'LinkedIn', Icon: FaLinkedinIn,  external: true  },
-  { href: 'mailto:hello@shahfahad.dev',              label: 'Email',    Icon: FaRegEnvelope, external: false },
-] as const
-
-function SocialsEnd3D({ curve }: { curve: THREE.CatmullRomCurve3 }) {
-  const ref      = useCurveAnchor(curve, 0.999)
-  const wrapRef  = useRef<HTMLDivElement>(null)
-  const shownRef = useRef(false)
-
-  useFrame(() => {
-    const dist      = Math.abs(scrollRef.current - SOCIALS_T)
-    const proximity = Math.max(0, 1 - dist / SOCIALS_WINDOW)
-    const o         = Math.pow(proximity, 2.4)
-    const el = wrapRef.current
-    if (!el) return
-    el.style.opacity = o.toFixed(3)
-    const shown = o > 0.02
-    if (shown !== shownRef.current) {
-      shownRef.current = shown
-      el.style.visibility = shown ? 'visible' : 'hidden'
-    }
-  })
-
-  return (
-    <group ref={ref}>
-      <group position={[0, 0, -3.2]}>
-        <Html transform center distanceFactor={2.1} pointerEvents="none">
-          <div
-            ref={wrapRef}
-            style={{
-              opacity: 0,
-              visibility: 'hidden',
-              width: 560,
-              textAlign: 'center',
-              color: 'rgb(var(--ink))',
-              pointerEvents: 'none',
-              userSelect: 'none',
-            }}
-          >
-            <p className="t-title" style={{ fontSize: 52, margin: 0 }}>
-              Stay in touch.
-            </p>
-            <ul
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                gap: 32,
-                marginTop: 28,
-                listStyle: 'none',
-                padding: 0,
-              }}
-            >
-              {SOCIALS.map(({ href, label, Icon, external }) => (
-                <li key={label}>
-                  <a
-                    href={href}
-                    className="link-quiet t-label"
-                    {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      minHeight: 32,
-                      fontSize: 17,
-                      pointerEvents: 'auto',
-                      userSelect: 'auto',
-                    }}
-                  >
-                    <Icon size={18} aria-hidden="true" />
-                    {label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Html>
+      <group position={layout.offset}>
+        <SkillsOrbit
+          stationT={stationT}
+          motion={motion}
+          radius={layout.orbitRadius}
+          tilt={layout.tilt}
+          onActive={kick}
+        />
       </group>
     </group>
   )
@@ -780,8 +820,10 @@ function SocialsEnd3D({ curve }: { curve: THREE.CatmullRomCurve3 }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CameraRig: a dolly, not a rollercoaster. Frame-rate independent damping on
-// progress, a damped look direction slightly ahead on the curve, and a small
-// bank into turns (gain 1.5, clamped to 0.08 rad).
+// progress (lambda 9: Lenis already smooths the wheel, this only removes
+// steps), a damped look direction slightly ahead on the curve, and a small
+// bank into turns that only applies while moving, so every station frame
+// rests level and exactly on its authored composition.
 // ─────────────────────────────────────────────────────────────────────────────
 function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
   const pos      = useMemo(() => new THREE.Vector3(), [])
@@ -795,6 +837,7 @@ function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
   const rollQuat = useMemo(() => new THREE.Quaternion(), [])
   const tRef     = useRef(0)
   const rollRef  = useRef(0)
+  const speedRef = useRef(0)
   const primed   = useRef(false)
 
   useFrame(({ camera }, delta) => {
@@ -802,28 +845,35 @@ function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
     // paused tab a long step should simply land on the target.
     const dt     = Number.isFinite(delta) && delta > 0 ? delta : 0
     const target = THREE.MathUtils.clamp(scrollRef.current, 0, 0.999)
+    const prevT  = tRef.current
 
     // Snap on big jumps (the bottom-of-page loop back to the start) instead
     // of rewinding through the whole tunnel.
     if (!primed.current || Math.abs(target - tRef.current) > 0.5) {
       tRef.current = target
     } else {
-      tRef.current = THREE.MathUtils.damp(tRef.current, target, 5, dt)
+      tRef.current = THREE.MathUtils.damp(tRef.current, target, CAM_LAMBDA, dt)
+      if (Math.abs(target - tRef.current) < 2e-5) tRef.current = target
     }
     const t = THREE.MathUtils.clamp(tRef.current, 0, 0.999)
+    const jumped = !primed.current || Math.abs(t - prevT) > 0.5
+    const v = jumped || dt === 0 ? 0 : Math.abs(t - prevT) / dt
+    speedRef.current = THREE.MathUtils.damp(speedRef.current, v, 6, dt)
 
     curve.getPointAt(t, pos)
-    curve.getPointAt(Math.min(0.9999, t + 0.015), ahead)
+    curve.getPointAt(Math.min(0.9999, t + LOOK_AHEAD), ahead)
     wantDir.copy(ahead).sub(pos).normalize()
-    if (!primed.current) lookDir.copy(wantDir)
+    if (!primed.current || jumped) lookDir.copy(wantDir)
     else lookDir.lerp(wantDir, 1 - Math.exp(-6 * dt)).normalize()
 
     curve.getTangentAt(t, tanNow)
     curve.getTangentAt(Math.min(0.999, t + 0.02), tanAhead)
-    const targetRoll = THREE.MathUtils.clamp((tanAhead.x - tanNow.x) * 1.5, -0.08, 0.08)
-    rollRef.current = primed.current
-      ? THREE.MathUtils.damp(rollRef.current, targetRoll, 2.5, dt)
+    const bank       = THREE.MathUtils.clamp(speedRef.current / BANK_SPEED, 0, 1)
+    const targetRoll = THREE.MathUtils.clamp((tanAhead.x - tanNow.x) * BANK_GAIN, -BANK_MAX, BANK_MAX) * bank
+    rollRef.current = primed.current && !jumped
+      ? THREE.MathUtils.damp(rollRef.current, targetRoll, 3, dt)
       : targetRoll
+    if (Math.abs(rollRef.current) < 1e-5 && Math.abs(targetRoll) < 1e-5) rollRef.current = 0
     primed.current = true
 
     up.set(0, 1, 0).applyQuaternion(rollQuat.setFromAxisAngle(lookDir, rollRef.current))
@@ -831,55 +881,89 @@ function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
     camera.up.copy(up)
     camera.position.copy(pos)
     camera.lookAt(look)
+
+    sceneState.camT = t
+    sceneState.settling =
+      Math.abs(target - t) > 1e-4 ||
+      Math.abs(rollRef.current) > 2e-4 ||
+      1 - lookDir.dot(wantDir) > 1e-7
   })
 
   return null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ProximityGate — only mounts its children when the camera is within
-// `threshold` of `stationT`. Heavy nodes (drei <Html>, large geometries) cost
-// memory + DOM even when fully transparent, so unmounting them when the user
-// is at the other end of the tunnel keeps the page light.
+// ProximityGate — only mounts its children when scroll progress is within
+// `threshold` of `stationT`, and only unmounts them past threshold +
+// `hysteresis`, so a nudge at a boundary never churns heavy nodes (drei <Html>
+// creates a React root per instance).
 // ─────────────────────────────────────────────────────────────────────────────
 function ProximityGate({
-  stationT, threshold = 0.18, children,
+  stationT, threshold = 0.18, hysteresis = 0.04, children,
 }: {
-  stationT: number
-  threshold?: number
-  children: React.ReactNode
+  stationT:    number
+  threshold?:  number
+  hysteresis?: number
+  children:    React.ReactNode
 }) {
   const [near, setNear] = useState(false)
+  const nearRef = useRef(false)
   useFrame(() => {
-    const isNear = Math.abs(scrollRef.current - stationT) < threshold
-    if (isNear !== near) setNear(isNear)
+    const d    = Math.abs(scrollRef.current - stationT)
+    const next = nearRef.current ? d < threshold + hysteresis : d < threshold
+    if (next !== nearRef.current) {
+      nearRef.current = next
+      setNear(next)
+    }
   })
   return near ? <>{children}</> : null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RenderDriver — with the Canvas in frameloop="demand", this is the ONLY thing
-// that pumps frames. It caps rendering to ~36fps (the scene is slow/ambient, so
-// 60fps just heats the GPU) and fully PAUSES when the tab is hidden — no wasted
-// GPU/CPU while the page is in a background tab. All scene animations are
-// time-based (delta / clock.elapsedTime), so a lower frame rate stays correct.
+// that pumps frames. While anything moves (scroll ahead of the camera, Lenis
+// scrolling, the camera's look or roll settling, an orbit tween, a theme
+// flip) it renders every animation frame, capped at 60. Once settled it falls
+// back to 36fps for the ambient motion (spin, twinkle, drift). It renders
+// nothing while the tab is hidden or a drawer covers the canvas. All scene
+// animation is time-based, so the rate never changes speeds.
 // ─────────────────────────────────────────────────────────────────────────────
-function RenderDriver({ fps = 36 }: { fps?: number }) {
+function RenderDriver({ idleFps = 36, activeFps = 60 }: { idleFps?: number; activeFps?: number }) {
   const invalidate = useThree((s) => s.invalidate)
   useEffect(() => {
-    let raf = 0
-    let last = 0
-    const minDelta = 1000 / fps
-    const loop = (t: number) => {
+    let raf  = 0
+    let last = -Infinity
+    const onOpen  = () => { sceneState.drawerOpen = true }
+    const onClose = () => { sceneState.drawerOpen = false; kick(300); invalidate() }
+    window.addEventListener(DRAWER_OPEN_EVENT, onOpen)
+    window.addEventListener(DRAWER_CLOSE_EVENT, onClose)
+
+    const loop = (now: number) => {
       raf = requestAnimationFrame(loop)
-      if (typeof document !== 'undefined' && document.hidden) return
-      if (t - last < minDelta) return
-      last = t
+      if (document.hidden || sceneState.drawerOpen) return
+      const lenis  = (window as unknown as { __lenis?: { isScrolling?: unknown } }).__lenis
+      const target = Math.min(0.999, Math.max(0, scrollRef.current))
+      const moving =
+        Math.abs(target - sceneState.camT) > 1e-4 ||
+        sceneState.settling ||
+        Boolean(lenis?.isScrolling) ||
+        now < sceneState.activeUntil
+      const minDelta = 1000 / (moving ? activeFps : idleFps)
+      const elapsed  = now - last
+      // 1.5ms tolerance absorbs vsync jitter (a 60Hz frame can land at 16.5ms).
+      if (elapsed < minDelta - 1.5) return
+      // Carry the remainder so the cap holds on average instead of rounding
+      // down to every Nth vsync; restart the phase after a gap.
+      last = elapsed >= minDelta && elapsed < 2 * minDelta ? now - (elapsed % minDelta) : now
       invalidate()
     }
     raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
-  }, [invalidate, fps])
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener(DRAWER_OPEN_EVENT, onOpen)
+      window.removeEventListener(DRAWER_CLOSE_EVENT, onClose)
+    }
+  }, [invalidate, idleFps, activeFps])
   return null
 }
 
@@ -895,6 +979,9 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
   // Theme-aware scene colours. Flips in place; never part of the Canvas key.
   const palette = useScenePalette()
   const motion  = useReducedMotion() ? 0 : 1
+
+  // A theme flip rewrites uniforms: render it at the full rate.
+  useEffect(() => { kick(400) }, [palette])
 
   const curve = useMemo(() => new THREE.CatmullRomCurve3(
     CURVE_POINTS.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
@@ -948,8 +1035,8 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         position: 'fixed',
         inset:    0,
         zIndex:   0,
-        // Canvas needs pointer events so the skills tiles and the sign-off
-        // links can be clicked. HUD chrome sits on top in a higher z-index.
+        // Canvas needs pointer events so the skills tiles can be clicked.
+        // HUD chrome sits on top in a higher z-index.
         pointerEvents: 'auto',
         background: 'rgb(var(--space-0))',
       }}
@@ -960,10 +1047,10 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         // a full Canvas unmount+remount (WebGL context teardown + whole-scene
         // rebuild) on every toggle → a multi-hundred-ms main-thread block.
         key={canvasKey}
-        // On-demand: RenderDriver pumps frames at a capped FPS and stops when
-        // the tab is hidden (huge heat/battery saver vs the default 'always').
+        // On-demand: RenderDriver pumps frames (full rate only while moving)
+        // and stops when the tab is hidden or a drawer is open.
         frameloop="demand"
-        camera={{ fov: 70, near: 0.05, far: 400, position: [0, 0, 0] }}
+        camera={{ fov: CAMERA_FOV, near: 0.05, far: 400, position: [0, 0, 0] }}
         // DPR locked to 1. Retina 2× would 4× the framebuffer pixel count for
         // marginal gain on a soft scene. Single biggest GPU-memory win.
         dpr={1}
@@ -982,7 +1069,7 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
           gl.domElement.addEventListener('webglcontextlost', handler)
         }}
       >
-        <RenderDriver fps={36} />
+        <RenderDriver idleFps={36} activeFps={60} />
 
         {/* First subscriber: the camera moves before anything reads it. */}
         <CameraRig curve={curve} />
@@ -998,18 +1085,13 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
           <Station key={s.id} curve={curve} station={s} palette={palette} motion={motion} />
         ))}
 
-        {/* Skills station — monochrome tiles orbiting the ice planet. */}
-        <ProximityGate stationT={skillsT} threshold={0.20}>
+        {/* Skills station — the tile orbit around the ice planet. Mounted
+            within 0.14 of the station (unmounted past 0.18), so it never
+            churns at the Work station (0.55). */}
+        <ProximityGate stationT={skillsT} threshold={0.14} hysteresis={0.04}>
           <Suspense fallback={null}>
-            <SkillsAnchor curve={curve} stationT={skillsT}>
-              <SkillsOrbit stationT={skillsT} motion={motion} />
-            </SkillsAnchor>
+            <SkillsAnchor curve={curve} stationT={skillsT} motion={motion} />
           </Suspense>
-        </ProximityGate>
-
-        {/* Sign-off at the very end of the tunnel */}
-        <ProximityGate stationT={SOCIALS_T} threshold={SOCIALS_WINDOW + 0.04}>
-          <SocialsEnd3D curve={curve} />
         </ProximityGate>
 
         {/* No EffectComposer: grain and vignette are CSS layers above the

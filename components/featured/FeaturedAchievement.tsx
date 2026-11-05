@@ -6,6 +6,9 @@
 // count above it). Reads every contribution from data/open-source.ts, newest
 // first, and steps through them with previous / next. No autoplay.
 //
+// Actions match the desktop HUD: "View pull request" (primary) then "Read case
+// study" (ghost). At >=1024px MobileSpace puts this card in the right column.
+//
 // Colour rules (DESIGN.md §2): ember only through the shared .btn--primary and
 // link hover; --flutter-accent is the Flutter logo only; --status-merged is the
 // "Merged" pill only. Everything else is ink on a solid surface.
@@ -14,7 +17,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa6'
 import { contributions, type Contribution } from '@/data/open-source'
-import { FlutterLogo, GitHubLogo, MergedGlyph } from '@/components/featured/BrandLogos'
+import { FlutterLogo, MergedGlyph } from '@/components/featured/BrandLogos'
 
 const STATUS_LABEL: Record<Contribution['status'], string> = {
   merged: 'Merged',
@@ -65,24 +68,26 @@ export function FeaturedAchievement() {
               <span className="fa-dot" aria-hidden="true">·</span>&minus;{c.deletions}
             </p>
 
+            {/* Same order and labels as the desktop HUD: the merged PR on
+                GitHub is the verifiable proof, so it is the primary action. */}
             <div className="fa-actions">
-              <Link
-                href={`/achievements/${c.id}`}
-                className="btn btn--primary btn--sm"
-                tabIndex={i === index ? undefined : -1}
-              >
-                Read case study
-              </Link>
               <a
                 href={c.prUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn--ghost btn--sm"
+                className="btn btn--primary btn--sm"
                 aria-label={`View pull request #${c.prNumber} on GitHub`}
                 tabIndex={i === index ? undefined : -1}
               >
-                <GitHubLogo size={14} /> View PR
+                View pull request <span className="btn-arrow" aria-hidden="true">↗</span>
               </a>
+              <Link
+                href={`/achievements/${c.id}`}
+                className="btn btn--ghost btn--sm"
+                tabIndex={i === index ? undefined : -1}
+              >
+                Read case study <span className="btn-arrow" aria-hidden="true">→</span>
+              </Link>
             </div>
           </article>
         ))}
@@ -180,6 +185,10 @@ export function FeaturedAchievement() {
         }
         .fa-diff { margin-top: 12px; color: rgb(var(--ink-3)); }
         .fa-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+        @media (min-width: 640px) {
+          .fa-card { padding: 24px 24px 26px; }
+          .fa-title { font-size: 22px; }
+        }
 
         .fa-nav { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
         .fa-nav :global(.fa-icon) { --btn-h: 44px; width: 44px; padding: 0; flex: none; }

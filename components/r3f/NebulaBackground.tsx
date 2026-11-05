@@ -14,7 +14,10 @@
 //      Octaves and the optional domain-warp step come from the quality
 //      preset (#defines, recompiled only when the tier changes). Daylight is
 //      the same shader with the light palette plus a faint warm "sun side"
-//      towards the key light (upper left of the frame).
+//      (palette.sunSide, upper left of the frame).
+//      The tunnel camera uses a long lens (fov 38), so every angular scale
+//      here (noise frequency, drift, mouse tilt) is set for that lens: the sky
+//      keeps the same on-screen grain it had under the old wide lens.
 //   2. Star field. One Points draw with per-star size, twinkle phase,
 //      temperature and brightness. Neutral warm/cool whites, 1-3px, gentle
 //      time-based twinkle. Count = preset.starCount. Daylight hides all but
@@ -38,6 +41,9 @@ interface NebulaBackgroundProps {
 
 const SKY_RADIUS  = 200   // inside camera.far (400); no depth test, so size is cosmetic
 const STAR_RADIUS = 300   // behind every planet on the path, still inside camera.far
+// Angular frequency multiplier for the long lens: tan(35deg) / tan(19deg) is
+// ~2; 1.8 keeps filaments a touch broader than before.
+const SKY_FREQ    = 1.8
 
 // Cheap deterministic PRNG so the star field never reshuffles on rerender.
 function makeRng(seed: number) {
@@ -100,6 +106,7 @@ function makeSkyMaterial(octaves: number, warp: boolean): THREE.ShaderMaterial {
       // view-space direction towards the key light, and daylight sun-side strength
       uSunDir:    { value: new THREE.Vector3(-0.55, 0.45, 0.7).normalize() },
       uSun:       { value: 0 },
+      uFreq:      { value: SKY_FREQ },
     },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
@@ -123,6 +130,7 @@ function makeSkyMaterial(octaves: number, warp: boolean): THREE.ShaderMaterial {
       uniform vec4  uLayer;
       uniform vec3  uSunDir;
       uniform float uSun;
+      uniform float uFreq;
       varying vec3  vDir;
       varying vec3  vViewDir;
 
@@ -156,10 +164,10 @@ function makeSkyMaterial(octaves: number, warp: boolean): THREE.ShaderMaterial {
 
         // Low-frequency field: drives the broad outer haze and doubles as the
         // cloud/void mask for the filaments. Most of the sky falls below it.
-        float field = fbm2(dir * 1.35 + drift * 0.5 + vec3(3.1, 0.0, 1.7));
+        float field = fbm2(dir * (1.35 * uFreq) + drift * 0.5 + vec3(3.1, 0.0, 1.7));
         float voidMask = smoothstep(0.50, 0.74, field);
 
-        vec3 p = dir * 3.1 + drift;
+        vec3 p = dir * (3.1 * uFreq) + drift;
         #ifdef WARP
           // One domain-warp step: bends the field into filaments.
           vec2 q = vec2(fbm2(p * 0.8), fbm2(p * 0.8 + vec3(5.2, 1.3, 2.8)));
@@ -348,9 +356,9 @@ export function NebulaBackground({ palette, preset, motion = 1 }: NebulaBackgrou
     ;(u.uOutMid.value as THREE.Color).set(outer.mid)
     ;(u.uOutBright.value as THREE.Color).set(outer.bright)
     ;(u.uLayer.value as THREE.Vector4).set(inner.alpha, inner.brightStrength, outer.alpha, outer.brightStrength)
-    const [lx, ly, lz] = palette.keyLight.dir
+    const [lx, ly, lz] = palette.sunSide.dir
     ;(u.uSunDir.value as THREE.Vector3).set(lx, ly, lz).normalize()
-    u.uSun.value = palette.mode === 'light' ? 0.5 : 0
+    u.uSun.value = palette.sunSide.strength
 
     const s = starMat.uniforms
     ;(s.uWarm.value as THREE.Color).set(palette.stars.warm)
@@ -376,9 +384,10 @@ export function NebulaBackground({ palette, preset, motion = 1 }: NebulaBackgrou
     // Follow the camera so the sky surrounds it wherever it flies.
     g.position.copy(camera.position)
     // Slow drift plus a slight mouse tilt, both frame-rate independent.
-    tiltRef.current.z = THREE.MathUtils.damp(tiltRef.current.z, mouseRef.current.x * 0.05 * motion, 1.6, dt)
-    tiltRef.current.x = THREE.MathUtils.damp(tiltRef.current.x, mouseRef.current.y * 0.03 * motion, 1.6, dt)
-    g.rotation.set(tiltRef.current.x, t * 0.01, tiltRef.current.z)
+    // Halved for the long lens, so the on-screen motion matches the old one.
+    tiltRef.current.z = THREE.MathUtils.damp(tiltRef.current.z, mouseRef.current.x * 0.025 * motion, 1.6, dt)
+    tiltRef.current.x = THREE.MathUtils.damp(tiltRef.current.x, mouseRef.current.y * 0.015 * motion, 1.6, dt)
+    g.rotation.set(tiltRef.current.x, t * 0.005, tiltRef.current.z)
   })
 
   return (

@@ -9,6 +9,11 @@
 // panel), focus return to whatever opened it, Lenis paused while open, and a
 // reduced-motion path that is a plain opacity crossfade.
 //
+// While any drawer is open, <html data-drawer-open> is set (the film grain
+// pauses) and DRAWER_OPEN_EVENT / DRAWER_CLOSE_EVENT fire on window, once per
+// transition, so heavy layers (the WebGL RenderDriver) can stop drawing under
+// the overlay. The overlay is a static scrim, not a blur.
+//
 // This module is the only place framer-motion is imported for the drawers.
 // The providers load it with next/dynamic on first open, so framer-motion is
 // not part of the initial bundle on any route (and never on the mobile path
@@ -26,6 +31,7 @@ import {
 } from 'framer-motion'
 import { FaXmark } from 'react-icons/fa6'
 import { lenisInstance } from '@/components/providers/SmoothScroll'
+import { DRAWER_CLOSE_EVENT, DRAWER_OPEN_EVENT } from './drawerPrefetch'
 import styles from './Drawer.module.css'
 
 export interface DrawerProps {
@@ -72,6 +78,28 @@ function useIsMobile() {
   return mobile
 }
 
+// Several drawers may overlap (one closing while another opens), so the
+// page-level "a drawer is open" state is a count, and the events fire only on
+// 0 → 1 and 1 → 0.
+let openDrawers = 0
+function markDrawerOpen() {
+  openDrawers += 1
+  if (openDrawers !== 1) return
+  document.documentElement.setAttribute('data-drawer-open', '')
+  window.dispatchEvent(new Event(DRAWER_OPEN_EVENT))
+}
+function markDrawerClosed() {
+  openDrawers = Math.max(0, openDrawers - 1)
+  if (openDrawers !== 0) return
+  document.documentElement.removeAttribute('data-drawer-open')
+  window.dispatchEvent(new Event(DRAWER_CLOSE_EVENT))
+}
+
+/** Mobile sheet: dismiss when dragged past this share of its height… */
+const DISMISS_DISTANCE = 0.25
+/** …or flicked down faster than this (px/s). */
+const DISMISS_VELOCITY = 300
+
 function focusables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
     (el) => el.getClientRects().length > 0 && !el.closest('[inert]'),
@@ -90,6 +118,14 @@ export function Drawer({ open, onClose, labelledBy, width = 480, resetKey, child
   onCloseRef.current = onClose
 
   useEffect(() => { setMounted(true) }, [])
+
+  // Page-level open state. Runs from the moment the drawer opens until it
+  // starts to close (or unmounts), so the scene resumes as the exit plays.
+  useEffect(() => {
+    if (!open || !mounted) return
+    markDrawerOpen()
+    return markDrawerClosed
+  }, [open, mounted])
 
   // Focus, keyboard and scroll management for one open session.
   useEffect(() => {
@@ -191,7 +227,10 @@ export function Drawer({ open, onClose, labelledBy, width = 480, resetKey, child
         }
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
-    if (info.offset.y > 110 || info.velocity.y > 650) onCloseRef.current()
+    const height = panelRef.current?.offsetHeight ?? window.innerHeight * 0.6
+    if (info.offset.y > height * DISMISS_DISTANCE || info.velocity.y > DISMISS_VELOCITY) {
+      onCloseRef.current()
+    }
   }
 
   return createPortal(

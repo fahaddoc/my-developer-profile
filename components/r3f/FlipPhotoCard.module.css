@@ -1,0 +1,204 @@
+/* components/r3f/FlipPhotoCard.module.css
+   Hero portrait: the press/hover cue of the FlipPhotoCard button and the lit
+   rest state of ParticlePortrait. Layout (dock size, 3:4 box, bottom fade)
+   stays in TunnelHUD.module.css (.portraitDock, .portrait, .portraitFigure).
+
+   Lighting (DESIGN.md §7) is a static CSS composite over the real photo, so it
+   is anti-aliased at every DPR and costs nothing per frame:
+     .rim / .rimSoft  ember on the edges that face the upper-left key light
+                      (silhouette minus itself shifted down-right)
+     .fill            cold light on the edges that face right
+     .lift            dark only: a soft cold screen over the figure so the
+                      black sweater does not vanish into space
+   Every layer is masked by the photo's own alpha. image-set() picks the same
+   480/720 file the <img> srcset picks at 1x/2x, so nothing downloads twice. */
+
+/* ─── Button ─────────────────────────────────────────────────────────────── */
+.root {
+  transform-origin: 50% 100%;
+  transition: transform var(--dur-1) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.root:active {
+  transform: scale(0.97);
+  transition-duration: 80ms;
+}
+
+/* Hover / focus cue: a small label on the lower chest, never on the trousers.
+   The pill backing keeps it AA on the black sweater in both themes. */
+.cue {
+  position: absolute;
+  left: 50%;
+  top: 57%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--ink) / 0.16);
+  background: rgb(var(--space-0) / 0.86);
+  color: rgb(var(--ink));
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+.cue svg { flex: none; width: 10px; height: 10px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .root:hover .cue {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.root:focus-visible .cue {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ─── Portrait stage (ParticlePortrait) ──────────────────────────────────── */
+.stage {
+  position: absolute;
+  inset: 0;
+}
+
+/* The lit photo. Shown at rest; hidden under the particle canvas on intent. */
+.lit {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  opacity: 1;
+}
+.stage[data-particles='on'] .lit {
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+
+.photo {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* Full-silhouette mask: the photo's alpha, same box as object-fit above. */
+.lift {
+  -webkit-mask-image: url('/images/shah-fahad-sticker-480.webp');
+  mask-image: url('/images/shah-fahad-sticker-480.webp');
+  -webkit-mask-image: image-set(url('/images/shah-fahad-sticker-480.webp') 1x, url('/images/shah-fahad-sticker-720.webp') 2x);
+  mask-image: image-set(url('/images/shah-fahad-sticker-480.webp') 1x, url('/images/shah-fahad-sticker-720.webp') 2x);
+  -webkit-mask-position: 50% 100%;
+  mask-position: 50% 100%;
+  mix-blend-mode: screen;
+  background: linear-gradient(to left, rgb(var(--nebula-a) / 0.4), rgb(var(--nebula-a) / 0.14) 70%);
+}
+
+/* Edge bands: silhouette minus a shifted copy of itself. */
+.rim,
+.rimSoft,
+.fill {
+  -webkit-mask-image:
+    url('/images/shah-fahad-sticker-480.webp'),
+    url('/images/shah-fahad-sticker-480.webp');
+  mask-image:
+    url('/images/shah-fahad-sticker-480.webp'),
+    url('/images/shah-fahad-sticker-480.webp');
+  -webkit-mask-image:
+    image-set(url('/images/shah-fahad-sticker-480.webp') 1x, url('/images/shah-fahad-sticker-720.webp') 2x),
+    image-set(url('/images/shah-fahad-sticker-480.webp') 1x, url('/images/shah-fahad-sticker-720.webp') 2x);
+  mask-image:
+    image-set(url('/images/shah-fahad-sticker-480.webp') 1x, url('/images/shah-fahad-sticker-720.webp') 2x),
+    image-set(url('/images/shah-fahad-sticker-480.webp') 1x, url('/images/shah-fahad-sticker-720.webp') 2x);
+  -webkit-mask-composite: source-out;
+  mask-composite: subtract;
+}
+
+/* Key rim: edges facing up-left, strongest on the head and near shoulder,
+   fading toward the lower right like a single warm source. */
+.rim {
+  -webkit-mask-position: 50% 100%, calc(50% + 1.5px) calc(100% + 1.5px);
+  mask-position: 50% 100%, calc(50% + 1.5px) calc(100% + 1.5px);
+  background: linear-gradient(
+    150deg,
+    rgb(var(--accent) / 0.95) 6%,
+    rgb(var(--accent) / 0.6) 32%,
+    rgb(var(--accent) / 0) 64%
+  );
+}
+.rimSoft {
+  -webkit-mask-position: 50% 100%, calc(50% + 4px) calc(100% + 3.5px);
+  mask-position: 50% 100%, calc(50% + 4px) calc(100% + 3.5px);
+  background: linear-gradient(
+    150deg,
+    rgb(var(--accent) / 0.34) 6%,
+    rgb(var(--accent) / 0.2) 32%,
+    rgb(var(--accent) / 0) 60%
+  );
+}
+
+/* Cold fill: edges facing right. */
+.fill {
+  -webkit-mask-position: 50% 100%, calc(50% - 3px) calc(100% - 1px);
+  mask-position: 50% 100%, calc(50% - 3px) calc(100% - 1px);
+  mix-blend-mode: screen;
+  background: linear-gradient(to left, rgb(var(--nebula-a) / 0.8) 10%, rgb(var(--nebula-a) / 0) 66%);
+}
+
+/* Daylight: no lift (the sweater already reads on the pale sky), a quieter
+   cold edge so it never looks like a halo, and a slightly softer rim (the
+   saturated daylight ember reads stronger on a pale ground). */
+:global(:root[data-theme='light']) .lift { display: none; }
+:global(:root[data-theme='light']) .fill { opacity: 0.55; }
+:global(:root[data-theme='light']) .rim,
+:global(:root[data-theme='light']) .rimSoft { opacity: 0.85; }
+
+/* The particle canvas: on top, shown instantly on intent; on the way home the
+   photo comes back underneath first and the canvas fades off it. */
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    visibility 0s linear var(--dur-2);
+}
+.stage[data-particles='on'] .canvas {
+  opacity: 1;
+  visibility: visible;
+  transition: none;
+}
+
+/* ─── Reduced motion: no press travel, cue fades only ────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .root:active { transform: none; transition: none; }
+  .cue,
+  .root:focus-visible .cue { transform: translate(-50%, 0); transition: opacity var(--dur-1) linear; }
+}
+@media (prefers-reduced-motion: reduce) and (hover: hover) and (pointer: fine) {
+  .root:hover .cue { transform: translate(-50%, 0); }
+}

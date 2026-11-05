@@ -20,7 +20,9 @@ export interface QualityPreset {
   tubeSegments:   number
   /** floating Y-bob on project tiles + particle bob */
   tileBob:        boolean
-  /** star points in the deep-space shell */
+  /** star points in the deep-space shell. The tunnel lens is long (fov 38),
+      so only ~1/3 of the sphere is ever on screen: these counts keep the
+      on-screen density of the old wide lens. Points are cheap (one draw). */
   starCount:      number
   /** fbm octaves in the nebula shader (cost scales per pixel) */
   nebulaOctaves:  number
@@ -32,9 +34,9 @@ export const PRESETS: Record<QualityLevel, QualityPreset> = {
   // Even on low we keep the canvas alive (just minimal effects + no bloom).
   // Previously `canvas:false` meant the entire tunnel disappeared which
   // surprised users who toggled to LOW expecting reduced quality, not loss.
-  low:  { canvas: true,  bloom: false, bloomIntensity: 0,    particleCount: 80,  tubeSegments: 50,  tileBob: false, starCount: 900,  nebulaOctaves: 2, nebulaWarp: false },
-  mid:  { canvas: true,  bloom: false, bloomIntensity: 0,    particleCount: 160, tubeSegments: 90,  tileBob: true,  starCount: 1900, nebulaOctaves: 3, nebulaWarp: false },
-  high: { canvas: true,  bloom: true,  bloomIntensity: 0.55, particleCount: 240, tubeSegments: 130, tileBob: true,  starCount: 3400, nebulaOctaves: 3, nebulaWarp: true  },
+  low:  { canvas: true,  bloom: false, bloomIntensity: 0,    particleCount: 80,  tubeSegments: 50,  tileBob: false, starCount: 2000, nebulaOctaves: 2, nebulaWarp: false },
+  mid:  { canvas: true,  bloom: false, bloomIntensity: 0,    particleCount: 160, tubeSegments: 90,  tileBob: true,  starCount: 4200, nebulaOctaves: 3, nebulaWarp: false },
+  high: { canvas: true,  bloom: true,  bloomIntensity: 0.55, particleCount: 240, tubeSegments: 130, tileBob: true,  starCount: 7400, nebulaOctaves: 3, nebulaWarp: true  },
 }
 
 /** Map raw detect-gpu tier (0..3) to a QualityLevel. */

@@ -12,10 +12,16 @@
    (--bg-base, --mob-accent, --os-accent, ...) are aliases so subpages that
    still read them pick up the new palette without edits.
 
-   Contrast (WCAG, computed from the OKLCH sources in DESIGN.md):
-     dark : ink 18.1:1, ink-2 10.7:1, ink-3 7.0:1, accent 9.7:1 on space-0
-     light: ink 16.4:1, ink-2 7.9:1, ink-3 5.2:1, accent-text 5.0:1 on space-0
-            accent fill + accent-ink text 4.9:1 */
+   Contrast (WCAG 2.x ratios, computed from the hex values below):
+     dark : on space-0 #05080f
+            ink 18.1, ink-2 10.7, ink-3 7.0, accent 9.7
+     light: on space-0 #f4f7fb / on the rendered daylight sky (~#e6ecf2,
+            sampled behind text, darker than the token) / on surface-2
+            ink 16.4 / 14.8 / 14.5, ink-2 7.9 / 7.1 / 7.0,
+            ink-3 5.9 / 5.3 / 5.2, accent-text 5.9 / 5.3 / 5.2
+            accent fill + accent-ink text 4.9 (large/bold button text)
+     Small text must stay >= 4.5 on whatever is really behind it; the light
+     ink-3 and accent-text carry headroom for the sky. */
 
 :root,
 :root[data-theme='dark'] {
@@ -65,10 +71,10 @@
 
   --ink:       18  25  39;  /* #121927 */
   --ink-2:     69  77  93;  /* #454d5d */
-  --ink-3:     97 105 119;  /* #616977 */
+  --ink-3:     87  96 112;  /* #576070 5.9:1, 5.3:1 on the sky */
 
   --accent:      221  99   0; /* #dd6300 fills, large text */
-  --accent-text: 178  74  15; /* #b24a0f small text, 5.0:1 */
+  --accent-text: 163  66  12; /* #a3420c small text, 5.9:1, 5.3:1 on the sky */
   --accent-ink:   18  25  39; /* ink on the ember fill, 4.9:1 */
 
   --nebula-a: 150 178 214;
@@ -143,6 +149,15 @@ html::-webkit-scrollbar { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+}
+
+/* Theme switch (ThemeProvider): the view transition animates the change, so
+   every CSS colour transition is off while it runs. Otherwise the reveal
+   circle's leading edge shows body / link / button colours mid-fade. */
+[data-theme-switching] *,
+[data-theme-switching] *::before,
+[data-theme-switching] *::after {
+  transition: none !important;
 }
 
 body {
@@ -259,21 +274,17 @@ a {
     box-shadow var(--dur-2) var(--ease-out),
     transform var(--dur-1) var(--ease-out);
 }
-.btn:active { transform: translateY(1px) scale(0.985); }
+/* Press: a quick 80ms squeeze in; the release eases back over .btn's 160ms. */
+.btn:active { transform: scale(0.97); transition-duration: 80ms; }
 .btn:focus-visible { outline-offset: 4px; border-radius: 999px; }
 .btn[disabled],
 .btn[aria-disabled='true'] { opacity: 0.45; pointer-events: none; }
 .btn .btn-arrow { transition: transform var(--dur-2) var(--ease-out); }
-.btn:hover .btn-arrow { transform: translateX(3px); }
 
 .btn--primary {
   background: rgb(var(--accent));
   color: rgb(var(--accent-ink));
   box-shadow: 0 0 0 0 rgb(var(--accent) / 0), 0 10px 30px -12px rgb(var(--accent) / 0.55);
-}
-.btn--primary:hover {
-  background: rgb(var(--accent) / 0.92);
-  box-shadow: 0 0 0 6px rgb(var(--accent) / 0.12), 0 14px 36px -12px rgb(var(--accent) / 0.65);
 }
 
 .btn--ghost {
@@ -281,9 +292,33 @@ a {
   color: rgb(var(--ink));
   border-color: rgb(var(--ink) / 0.22);
 }
-.btn--ghost:hover {
-  background: rgb(var(--ink) / 0.06);
-  border-color: rgb(var(--ink) / 0.42);
+
+/* Hover only where a real pointer hovers: on touch, :hover sticks after a
+   tap. Every :hover rule in this file lives in a block like this one. */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover .btn-arrow { transform: translateX(3px); }
+  .btn--primary:hover {
+    background: rgb(var(--accent) / 0.92);
+    box-shadow: 0 0 0 6px rgb(var(--accent) / 0.12), 0 14px 36px -12px rgb(var(--accent) / 0.65);
+  }
+  .btn--ghost:hover {
+    background: rgb(var(--ink) / 0.06);
+    border-color: rgb(var(--ink) / 0.42);
+  }
+}
+
+/* Forced colours (Windows High Contrast): fills and tinted borders drop out,
+   so every button gets a real system-colour edge and stays a visible shape. */
+@media (forced-colors: active) {
+  .btn,
+  .btn--primary,
+  .btn--ghost {
+    border: 1px solid ButtonText;
+    box-shadow: none;
+  }
+  .btn:focus-visible { outline: 2px solid Highlight; }
+  .btn[disabled],
+  .btn[aria-disabled='true'] { border-color: GrayText; color: GrayText; }
 }
 
 .btn--sm { --btn-h: 38px; padding: 0 16px; font-size: 13px; }
@@ -292,21 +327,47 @@ a {
 .btn--icon { --btn-h: 44px; width: var(--btn-h); padding: 0; flex: none; }
 .btn--icon svg { width: 15px; height: 15px; }
 
-/* Quiet inline link: underline grows from the left on hover. */
+/* Quiet inline link: a 1px hairline grows from the left on hover and on
+   keyboard focus. The hairline is an ::after scaled on X (composited), not a
+   background-size animation (a repaint every frame). Single-line links. */
 .link-quiet {
+  position: relative;
   color: rgb(var(--ink));
-  background-image: linear-gradient(currentColor, currentColor);
-  background-size: 0% 1px;
-  background-position: 0 100%;
-  background-repeat: no-repeat;
-  transition: background-size var(--dur-2) var(--ease-out), color var(--dur-1) var(--ease-out);
+  transition: color var(--dur-1) var(--ease-out);
 }
-.link-quiet:hover { background-size: 100% 1px; color: rgb(var(--accent-text)); }
+.link-quiet::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform var(--dur-2) var(--ease-out);
+  pointer-events: none;
+}
+.link-quiet:focus-visible::after { transform: scaleX(1); }
+@media (hover: hover) and (pointer: fine) {
+  .link-quiet:hover { color: rgb(var(--accent-text)); }
+  .link-quiet:hover::after { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .link-quiet::after { transition: none; }
+}
+@media (forced-colors: active) {
+  .link-quiet::after { background: LinkText; }
+}
 
 /* ─── Film grain ─────────────────────────────────────────────────────────────
    One fixed layer over everything except the loader. A pre-rendered 160px
-   noise tile; the layer is oversized and stepped with transform (composited,
-   no repaint). Static under reduced motion and on touch. */
+   noise tile; the layer is oversized and jumps between six offsets with
+   transform (composited, no repaint). steps(1, end) applies per keyframe
+   segment: 6 discrete jumps per 0.75s = 8fps, which reads as film grain
+   (steps(6) per segment was 36 jumps, a ~40Hz crawl). Paused while a drawer
+   is open (Drawer sets <html data-drawer-open>). Static and exactly
+   viewport-sized under reduced motion and on touch. */
 
 .grain {
   position: fixed;
@@ -317,9 +378,10 @@ a {
   background-size: 160px 160px;
   opacity: var(--grain-opacity);
   mix-blend-mode: var(--grain-blend);
-  animation: grain-shift 0.9s steps(6) infinite;
+  animation: grain-shift 0.75s steps(1, end) infinite;
   will-change: transform;
 }
+html[data-drawer-open] .grain { animation-play-state: paused; }
 @keyframes grain-shift {
   0%   { transform: translate3d(0, 0, 0); }
   17%  { transform: translate3d(-3%, 2%, 0); }
@@ -330,7 +392,7 @@ a {
   100% { transform: translate3d(0, 0, 0); }
 }
 @media (prefers-reduced-motion: reduce), (hover: none) {
-  .grain { animation: none; will-change: auto; }
+  .grain { inset: 0; animation: none; will-change: auto; }
 }
 @media (hover: none) {
   .grain { mix-blend-mode: normal; opacity: calc(var(--grain-opacity) * 0.5); }

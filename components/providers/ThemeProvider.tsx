@@ -9,10 +9,13 @@
 //   - rewrites <meta name="theme-color"> to the new --space-0, so the mobile
 //     browser chrome follows the chosen theme instead of the OS;
 //   - runs a View Transition when the browser supports it: the new theme is
-//     revealed as a circle growing from the toggle that was pressed. The
-//     circle is held closed for ~90ms after the new view goes live, so the
-//     WebGL canvas has already redrawn in the new palette (no flash of the
-//     old sky inside the circle). Reduced motion or no API: instant switch.
+//     revealed as a circle growing from the toggle that was pressed (520ms).
+//     The circle is held closed for ~90ms after the new view goes live, so
+//     the WebGL canvas has already redrawn in the new palette (no flash of
+//     the old sky inside the circle). While it runs, <html
+//     data-theme-switching> turns every CSS transition off (globals.css), so
+//     the new view shows final colours, not body / link / button colour
+//     fades caught half way. Reduced motion or no API: instant switch.
 // It also follows the OS setting until the visitor picks a theme, and syncs
 // across tabs.
 
@@ -119,6 +122,8 @@ function originPoint(origin?: ThemeOrigin): { x: number; y: number } {
 
 /** Frames the WebGL scene gets to repaint before the reveal starts. */
 const CANVAS_SETTLE_MS = 90
+/** The reveal circle (= --dur-3). */
+const REVEAL_MS = 520
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Default 'dark' for SSR. The actual value is reconciled in the effect.
@@ -184,6 +189,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     vtRef.current?.skipTransition()
+    // Before the old view is captured: no colour transitions anywhere until
+    // the reveal is done, so the new view is captured in its final colours.
+    const root = document.documentElement
+    root.dataset.themeSwitching = ''
     let vt: ViewTransitionLike
     try {
       // The update is synchronous on purpose: rendering is suppressed while
@@ -195,6 +204,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } catch {
       applyTheme(t)
       commit(t)
+      delete root.dataset.themeSwitching
       return
     }
     vtRef.current = vt
@@ -206,7 +216,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.animate(
           { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
           {
-            duration: 640,
+            duration: REVEAL_MS,
             delay: CANVAS_SETTLE_MS,
             fill: 'backwards',
             easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
@@ -217,7 +227,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       .catch(() => { /* skipped or aborted: the DOM update already ran */ })
     vt.finished
       .catch(() => {})
-      .finally(() => { if (vtRef.current === vt) vtRef.current = null })
+      .finally(() => {
+        // A newer switch may have started meanwhile; it owns the flag now.
+        if (vtRef.current !== vt) return
+        vtRef.current = null
+        delete root.dataset.themeSwitching
+      })
   }, [commit])
 
   const toggle = useCallback((origin?: ThemeOrigin) => {

@@ -33,16 +33,20 @@ mirrors them in `lib/palette.ts` (`useScenePalette()`).
 | `--line` | #2d333d | #cbd2d9 | hairlines |
 | `--ink` | #f1f3f8 | #121927 | headings, primary text |
 | `--ink-2` | #b8bec8 | #454d5d | body / lead |
-| `--ink-3` | #9299a5 | #616977 | meta, captions (still AA) |
+| `--ink-3` | #9299a5 | #576070 | meta, captions (still AA) |
 | `--accent` | #fc9e47 | #dd6300 | fills, glows, large text |
-| `--accent-text` | #fc9e47 | #b24a0f | accent as small text |
+| `--accent-text` | #fc9e47 | #a3420c | accent as small text |
 | `--accent-ink` | #05080f | #121927 | text on an accent fill |
 | `--nebula-a/b` | cold blue / sea teal | pale blue / pale teal | atmosphere only, never text |
 | `--flutter-accent`, `--status-*` | | | Flutter logo + git status only |
 
-Contrast is computed (DESIGN uses OKLCH sources; see globals.css header).
-Every text token passes AA in its theme. **Never** put `--accent` (light) as
-small text; use `--accent-text`. Never set text in nebula colours.
+Contrast is computed (WCAG ratios in the globals.css header). Every text
+token passes AA in its theme against what is really behind the text, not
+only the token: the daylight sky renders darker than `--space-0` (about
+#e6ecf2 behind the copy), so light `--ink-3` (5.9:1 on #f4f7fb, 5.3:1 on the
+sky) and `--accent-text` (5.9 / 5.3) keep headroom above 4.5. **Never** put
+`--accent` (light) as small text; use `--accent-text`. Never set text in
+nebula colours.
 
 Where ember is allowed: primary CTA fill, the active station on the rail, one
 highlighted word or numeral per station at most, focus rings, link hover,
@@ -97,7 +101,8 @@ statements ("Merged upstream.").
 - Panels: solid `--surface` at 0.72–0.9 alpha with a 1px `--line` border and a
   tinted shadow (up to 0.94 dark / 0.98 light when a planet sits directly
   behind small text, e.g. the Work library). No glassmorphism by default; `backdrop-filter` only on the
-  drawer overlay and the mobile top bar if it is genuinely needed.
+  mobile top bar if it is genuinely needed. The drawer overlay is a static
+  `--space-0` scrim at 0.7, never a blur.
 - Radii: 6 (chips), 12 (inputs), 18 (panels), 999 (buttons). Never nested
   cards. No side-stripe borders. No identical card grids.
 - z-index from the `--z-*` scale in globals.css.
@@ -107,8 +112,11 @@ statements ("Merged upstream.").
 - **Buttons:** `.btn .btn--primary` (ember fill, accent-ink text), `.btn
   .btn--ghost` (ink hairline), `.btn--sm`; `.link-quiet` for inline links.
   Arrow glyphs inside `<span class="btn-arrow">→</span>`. Max one primary per
-  view. Hover, active (1px press), focus-visible are in CSS; do not
-  re-implement hover in JS.
+  view. Hover, active (press `scale(0.97)` in 80ms, 160ms release),
+  focus-visible and forced-colors edges are in CSS; do not re-implement hover
+  in JS. `.link-quiet` draws its hairline as an `::after` scaled on X.
+- **Hover:** every `:hover` rule sits inside `@media (hover: hover) and
+  (pointer: fine)`, so nothing sticks after a tap. Touch gets `:active`.
 - **Rail (desktop + mobile):** a thin vertical line with ticks; the active
   tick is ember with the station name in ink; others ink-3. Sentence-case
   names: Intro, About, Skills, Work, Open source, Experience, Contact.
@@ -116,6 +124,10 @@ statements ("Merged upstream.").
 - **Data rows:** mono for the value, body for the label, `--line` dividers.
 - **Drawers:** one shared shell; solid surface, hairline, focus trap, initial
   focus, focus return, Escape, reduced motion. No scanlines, no gradients.
+  While one is open, `<html data-drawer-open>` is set (the grain pauses) and
+  `sf:drawer-open` / `sf:drawer-close` fire on window so the WebGL scene can
+  stop drawing. Mobile sheet: dismiss past 25% of its height or a flick
+  faster than 300px/s.
 - **Icons:** react-icons (fa6) at one stroke weight; no emoji or glyphs as UI.
 
 ## 6. Motion
@@ -132,8 +144,21 @@ never bounce/elastic. Durations: 160 (hover), 280 (state), 520 (reveal),
   No infinite floats or pulses on DOM text or panels.
 - **Camera:** frame-rate independent damping, small roll (≤ 0.08 rad), slight
   look-ahead; it should feel like a dolly, not a rollercoaster.
-- **Loader:** one orchestrated moment (≤ 2.6s): a single ember point ignites,
-  the name resolves through a mask, a hairline progress fills, cut to space.
+- **Loader:** one orchestrated moment, an overlay ABOVE the app (AppShell
+  mounts underneath on frame 0): a single ember point ignites, the name
+  rises through a mask and is up by ~300ms, a hairline fills, the name
+  leaves and the light draws back into the point (2.2s). That last frame is
+  held until the app reports its first real frame (`sf:app-ready`), at most
+  1.5s, then a 280ms crossfade. Touch: no exit, the card fades from 1.12s
+  and is gone by 1.4s. Every chunk on the way to the first frame falls back
+  to the same held frame (BootFrame), so there is never an empty screen.
+  `<html data-booting>` is set while the card is up and `sf:loader-exit`
+  fires when it starts to leave: hold entrance reveals until then.
+- **Theme switch:** a 520ms circle reveal from the toggle (View
+  Transitions). `<html data-theme-switching>` turns CSS transitions off
+  while it runs, so the new view never shows colours mid-fade.
+- **Grain:** six offsets at 8fps (`steps(1, end)` per segment), paused while
+  a drawer is open, static and viewport-sized on touch / reduced motion.
 - Reduced motion: everything becomes opacity crossfades or instant. Content is
   visible by default; reveals enhance, never gate visibility.
 
@@ -175,7 +200,10 @@ Remove everywhere: "Welcome to my space", "Hi, I'm…", "FOLLOW ME",
 ## 9. Performance contract (do not break)
 
 AppShell eligibility gate and `?view=` override; dynamic imports; loader
-once per session; `frameloop="demand"` + 36fps RenderDriver; `dpr={1}`;
+once per session (an inline head script hides it before first paint when the
+session has seen it); detect-gpu skipped when a quality override is stored;
+third-party embeds (LeFlux) only after first interaction or ≥5s idle, never
+during the loader; `frameloop="demand"` + 36fps RenderDriver; `dpr={1}`;
 never key the Canvas on theme; ProximityGate for heavy Html; context-loss
 remount; time-based animation in useFrame; no Lenis/framer/GSAP/R3F on the
 mobile path; starfield parallax via one CSS var; next/image + video source

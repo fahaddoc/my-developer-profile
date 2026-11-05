@@ -9,19 +9,12 @@
   position: fixed;
   inset: 0;
   z-index: var(--z-drawer);
-  background: rgb(var(--space-0) / 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  /* A static scrim, no backdrop blur: a full-viewport blur is re-computed on
+     every frame its opacity animates (and every frame the scene behind it
+     draws). The scene pauses while a drawer is open; the scrim carries the
+     focus on its own. Only the overlay's opacity animates. */
+  background: rgb(var(--space-0) / 0.7);
   touch-action: none;
-}
-/* Touch devices: no full-viewport blur (it costs a compositing pass every
-   frame on mid-range phones); a slightly deeper scrim carries the focus. */
-@media (hover: none) {
-  .overlay {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    background: rgb(var(--space-0) / 0.68);
-  }
 }
 
 .panel {
@@ -89,11 +82,18 @@
     border-color: rgb(var(--ink) / 0.32);
   }
 }
-.close:active { transform: scale(0.94); }
+.close:active { transform: scale(0.97); transition-duration: 80ms; }
 .close:focus-visible {
   outline: 2px solid rgb(var(--accent-text));
   outline-offset: 3px;
   border-radius: 999px;
+}
+/* Windows High Contrast / forced colours: backgrounds drop out, so give the
+   panel and the close button real system-colour edges. */
+@media (forced-colors: active) {
+  .panel { border: 1px solid CanvasText; }
+  .close { border-color: ButtonText; }
+  .overlay { background: transparent; }
 }
 
 /* Bottom-sheet grabber: only on the sheet layout. */
@@ -299,9 +299,11 @@
   text-underline-offset: 3px;
   transition: color var(--dur-1) var(--ease-out), text-decoration-color var(--dur-1) var(--ease-out);
 }
-.inlineLink:hover {
-  color: rgb(var(--accent-text));
-  text-decoration-color: currentColor;
+@media (hover: hover) and (pointer: fine) {
+  .inlineLink:hover {
+    color: rgb(var(--accent-text));
+    text-decoration-color: currentColor;
+  }
 }
 
 .sent {
@@ -343,7 +345,9 @@
   text-underline-offset: 3px;
   transition: color var(--dur-1) var(--ease-out);
 }
-.footerLink:hover { color: rgb(var(--ink)); }
+@media (hover: hover) and (pointer: fine) {
+  .footerLink:hover { color: rgb(var(--ink)); }
+}
 
 /* ─── Project drawer ─────────────────────────────────────────────────────── */
 
@@ -408,7 +412,9 @@
   display: inline-block;
   transition: transform var(--dur-2) var(--ease-out);
 }
-.caseLink:hover .arrow { transform: translateX(3px); }
+@media (hover: hover) and (pointer: fine) {
+  .caseLink:hover .arrow { transform: translateX(3px); }
+}
 
 .section {
   margin-top: 36px;

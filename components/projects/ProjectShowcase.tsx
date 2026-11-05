@@ -1,8 +1,22 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from 'react'
-import { FaArrowLeftLong, FaArrowRightLong, FaMagnifyingGlass } from 'react-icons/fa6'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type SyntheticEvent,
+} from 'react'
+import { FaChevronDown, FaMagnifyingGlass, FaXmark } from 'react-icons/fa6'
 import { projects, type Project } from '@/data/projects'
+import { engineeringDemos } from '@/data/engineering-demos'
+import { DRAWER_CLOSE_EVENT, DRAWER_OPEN_EVENT, prefetchDrawer } from '@/components/ui/drawerPrefetch'
 import styles from './ProjectShowcase.module.css'
 
 const categories = [
@@ -11,49 +25,102 @@ const categories = [
   { id: 'mobile', label: 'Mobile' },
   { id: 'realtime', label: 'Real-time' },
 ] as const
-const PAGE_SIZE = 5
-/** One slide per project, long enough to read the tagline. The library page flips with it. */
+
+/** One slide per project, long enough to read the tagline. The short list flips its page with it. */
 const AUTOPLAY_MS = 6500
+/** How long the browse panel takes to fade out before it unmounts (matches --dur-1). */
+const BROWSE_EXIT_MS = 180
+/** The row's progress bar ends each slide; the timer is only a fallback if that never fires. */
+const FALLBACK_SLACK_MS = 900
+
+const BY_ID = new Map(projects.map((project) => [project.id, project]))
+
+// The count is derived from the data, worded the same way on desktop and mobile.
+const DEMO_IDS = new Set(engineeringDemos.map((project) => project.id))
+const DEMO_COUNT = projects.filter((project) => DEMO_IDS.has(project.id)).length
+const SHIPPED_COUNT = projects.length - DEMO_COUNT
+const COUNT_LABEL = `${SHIPPED_COUNT} shipped · ${DEMO_COUNT} ${DEMO_COUNT === 1 ? 'demo' : 'demos'}`
 
 const shortTitle = (project: Project) => project.title.split(' — ')[0]
-const pad = (value: number) => String(value).padStart(2, '0')
+const categoryLabel = (project: Project) => categories.find((item) => item.id === project.category)?.label
+
+/** Pages of four until the short list has been measured (first client frame only). */
+const FALLBACK_PAGE_STARTS = projects.map((_, index) => index).filter((index) => index % 4 === 0)
 
 /** Portrait shots (phone mockups) crop better a little below the top edge. */
-function markOrientation(event: SyntheticEvent<HTMLImageElement>) {
-  const img = event.currentTarget
-  img.dataset.portrait = img.naturalHeight > img.naturalWidth ? 'true' : 'false'
+function markOrientation(img: HTMLImageElement) {
+  if (img.naturalWidth) img.dataset.portrait = img.naturalHeight > img.naturalWidth ? 'true' : 'false'
+}
+const onShotLoad = (event: SyntheticEvent<HTMLImageElement>) => markOrientation(event.currentTarget)
+
+// Fetch + decode a shot before it is asked for, so a pick never fades in an empty frame.
+const warmed = new Set<string>()
+function warm(src: string) {
+  if (typeof window === 'undefined' || warmed.has(src)) return
+  warmed.add(src)
+  const img = new Image()
+  img.decoding = 'async'
+  img.src = src
+  img.decode().catch(() => { warmed.delete(src) })
 }
 
-export function ProjectShowcase() {
+function sameStarts(a: number[], b: number[]) {
+  return a.length === b.length && a.every((value, index) => value === b[index])
+}
+
+export const ProjectShowcase = memo(function ProjectShowcase() {
+  const [selectedId, setSelectedId] = useState(projects[0].id)
+  // The slideshow runs until the visitor drives the gallery themselves; hovering, focus,
+  // a hidden tab or an open drawer only pause it, and it resumes where it stopped.
+  const [autoplay, setAutoplay] = useState(true)
+  const [hoverPaused, setHoverPaused] = useState(false)
+  const [focusPaused, setFocusPaused] = useState(false)
+  const [tabHidden, setTabHidden] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [reduced, setReduced] = useState(false)
+
+  // "Browse all": search, filters and the full list stay out of the way until asked for.
+  const [browse, setBrowse] = useState(false)
+  const [browseMounted, setBrowseMounted] = useState(false)
   const [category, setCategory] = useState<string>('all')
   const [query, setQuery] = useState('')
-  const [selectedId, setSelectedId] = useState(projects[0].id)
-  // The slideshow runs until the visitor drives the gallery themselves; hovering
-  // only pauses it, so reading a project never costs you the project.
-  const [autoplay, setAutoplay] = useState(true)
-  const [paused, setPaused] = useState(false)
-  const [reduced, setReduced] = useState(false)
-  // Bumped every time the timer (re)starts so the progress line can restart with it.
-  const [cycle, setCycle] = useState(0)
 
-  const matches = useMemo(
-    () => projects.filter((project) =>
+  const [pageStarts, setPageStarts] = useState<number[]>(FALLBACK_PAGE_STARTS)
+
+  const listRef = useRef<HTMLDivElement>(null)
+  const measureRef = useRef<HTMLDivElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const exitTimer = useRef(0)
+  const focusAfterClose = useRef<'row' | 'toggle' | null>(null)
+  // Elapsed time of the current slide, kept across pauses so resuming continues the slide.
+  const progress = useRef({ id: projects[0].id, elapsed: 0, since: 0 })
+
+  const pickerId = useId()
+  const resultsId = useId()
+
+  const selectedIndex = Math.max(0, projects.findIndex((project) => project.id === selectedId))
+  const selected = projects[selectedIndex]
+
+  const slideshow = autoplay && !reduced
+  const running = slideshow && !hoverPaused && !focusPaused && !tabHidden && !drawerOpen && !browse
+
+  const matches = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return projects.filter((project) =>
       (category === 'all' || project.category === category) &&
-      `${project.title} ${project.company} ${project.tech.join(' ')}`.toLowerCase().includes(query.trim().toLowerCase()),
-    ),
-    [category, query],
-  )
+      `${project.title} ${project.company} ${project.tech.join(' ')}`.toLowerCase().includes(needle),
+    )
+  }, [category, query])
 
-  // `page` is derived, not stored: the selected project is always the one on screen,
-  // so the page that contains it is the page to show.
-  const selectedIndex = Math.max(0, matches.findIndex((project) => project.id === selectedId))
-  const page = Math.floor(selectedIndex / PAGE_SIZE)
-  const pages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE))
-  const visibleProjects = matches.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
-  const selected = matches[selectedIndex]
-
-  const slideshow = autoplay && !reduced && matches.length > 1
-  const running = slideshow && !paused
+  // The page of the short list is derived, not stored: it is always the page that holds
+  // the project on screen. Pages are packed from measured row heights, so a client name
+  // that wraps never pushes a row out of the panel.
+  let page = 0
+  for (let index = 0; index < pageStarts.length; index++) if (pageStarts[index] <= selectedIndex) page = index
+  const pageStart = pageStarts[page] ?? 0
+  const pageEnd = pageStarts[page + 1] ?? projects.length
+  const visibleProjects = projects.slice(pageStart, pageEnd)
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -64,27 +131,117 @@ export function ProjectShowcase() {
   }, [])
 
   useEffect(() => {
-    if (!running) return
-    setCycle((value) => value + 1)
-    const timer = window.setInterval(() => {
-      setSelectedId((current) => {
-        const index = matches.findIndex((project) => project.id === current)
-        return matches[(index + 1) % matches.length].id
-      })
-    }, AUTOPLAY_MS)
-    return () => window.clearInterval(timer)
-    // Deliberately not keyed on `selectedId`: the timer keeps its own steady cadence.
-  }, [running, matches])
+    const sync = () => setTabHidden(document.hidden)
+    const opened = () => setDrawerOpen(true)
+    const closed = () => setDrawerOpen(false)
+    sync()
+    document.addEventListener('visibilitychange', sync)
+    window.addEventListener(DRAWER_OPEN_EVENT, opened)
+    window.addEventListener(DRAWER_CLOSE_EVENT, closed)
+    return () => {
+      document.removeEventListener('visibilitychange', sync)
+      window.removeEventListener(DRAWER_OPEN_EVENT, opened)
+      window.removeEventListener(DRAWER_CLOSE_EVENT, closed)
+    }
+  }, [])
 
-  // Warm the next slide while this one is on screen, so the crossfade never lands on a blank frame.
+  /** Moves on from slide `fromId`; a no-op if something else already moved the gallery. */
+  const advance = useCallback((fromId: string) => {
+    setSelectedId((current) => {
+      if (current !== fromId) return current
+      const index = projects.findIndex((project) => project.id === current)
+      return projects[(index + 1) % projects.length].id
+    })
+  }, [])
+
+  // Pausing banks the elapsed time of the slide; resuming runs only what is left, and a
+  // new slide starts from zero. The visible bar's animationend is what normally moves the
+  // slide on (it is the clock the visitor sees, and it starts a frame after this effect),
+  // so the timer for the remaining time carries a little slack and only covers a bar
+  // that never finishes.
   useEffect(() => {
+    const state = progress.current
+    if (state.id !== selectedId) {
+      state.id = selectedId
+      state.elapsed = 0
+      state.since = 0
+    }
     if (!running) return
-    const next = matches[(selectedIndex + 1) % matches.length]
-    if (!next) return
-    const img = new Image()
-    img.decoding = 'async'
-    img.src = next.image
-  }, [running, matches, selectedIndex])
+    state.since = performance.now()
+    const timer = window.setTimeout(
+      () => advance(selectedId),
+      Math.max(0, AUTOPLAY_MS - state.elapsed) + FALLBACK_SLACK_MS,
+    )
+    return () => {
+      window.clearTimeout(timer)
+      if (state.id === selectedId && state.since) state.elapsed += performance.now() - state.since
+      state.since = 0
+    }
+  }, [running, selectedId, advance])
+
+  /** Milliseconds already spent on slide `id` (0 for any other slide). */
+  const getElapsed = useCallback((id: string) => {
+    const state = progress.current
+    if (state.id !== id) return 0
+    return Math.min(AUTOPLAY_MS, state.elapsed + (state.since ? performance.now() - state.since : 0))
+  }, [])
+
+  // Warm the next slide while this one is on screen.
+  useEffect(() => {
+    if (!slideshow) return
+    warm(projects[(selectedIndex + 1) % projects.length].image)
+  }, [slideshow, selectedIndex])
+
+  // Pack the short list into pages that fit the panel, from the hidden measuring copy.
+  useLayoutEffect(() => {
+    const list = listRef.current
+    const measure = measureRef.current
+    if (!list || !measure) return
+    const compute = () => {
+      const available = list.clientHeight
+      if (available <= 0) return
+      const gap = parseFloat(getComputedStyle(measure).rowGap) || 0
+      const starts = [0]
+      let used = 0
+      Array.from(measure.children).forEach((child, index) => {
+        const height = (child as HTMLElement).offsetHeight
+        if (used > 0 && used + gap + height > available) {
+          starts.push(index)
+          used = height
+        } else {
+          used = used > 0 ? used + gap + height : height
+        }
+      })
+      setPageStarts((current) => (sameStarts(current, starts) ? current : starts))
+    }
+    compute()
+    const observer = new ResizeObserver(compute)
+    observer.observe(list)
+    let live = true
+    document.fonts?.ready.then(() => { if (live) compute() })
+    return () => {
+      live = false
+      observer.disconnect()
+    }
+  }, [])
+
+  // Focus follows the browse panel: into the search field when it opens, back to the
+  // list (or the toggle) when it closes.
+  useEffect(() => {
+    if (browse) {
+      searchRef.current?.focus({ preventScroll: true })
+      return
+    }
+    const target = focusAfterClose.current
+    focusAfterClose.current = null
+    if (!target) return
+    const row = target === 'row'
+      ? listRef.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')
+      : null
+    ;(row ?? toggleRef.current)?.focus({ preventScroll: true })
+  }, [browse])
+
+  useEffect(() => () => window.clearTimeout(exitTimer.current), [])
 
   /** Any deliberate use of the controls hands the gallery over to the visitor. */
   const take = useCallback((id: string) => {
@@ -92,214 +249,365 @@ export function ProjectShowcase() {
     setSelectedId(id)
   }, [])
 
-  function reset() {
+  function openBrowse() {
+    window.clearTimeout(exitTimer.current)
+    setAutoplay(false)
+    setBrowseMounted(true)
+    setBrowse(true)
+  }
+
+  function closeBrowse(focus: 'row' | 'toggle') {
+    focusAfterClose.current = focus
+    setBrowse(false)
+    window.clearTimeout(exitTimer.current)
+    if (reduced) setBrowseMounted(false)
+    else exitTimer.current = window.setTimeout(() => setBrowseMounted(false), BROWSE_EXIT_MS)
+  }
+
+  function onBrowseKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key !== 'Escape') return
+    event.stopPropagation()
+    closeBrowse('toggle')
+  }
+
+  function resetFilters() {
     setQuery('')
     setCategory('all')
-    setSelectedId(projects[0].id)
-    setAutoplay(true)
+    searchRef.current?.focus({ preventScroll: true })
   }
 
   return (
     <section
       className={styles.showcase}
       aria-label="Project showcase"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocusCapture={() => setPaused(true)}
-      onBlurCapture={() => setPaused(false)}
+      onMouseEnter={() => setHoverPaused(true)}
+      onMouseLeave={() => setHoverPaused(false)}
+      onFocus={() => setFocusPaused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusPaused(false)
+      }}
     >
-      <header className={styles.heading}>
-        <h2 className={`t-title ${styles.title}`}>Selected work.</h2>
-        <p className={`t-lead ${styles.lead}`}>Shipped products and engineering demos.</p>
-      </header>
+      <div className={styles.frame}>
+        <header className={styles.head}>
+          <h2 className={`t-title ${styles.title}`}>Selected work.</h2>
+          <p className={`t-lead ${styles.lead}`}>Shipped products and engineering demos.</p>
+        </header>
 
-      {selected ? (
-        <ProjectStage project={selected} onOpen={() => setAutoplay(false)} />
-      ) : (
-        <div className={styles.stage}>
-          <div className={`${styles.screen} ${styles.screenEmpty}`} role="status">
-            <h3 className={styles.emptyTitle}>No matching projects</h3>
-            <p className={styles.emptyText}>Try a project name or a technology like React or Flutter.</p>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={reset}>Show all work</button>
-          </div>
-        </div>
-      )}
+        <ProjectScreen project={selected} reduced={reduced} />
+        <ProjectDetails project={selected} onOpen={() => setAutoplay(false)} />
 
-      <aside className={styles.library} aria-label="Browse projects">
-        <div className={styles.libraryHeading}>
-          <h3 className={styles.libraryTitle}>Project library</h3>
-          <span className={`t-label ${styles.count}`}>{matches.length} {matches.length === 1 ? 'project' : 'projects'}</span>
-        </div>
-
-        <label className={styles.search}>
-          <FaMagnifyingGlass aria-hidden="true" className={styles.searchIcon} />
-          <input
-            type="search"
-            aria-label="Search projects"
-            placeholder="Find a project or technology"
-            autoComplete="off"
-            spellCheck={false}
-            value={query}
-            onChange={(event) => { setAutoplay(false); setQuery(event.target.value); setSelectedId('') }}
-          />
-        </label>
-
-        <div className={styles.filters} role="group" aria-label="Project categories">
-          {categories.map((item) => (
+        <aside className={styles.library} aria-label="All work" inert={browse || undefined}>
+          <div className={styles.libraryHead}>
+            <h3 className={styles.libraryTitle}>All work</h3>
             <button
-              key={item.id}
+              ref={toggleRef}
               type="button"
-              className={`btn btn--ghost btn--sm ${styles.filter}`}
-              aria-pressed={category === item.id}
-              onClick={() => { setAutoplay(false); setCategory(item.id); setSelectedId('') }}
+              className={`t-label ${styles.toggle}`}
+              aria-expanded={browse}
+              aria-controls={pickerId}
+              onClick={openBrowse}
             >
-              {item.label}
+              Browse all
+              <FaChevronDown aria-hidden="true" className={styles.toggleIcon} />
             </button>
-          ))}
-        </div>
+            <p className={`t-label ${styles.count}`}>{COUNT_LABEL}</p>
+          </div>
 
-        <div className={styles.projectList}>
-          {visibleProjects.map((project) => {
-            const active = selected?.id === project.id
-            return (
-              <button
-                key={project.id}
-                type="button"
-                className={styles.row}
-                aria-pressed={active}
-                onClick={() => take(project.id)}
-                aria-label={`Preview ${shortTitle(project)}`}
-              >
-                <img className={styles.thumb} src={project.image} alt="" loading="lazy" decoding="async" />
-                <span className={styles.rowText}>
-                  <span className={styles.rowTitle}>{shortTitle(project)}</span>
-                  <span className={styles.rowMeta}>
-                    <span className={styles.rowCompany}>{project.company}</span>
-                    <span className="t-data">{project.year}</span>
-                  </span>
-                </span>
-                <span className={styles.rowDot} aria-hidden="true" />
-                {active && slideshow && (
-                  <span
-                    key={`${project.id}-${cycle}`}
-                    aria-hidden="true"
-                    className={paused ? `${styles.rowProgress} ${styles.rowProgressPaused}` : styles.rowProgress}
-                    style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
+          <div ref={listRef} className={styles.list}>
+            <div key={pageStart} className={`${styles.rows} ${styles.rowsIn}`}>
+              {visibleProjects.map((project) => {
+                const active = project.id === selectedId
+                return (
+                  <ProjectRow
+                    key={project.id}
+                    project={project}
+                    active={active}
+                    onPick={take}
+                    progress={active && slideshow
+                      ? <RowProgress key={project.id} id={project.id} running={running} getElapsed={getElapsed} onDone={advance} />
+                      : null}
                   />
-                )}
-              </button>
-            )
-          })}
-        </div>
+                )
+              })}
+            </div>
+            {/* Invisible copy of every row: its heights decide how many rows fit per page. */}
+            <div ref={measureRef} className={`${styles.rows} ${styles.measure}`} aria-hidden="true">
+              {projects.map((project) => <RowBody key={project.id} project={project} measure />)}
+            </div>
+          </div>
+        </aside>
 
-        <nav className={styles.pagination} aria-label="Project pages">
-          <button
-            type="button"
-            className={`btn btn--ghost btn--sm ${styles.pageButton}`}
-            aria-label="Previous project page"
-            disabled={page === 0}
-            onClick={() => take(matches[(page - 1) * PAGE_SIZE].id)}
+        {browseMounted && (
+          <section
+            id={pickerId}
+            className={styles.picker}
+            data-open={browse}
+            aria-label="Browse all work"
+            onKeyDown={onBrowseKeyDown}
           >
-            <FaArrowLeftLong aria-hidden="true" />
-          </button>
-          <span className={`t-data ${styles.pageCount}`} aria-live={running ? 'off' : 'polite'}>
-            {matches.length > 0 && <>{pad(page + 1)} <span className={styles.pageTotal}>/ {pad(pages)}</span></>}
-          </span>
-          <button
-            type="button"
-            className={`btn btn--ghost btn--sm ${styles.pageButton}`}
-            aria-label="Next project page"
-            disabled={page + 1 >= pages}
-            onClick={() => take(matches[(page + 1) * PAGE_SIZE].id)}
-          >
-            <FaArrowRightLong aria-hidden="true" />
-          </button>
-        </nav>
-      </aside>
+            <div className={styles.pickerHead}>
+              <div className={styles.pickerHeading}>
+                <h3 className={styles.libraryTitle}>All work</h3>
+                <p className={`t-label ${styles.count}`}>{COUNT_LABEL}</p>
+              </div>
+
+              <label className={styles.search}>
+                <FaMagnifyingGlass aria-hidden="true" className={styles.searchIcon} />
+                <input
+                  ref={searchRef}
+                  type="search"
+                  aria-label="Search projects"
+                  aria-describedby={resultsId}
+                  placeholder="Find a project or technology"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </label>
+
+              <div className={styles.filters} role="group" aria-label="Project categories">
+                {categories.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={styles.filter}
+                    aria-pressed={category === item.id}
+                    onClick={() => setCategory(item.id)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                className={styles.close}
+                aria-label="Close the project list"
+                onClick={() => closeBrowse('toggle')}
+              >
+                <FaXmark aria-hidden="true" />
+              </button>
+            </div>
+
+            <p id={resultsId} className="sr-only" role="status">
+              {matches.length} {matches.length === 1 ? 'project' : 'projects'}
+            </p>
+
+            {matches.length > 0 ? (
+              <div className={styles.pickerList} data-lenis-prevent>
+                {matches.map((project) => (
+                  <ProjectRow
+                    key={project.id}
+                    project={project}
+                    active={project.id === selectedId}
+                    onPick={(id) => { take(id); closeBrowse('row') }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className={styles.empty}>
+                <p className={styles.emptyTitle}>No matching projects</p>
+                <p className={styles.emptyText}>Try a project name or a technology like React or Flutter.</p>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={resetFilters}>Show all work</button>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
     </section>
+  )
+})
+
+function ProjectRow({
+  project,
+  active,
+  onPick,
+  progress = null,
+}: {
+  project: Project
+  active: boolean
+  onPick: (id: string) => void
+  progress?: ReactNode
+}) {
+  const prewarm = () => warm(project.image)
+  return (
+    <button
+      type="button"
+      className={styles.row}
+      aria-pressed={active}
+      onClick={() => onPick(project.id)}
+      onPointerEnter={prewarm}
+      onFocus={prewarm}
+    >
+      <RowBody project={project} />
+      {progress}
+    </button>
+  )
+}
+
+/** Thumb, title + year on the first line, the client on its own line (wraps, never clipped). */
+function RowBody({ project, measure = false }: { project: Project; measure?: boolean }) {
+  const content = (
+    <>
+      {measure
+        ? <span className={styles.thumb} />
+        : <img className={styles.thumb} src={project.image} alt="" loading="lazy" decoding="async" />}
+      <span className={styles.rowText}>
+        <span className={styles.rowTop}>
+          <span className={styles.rowTitle}>{shortTitle(project)}</span>
+          <span className={`t-data ${styles.rowYear}`}>{project.year}</span>
+        </span>
+        <span className={styles.rowClient}>{project.company}</span>
+      </span>
+    </>
+  )
+  return measure ? <div className={styles.row}>{content}</div> : content
+}
+
+/**
+ * The slideshow timer under the active row. It pauses with the slideshow and, if it ever
+ * remounts mid-slide, starts from the time already spent (negative delay) instead of zero.
+ */
+function RowProgress({
+  id,
+  running,
+  getElapsed,
+  onDone,
+}: {
+  id: string
+  running: boolean
+  getElapsed: (id: string) => number
+  onDone: (id: string) => void
+}) {
+  const [offset] = useState(() => getElapsed(id))
+  return (
+    <span
+      aria-hidden="true"
+      className={styles.rowProgress}
+      onAnimationEnd={(event) => {
+        event.stopPropagation()
+        onDone(id)
+      }}
+      style={{
+        animationDuration: `${AUTOPLAY_MS}ms`,
+        animationDelay: `${-Math.round(offset)}ms`,
+        animationPlayState: running ? 'running' : 'paused',
+      }}
+    />
   )
 }
 
 /**
- * Keeps the project that was on screen before the current one, so the new shot can
- * crossfade over the old one instead of fading up from an empty frame.
+ * The lit screen. The incoming shot stays invisible until img.decode() resolves, then
+ * fades in over the last shot that was fully on screen, which stays underneath until
+ * the fade has finished.
  */
-function usePreviousProject(project: Project) {
-  const [pair, setPair] = useState<{ current: Project; previous: Project | null }>({ current: project, previous: null })
-  if (pair.current !== project) {
-    setPair({ current: project, previous: pair.current })
-    return pair.current
+function ProjectScreen({ project, reduced }: { project: Project; reduced: boolean }) {
+  const [state, setState] = useState<{ current: string; shown: string | null; ready: boolean }>({
+    current: project.id,
+    shown: null,
+    ready: false,
+  })
+  let view = state
+  if (state.current !== project.id) {
+    // A shot that had decoded keeps its place as the backdrop; one that never got that far is dropped.
+    view = { current: project.id, shown: state.ready ? state.current : state.shown, ready: false }
+    setState(view)
   }
-  return pair.previous
-}
 
-function ProjectStage({ project, onOpen }: { project: Project; onOpen: () => void }) {
-  const previous = usePreviousProject(project)
-  const category = categories.find((item) => item.id === project.category)?.label
+  const imgRef = useRef<HTMLImageElement>(null)
+  useEffect(() => {
+    const img = imgRef.current
+    if (!img) return
+    let live = true
+    const mark = () => {
+      if (!live) return
+      markOrientation(img)
+      setState((current) => current.current === project.id
+        ? { ...current, ready: true, shown: reduced ? project.id : current.shown }
+        : current)
+    }
+    // decode() waits for the load as well; a failed image still lets go of the old shot.
+    img.decode().then(mark, mark)
+    return () => { live = false }
+  }, [project.id, reduced])
+
+  const backdrop = view.shown && view.shown !== view.current ? BY_ID.get(view.shown) : undefined
+  const layers = backdrop ? [backdrop, project] : [project]
   const title = shortTitle(project)
 
   return (
-    <div className={styles.stage}>
-      {/* The shot and the text never share a box: many thumbnails are posters with their own
-          big title, and an HTML title laid over a cropped poster reads as a ghost of itself. */}
-      <figure className={styles.screen}>
-        {previous && previous.id !== project.id && (
+    <figure className={styles.screen}>
+      {layers.map((layer) => {
+        const isCurrent = layer.id === view.current
+        const className = !isCurrent
+          ? styles.shotUnder
+          : layer.id === view.shown ? styles.shotSettled : styles.shotIn
+        return (
           <img
-            key={`under-${previous.id}`}
-            className={`${styles.shot} ${styles.shotUnder}`}
-            src={previous.image}
-            alt=""
-            aria-hidden="true"
+            key={layer.id}
+            ref={isCurrent ? imgRef : undefined}
+            className={`${styles.shot} ${className}`}
+            src={layer.image}
+            alt={isCurrent ? `${title}, product screenshot` : ''}
+            aria-hidden={isCurrent ? undefined : true}
             decoding="async"
-            onLoad={markOrientation}
+            data-ready={isCurrent ? view.ready : undefined}
+            onLoad={onShotLoad}
+            onAnimationEnd={isCurrent ? (event) => {
+              if (event.target !== event.currentTarget) return
+              setState((current) => current.current === layer.id ? { ...current, shown: layer.id } : current)
+            } : undefined}
           />
-        )}
-        <img
-          key={project.id}
-          className={`${styles.shot} ${styles.shotIn}`}
-          src={project.image}
-          alt={`${title}, product screenshot`}
-          decoding="async"
-          onLoad={markOrientation}
-        />
-      </figure>
+        )
+      })}
+    </figure>
+  )
+}
 
-      <div key={project.id} className={styles.details}>
-        <p className={styles.meta}>
-          <span>{project.company}</span>
-          <span className={styles.metaSep} aria-hidden="true">·</span>
-          <span className="t-data">{project.year}</span>
-          {category && (
-            <>
-              <span className={styles.metaSep} aria-hidden="true">·</span>
-              <span>{category}</span>
-            </>
-          )}
-        </p>
-        <h3 className={styles.projectTitle}>{title}</h3>
-        <div className={styles.copy}>
-          <p className={styles.tagline}>{project.tagline}</p>
-          <p className={styles.tech}>{project.tech.join(' · ')}</p>
-        </div>
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className="btn btn--primary"
-            onClick={() => { onOpen(); window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: project.id })) }}
-          >
-            Explore case study <span className="btn-arrow" aria-hidden="true">→</span>
-          </button>
-          {project.githubUrl && (
-            <a className="btn btn--ghost" href={project.githubUrl} target="_blank" rel="noopener noreferrer">
-              Source code <span className="btn-arrow" aria-hidden="true">↗</span>
-            </a>
-          )}
-          {project.liveUrl && (
-            <a className="btn btn--ghost" href={project.liveUrl} target="_blank" rel="noopener noreferrer">
-              Visit project <span className="btn-arrow" aria-hidden="true">↗</span>
-            </a>
-          )}
-        </div>
+function ProjectDetails({ project, onOpen }: { project: Project; onOpen: () => void }) {
+  const category = categoryLabel(project)
+  const warmDrawer = () => { void prefetchDrawer() }
+
+  return (
+    // The shot and the text never share a box: many thumbnails are posters with their own
+    // big title, and an HTML title laid over a cropped poster reads as a ghost of itself.
+    <div key={project.id} className={styles.details}>
+      <p className={styles.meta}>
+        <span>{project.company}</span>
+        <span className={styles.metaSep} aria-hidden="true">·</span>
+        <span className="t-data">{project.year}</span>
+        {category && (
+          <>
+            <span className={styles.metaSep} aria-hidden="true">·</span>
+            <span>{category}</span>
+          </>
+        )}
+      </p>
+      <h3 className={styles.projectTitle}>{shortTitle(project)}</h3>
+      <p className={styles.tagline}>{project.tagline}</p>
+      <p className={styles.tech}>{project.tech.join(' · ')}</p>
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className="btn btn--primary"
+          onPointerEnter={warmDrawer}
+          onFocus={warmDrawer}
+          onClick={() => { onOpen(); window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: project.id })) }}
+        >
+          Explore case study <span className="btn-arrow" aria-hidden="true">→</span>
+        </button>
+        {project.githubUrl && (
+          <a className="btn btn--ghost" href={project.githubUrl} target="_blank" rel="noopener noreferrer">
+            Source code <span className="btn-arrow" aria-hidden="true">↗</span>
+          </a>
+        )}
+        {project.liveUrl && (
+          <a className="btn btn--ghost" href={project.liveUrl} target="_blank" rel="noopener noreferrer">
+            Visit project <span className="btn-arrow" aria-hidden="true">↗</span>
+          </a>
+        )}
       </div>
     </div>
   )
