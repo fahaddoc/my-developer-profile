@@ -8,7 +8,7 @@ export function IdeasIndex() {
   return (
     <IdeasShell title="Work section concepts" back={false}>
       <section className="ix">
-        <h1 className="t-title ix-title">Five ways to show the work.</h1>
+        <h1 className="t-title ix-title">Ways to show the work.</h1>
         <p className="t-lead ix-lead">Same projects, same case-study drawer, different stage. Open each, try it in dark and light, then pick one.</p>
         <ol className="ix-list">
           {CONCEPTS.map((c, i) => (
@@ -24,6 +24,11 @@ export function IdeasIndex() {
             </li>
           ))}
         </ol>
+        <Link href="/ideas/type" className="ix-type">
+          <span className="t-subtitle">Type styles</span>
+          <span className="t-lead">Six font directions on real pieces of the home page.</span>
+          <span className="ix-arrow" aria-hidden="true">→</span>
+        </Link>
       </section>
       <style>{`
         .ix { max-width: 860px; margin: 6vh auto 0; }
@@ -37,6 +42,7 @@ export function IdeasIndex() {
           transition: background-color var(--dur-1) var(--ease-out);
         }
         .ix-num { color: rgb(var(--ink-3)); }
+        .ix-type { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 16px; margin-top: 32px; padding: 20px 8px; border: 1px solid rgb(var(--line)); border-radius: 14px; }
         .ix-body { display: grid; gap: 6px; }
         .ix-name { font-size: 22px; display: flex; align-items: center; gap: 12px; }
         .ix-tag { color: rgb(var(--accent-text)); }
