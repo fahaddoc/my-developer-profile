@@ -5,3 +5,4 @@
 export { OG_SIZE, OG_ALT, OG_OPENSOURCE_ALT, OG_ACHIEVEMENT_ALT } from '@/lib/seo/og'
 export { renderOgImage } from './home'
 export { renderAchievementOg, renderOpenSourceOg } from './open-source'
+export { renderProjectOg, OG_PROJECT_ALT } from './project'

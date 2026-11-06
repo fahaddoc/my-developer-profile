@@ -27,8 +27,8 @@ export async function generateMetadata(
   const project = await findProject(slug)
   if (!project) return {}
 
-  const title = `${project.title} — ${project.tech.join(', ')}`
-  const description = `${project.tagline}. ${project.description.slice(0, 160)}`
+  const title = metaTitle(project.title, project.tech)
+  const description = clipAtWord(`${project.tagline.replace(/[.\s]+$/, '')}. ${project.description}`, 155)
   const url = `${SITE_URL}/projects/${project.id}`
 
   return {
@@ -49,11 +49,33 @@ export async function generateMetadata(
       description,
       url,
       siteName: 'Shah Fahad',
-      images: [{ url: project.image, width: 1200, height: 630, alt: project.title }],
+      // og:image comes from ./opengraph-image.tsx (titanium project card)
       authors: [`${SITE_URL}`],
     },
-    twitter: { card: 'summary_large_image', title, description, images: [project.image] },
+    // twitter:image comes from ./twitter-image.tsx
+    twitter: { card: 'summary_large_image', title, description },
   }
+}
+
+// The layout template appends " | Shah Fahad" (13 chars); Google shows ~60.
+const TITLE_BUDGET = 60 - ` | ${AUTHOR.name}`.length
+
+/** "Name — first stack items", keeping up to three items while the full
+ *  <title> fits the budget, and at least one. */
+function metaTitle(name: string, tech: string[]): string {
+  for (let n = Math.min(3, tech.length); n > 1; n--) {
+    const t = `${name} — ${tech.slice(0, n).join(', ')}`
+    if (t.length <= TITLE_BUDGET) return t
+  }
+  return tech.length ? `${name} — ${tech[0]}` : name
+}
+
+/** Cuts at the last word boundary that fits `max` chars (ellipsis included). */
+function clipAtWord(text: string, max: number): string {
+  if (text.length <= max) return text
+  const cut = text.slice(0, max)
+  const space = cut.lastIndexOf(' ')
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut.slice(0, max - 1)).replace(/[\s,;:.—–-]+$/, '')}…`
 }
 
 /** Intrinsic size of a /public image (jpg, png or svg), read once at build so

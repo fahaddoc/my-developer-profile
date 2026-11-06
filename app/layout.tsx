@@ -11,6 +11,7 @@ import { ProjectDrawerProvider } from '@/components/providers/ProjectDrawerProvi
 import { ContactDrawerProvider } from '@/components/providers/ContactDrawerProvider'
 import { LeFluxEmbed } from '@/components/ui/LeFluxEmbed'
 import { JsonLd } from '@/components/seo/JsonLd'
+import { StyledJsxRegistry } from './registry'
 import { personSchema, websiteSchema } from '@/lib/seo/jsonld'
 import { SITE_URL, SITE_NAME, AUTHOR, KEYWORDS, SOCIALS } from '@/lib/seo/site'
 import './globals.css'
@@ -122,25 +123,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
       </head>
       <body className="bg-bg-base text-text-primary font-body antialiased">
-        <JsonLd data={personSchema()} />
-        <JsonLd data={websiteSchema()} />
-        <ThemeProvider>
-          <ProjectDrawerProvider>
-            <ContactDrawerProvider>
-              <SmoothScroll>{children}</SmoothScroll>
-            </ContactDrawerProvider>
-          </ProjectDrawerProvider>
-        </ThemeProvider>
-        {/* Film grain over every route (see .grain in globals.css). */}
-        <div className="grain" aria-hidden />
-        {gaId ? <GoogleAnalytics gaId={gaId} /> : null}
-        {/* Vercel Web Analytics + Speed Insights — visitor counts & vitals
-            show up in the Vercel dashboard (Analytics tab) once enabled. */}
-        <Analytics />
-        <SpeedInsights />
-        {/* Chat widget: injected after the first interaction or ≥5s idle,
-            never during the loader or hydration (lazyOnload). */}
-        <LeFluxEmbed />
+        {/* Server-renders the <style jsx> rules (see app/registry.tsx) so the
+            sea/starfield layers are styled on the first paint. */}
+        <StyledJsxRegistry>
+          <JsonLd data={personSchema()} />
+          <JsonLd data={websiteSchema()} />
+          <ThemeProvider>
+            <ProjectDrawerProvider>
+              <ContactDrawerProvider>
+                <SmoothScroll>{children}</SmoothScroll>
+              </ContactDrawerProvider>
+            </ProjectDrawerProvider>
+          </ThemeProvider>
+          {/* Film grain over every route (see .grain in globals.css). */}
+          <div className="grain" aria-hidden />
+          {gaId ? <GoogleAnalytics gaId={gaId} /> : null}
+          {/* Vercel Web Analytics + Speed Insights — visitor counts & vitals
+              show up in the Vercel dashboard (Analytics tab) once enabled. */}
+          <Analytics />
+          <SpeedInsights />
+          {/* Chat widget: injected after the first interaction or ≥5s idle,
+              never during the loader or hydration (lazyOnload). */}
+          <LeFluxEmbed />
+        </StyledJsxRegistry>
       </body>
     </html>
   )

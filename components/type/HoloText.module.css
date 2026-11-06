@@ -1,5 +1,7 @@
-/* HoloText — a HUD heading in zero gravity. Motion lives in holo.ts; this is
-   the projection look and the one-time lock-on entrance. */
+/* HoloText — a HUD heading in zero gravity. The slow float is a per-glyph CSS
+   keyframe (compositor only); holo.ts adds the pointer field, the scroll
+   inertia and the warp. This file is the projection look, the float and the
+   one-time lock-on entrance. */
 
 .holo {
   position: relative;
@@ -27,20 +29,105 @@
 }
 .line { display: block; }
 .word { display: inline-block; white-space: nowrap; }
+/* holo.ts writes `transform` (field + inertia); the float below animates the
+   separate `translate` / `rotate` properties, so the two compose */
 .g { display: inline-block; will-change: transform; }
 .in { display: inline-block; text-shadow: 0 0 24px rgb(var(--accent) / 0.22); }
 :global(:root[data-theme='light']) .in { text-shadow: 0 2px 18px rgb(var(--accent) / 0.16); }
 
+/* ---------- float: a slow, desynchronised drift and roll (weightless letters) ----------
+   One shared path, desynchronised per glyph by a negative delay derived from
+   its phase (--r, 0..1, set by HoloText). The drift is a 3:4 Lissajous loop:
+   x swings every 10.1 s, y every 7.6 s; the roll every 11.6 s. Literal
+   keyframe values (no var()) keep it on the compositor. It runs only while
+   holo.ts has the heading on screen (data-drift); until then it holds its
+   phase, so nothing jumps when it starts. */
+@media (prefers-reduced-motion: no-preference) {
+  .g {
+    animation: drift 30400ms linear infinite, roll 11636ms cubic-bezier(0.37, 0, 0.63, 1) infinite;
+    animation-delay: calc(var(--r, 0) * -10133ms), calc(var(--r, 0) * -8145ms);
+  }
+  .holo:not([data-drift]) .g { animation-play-state: paused; }
+}
+@keyframes drift {
+  0%, 100% { translate: 0 2.7px; }
+  2.083% { translate: 0.77px 2.34px; }
+  4.167% { translate: 1.41px 1.35px; }
+  6.25% { translate: 1.85px 0; }
+  8.333% { translate: 2px -1.35px; }
+  10.417% { translate: 1.85px -2.34px; }
+  12.5% { translate: 1.41px -2.7px; }
+  14.583% { translate: 0.77px -2.34px; }
+  16.667% { translate: 0 -1.35px; }
+  18.75% { translate: -0.77px 0; }
+  20.833% { translate: -1.41px 1.35px; }
+  22.917% { translate: -1.85px 2.34px; }
+  25% { translate: -2px 2.7px; }
+  27.083% { translate: -1.85px 2.34px; }
+  29.167% { translate: -1.41px 1.35px; }
+  31.25% { translate: -0.77px 0; }
+  33.333% { translate: 0 -1.35px; }
+  35.417% { translate: 0.77px -2.34px; }
+  37.5% { translate: 1.41px -2.7px; }
+  39.583% { translate: 1.85px -2.34px; }
+  41.667% { translate: 2px -1.35px; }
+  43.75% { translate: 1.85px 0; }
+  45.833% { translate: 1.41px 1.35px; }
+  47.917% { translate: 0.77px 2.34px; }
+  50% { translate: 0 2.7px; }
+  52.083% { translate: -0.77px 2.34px; }
+  54.167% { translate: -1.41px 1.35px; }
+  56.25% { translate: -1.85px 0; }
+  58.333% { translate: -2px -1.35px; }
+  60.417% { translate: -1.85px -2.34px; }
+  62.5% { translate: -1.41px -2.7px; }
+  64.583% { translate: -0.77px -2.34px; }
+  66.667% { translate: 0 -1.35px; }
+  68.75% { translate: 0.77px 0; }
+  70.833% { translate: 1.41px 1.35px; }
+  72.917% { translate: 1.85px 2.34px; }
+  75% { translate: 2px 2.7px; }
+  77.083% { translate: 1.85px 2.34px; }
+  79.167% { translate: 1.41px 1.35px; }
+  81.25% { translate: 0.77px 0; }
+  83.333% { translate: 0 -1.35px; }
+  85.417% { translate: -0.77px -2.34px; }
+  87.5% { translate: -1.41px -2.7px; }
+  89.583% { translate: -1.85px -2.34px; }
+  91.667% { translate: -2px -1.35px; }
+  93.75% { translate: -1.85px 0; }
+  95.833% { translate: -1.41px 1.35px; }
+  97.917% { translate: -0.77px 2.34px; }
+}
+/* the easing is a sine, so the roll swings like the drift */
+@keyframes roll {
+  0%, 100% { rotate: -1.15deg; }
+  50% { rotate: 1.15deg; }
+}
+
 /* ---------- lock-on: brackets close in, glyphs pull into focus, a scan passes ---------- */
 /* Hidden only once JS has armed the entrance; without JS the text is just there. */
 .holo[data-armed]:not([data-on]) .in { opacity: 0; }
-.holo[data-on] .in {
+.holo[data-on]:not(.instant) .in {
   animation: acquire 640ms var(--ease-out) backwards;
   animation-delay: calc(240ms + var(--i) * 28ms);
 }
 @keyframes acquire {
   from { opacity: 0; filter: blur(8px); transform: translateY(-0.3em) scale(1.4); }
   55%  { opacity: 1; }
+}
+/* instant (a page's h1, the LCP): the glyphs are opaque from the first paint,
+   never gated on JS. They only settle in from a touch of depth, straight
+   from the first paint, so hydration never hides and re-shows them. Transform
+   only, no blur: a blur filter can't run on the compositor and this plays
+   while the page is still hydrating. The brackets and the scan still lock on
+   once the heading is in view. */
+.instant .in {
+  animation: settle 560ms var(--ease-out) backwards;
+  animation-delay: calc(var(--i) * 18ms);
+}
+@keyframes settle {
+  from { transform: translateY(-0.14em) scale(1.12); }
 }
 
 .c {
@@ -58,27 +145,40 @@
 .br { left: calc(var(--holo-w, 100%) + var(--holo-gap) - 16px); bottom: -8px; border-width: 0 2px 2px 0; transform: translate(16px, 16px); }
 .holo[data-on] .c { opacity: 0.55; transform: none; }
 
+/* The scan box spans the heading's full height and carries the line at its
+   top edge, so translateY(100%) walks the line from top to bottom on the
+   compositor (animating `top` re-laid it out every frame). */
 .scan {
   position: absolute;
   left: -14px;
   right: -14px;
   top: 0;
-  height: 2px;
+  bottom: 0;
   pointer-events: none;
   opacity: 0;
+}
+.scan::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
   background: linear-gradient(90deg, transparent, rgb(var(--accent)), transparent);
   box-shadow: 0 0 14px 2px rgb(var(--accent) / 0.55);
 }
-.holo[data-on] .scan { animation: scan 1100ms var(--ease-in-out) 260ms both; }
+/* backwards, not both: once done it drops the transform, so a finished scan
+   never leaves its box hanging below the heading as scrollable overflow */
+.holo[data-on] .scan { animation: scan 1100ms var(--ease-in-out) 260ms backwards; }
 @keyframes scan {
-  0%   { opacity: 0; top: 0; }
+  0%   { opacity: 0; transform: translateY(0); }
   12%  { opacity: 1; }
   88%  { opacity: 1; }
-  100% { opacity: 0; top: 100%; }
+  100% { opacity: 0; transform: translateY(100%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .holo[data-armed]:not([data-on]) .in { opacity: 1; }
-  .holo[data-on] .in, .holo[data-on] .scan { animation: none; }
+  .holo[data-on] .in, .instant .in, .holo[data-on] .scan { animation: none; }
   .c { transition: none; }
 }

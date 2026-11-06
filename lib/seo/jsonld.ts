@@ -101,7 +101,9 @@ export function projectSchema(p: Project) {
     description: p.description,
     abstract: p.tagline,
     url: `${SITE_URL}/projects/${p.id}`,
-    image: abs(p.image),
+    // the 1200×630 card from app/projects/[slug]/opengraph-image.tsx (several
+    // screenshots are SVG, which image search and rich results skip)
+    image: abs(`/projects/${p.id}/opengraph-image`),
     dateCreated: p.year,
     keywords: p.tech.join(', '),
     inLanguage: 'en',

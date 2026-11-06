@@ -20,8 +20,14 @@
 //   React work; unchanged values are never rewritten.
 // - Each star layer is a stack of identical tiles and its travel is clamped to
 //   the overscan, so stars never run out at the bottom of a long page.
-// - Twinkle animates opacity only, on a subset of stars, dark theme only, and
-//   is off under prefers-reduced-motion (as is the parallax).
+// - Twinkle animates opacity only, dark theme only, and is off under
+//   prefers-reduced-motion (as is the parallax). It never runs per star: the
+//   twinkling stars of each layer sit in TWINKLE_GROUPS wrappers and each
+//   wrapper animates its own opacity, so the page runs 6 animations whatever
+//   the tile count (59 per-star ones on a phone before), with constant
+//   keyframes the compositor can take. Tile copies carry no animation of their
+//   own; they ride in their group, so a copy that scrolls into view still
+//   shimmers at no extra cost.
 
 import { useEffect, useRef, type RefObject } from 'react'
 
@@ -44,8 +50,14 @@ type Star = {
   alpha: number  // resting opacity (dark theme)
   warm: boolean  // warm vs cool white
   twinkle: boolean
-  dur: number    // s
-  delay: number  // s
+  dur: number    // s, the star's own twinkle rate (it picks the star's group)
+}
+
+// The twinkling stars of one layer that share one opacity animation.
+type TwinkleGroup = {
+  members: number[] // indexes into the layer's STARS row
+  dur: number       // s
+  delay: number     // s
 }
 
 // Far layer: many small, dim stars. Near layer: few, larger, brighter.
@@ -64,17 +76,48 @@ const rand = mulberry32(20260603)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 const STARS: Star[][] = LAYERS.map((L) =>
-  Array.from({ length: L.count }, () => ({
-    x: +(rand() * 100).toFixed(2),
-    y: +(rand() * 100).toFixed(2),
-    size: +lerp(L.size[0], L.size[1], rand()).toFixed(2),
-    alpha: +lerp(L.alpha[0], L.alpha[1], rand()).toFixed(2),
-    warm: rand() < 0.45,
-    twinkle: rand() < 0.32,
-    dur: +(3.2 + rand() * 4.4).toFixed(2),
-    delay: +(rand() * 6).toFixed(2),
-  })),
+  Array.from({ length: L.count }, () => {
+    const star = {
+      x: +(rand() * 100).toFixed(2),
+      y: +(rand() * 100).toFixed(2),
+      size: +lerp(L.size[0], L.size[1], rand()).toFixed(2),
+      alpha: +lerp(L.alpha[0], L.alpha[1], rand()).toFixed(2),
+      warm: rand() < 0.45,
+      twinkle: rand() < 0.32,
+      dur: +(3.2 + rand() * 4.4).toFixed(2),
+    }
+    // The old per-star delay. Still drawn so the seeded sequence, and so every
+    // star's position, size and colour, stays exactly as it was.
+    rand()
+    return star
+  }),
 )
+
+// Wrappers per layer. One group per layer would make all ~16 far-layer
+// twinklers dim in lockstep; two per layer keeps the shimmer at 6 animations.
+const TWINKLE_GROUPS = 2
+
+// Each layer's twinkling stars, sorted by their own rate and split into the
+// faster and the slower half; a group runs at the mean rate of its members
+// (3.8 to 7.3 s across the six). Start delays are spread by the golden ratio
+// over 0 to 4 s so no two groups begin in phase. Before its delay a group sits
+// at opacity 1, the 0% keyframe, so the first paint is the resting field.
+const GROUPS: TwinkleGroup[][] = STARS.map((stars, li) => {
+  const twinklers = stars
+    .map((_, i) => i)
+    .filter((i) => stars[i].twinkle)
+    .sort((a, b) => stars[a].dur - stars[b].dur)
+  const n = Math.min(TWINKLE_GROUPS, twinklers.length)
+  return Array.from({ length: n }, (_, g) => {
+    const members = twinklers.slice(
+      Math.round((g * twinklers.length) / n),
+      Math.round(((g + 1) * twinklers.length) / n),
+    )
+    const dur = members.reduce((sum, i) => sum + stars[i].dur, 0) / members.length
+    const phase = ((li * TWINKLE_GROUPS + g) * 0.618) % 1
+    return { members, dur: +dur.toFixed(2), delay: +(phase * 4).toFixed(2) }
+  })
+})
 
 export interface StarfieldBackgroundProps {
   /**
@@ -163,6 +206,25 @@ export function StarfieldBackground({ scrollRef }: StarfieldBackgroundProps = {}
 
       {LAYERS.map((L, li) => {
         const tiles = parallax ? L.tiles : 1
+        const copies = Array.from({ length: tiles }, (_, ti) => ti)
+        // One star. `top` is a share of the whole layer (tiles stacked), and a
+        // group wrapper fills the layer, so it resolves the same in both.
+        const star = (si: number, ti: number) => {
+          const s = STARS[li][si]
+          return (
+            <span
+              key={`${ti}-${si}`}
+              className={`sf-star ${s.warm ? 'sf-star--warm' : 'sf-star--cool'}`}
+              style={{
+                left: `${s.x}%`,
+                top: `${((s.y + ti * 100) / tiles).toFixed(3)}%`,
+                width: s.size,
+                height: s.size,
+                ['--a' as string]: s.alpha,
+              }}
+            />
+          )
+        }
         return (
           <div
             key={li}
@@ -173,23 +235,21 @@ export function StarfieldBackground({ scrollRef }: StarfieldBackgroundProps = {}
               willChange: parallax ? 'transform' : undefined,
             }}
           >
-            {Array.from({ length: tiles }, (_, ti) =>
-              STARS[li].map((s, si) => (
-                <span
-                  key={`${ti}-${si}`}
-                  className={`sf-star ${s.warm ? 'sf-star--warm' : 'sf-star--cool'}${s.twinkle ? ' sf-star--twinkle' : ''}`}
-                  style={{
-                    left: `${s.x}%`,
-                    top: `${((s.y + ti * 100) / tiles).toFixed(3)}%`,
-                    width: s.size,
-                    height: s.size,
-                    ['--a' as string]: s.alpha,
-                    ['--dur' as string]: `${s.dur}s`,
-                    ['--delay' as string]: `${s.delay}s`,
-                  }}
-                />
-              )),
+            {copies.flatMap((ti) =>
+              STARS[li].flatMap((s, si) => (s.twinkle ? [] : [star(si, ti)])),
             )}
+            {GROUPS[li].map((g, gi) => (
+              <div
+                key={`tw-${gi}`}
+                className="sf-tw"
+                style={{
+                  ['--dur' as string]: `${g.dur}s`,
+                  ['--delay' as string]: `${g.delay}s`,
+                }}
+              >
+                {copies.flatMap((ti) => g.members.map((si) => star(si, ti)))}
+              </div>
+            ))}
           </div>
         )
       })}
@@ -254,12 +314,18 @@ export function StarfieldBackground({ scrollRef }: StarfieldBackgroundProps = {}
           background: rgb(var(--ink));
           background: color-mix(in oklab, rgb(var(--ink)) 84%, rgb(var(--nebula-a)));
         }
-        .sf-star--twinkle {
+        /* A twinkle group fills its layer (so its stars' % positions resolve as
+           in the layer) and dims them all from their resting --a to 0.35 x --a
+           and back, the same swing each star used to run on its own. Plain
+           number keyframes: no var(), so the compositor can run them. */
+        .sf-tw {
+          position: absolute;
+          inset: 0;
           animation: sf-twinkle var(--dur) ease-in-out var(--delay) infinite;
         }
         @keyframes sf-twinkle {
-          0%, 100% { opacity: var(--a); }
-          50%      { opacity: calc(var(--a) * 0.35); }
+          0%, 100% { opacity: 1; }
+          50%      { opacity: 0.35; }
         }
 
         /* Daylight: pale sky, warm sun, stars become faint static dust. */
@@ -275,11 +341,13 @@ export function StarfieldBackground({ scrollRef }: StarfieldBackgroundProps = {}
         :global(:root[data-theme='light']) .sf-star {
           background: rgb(var(--ink-3));
           opacity: calc(var(--a) * 0.22);
+        }
+        :global(:root[data-theme='light']) .sf-tw {
           animation: none;
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .sf-star--twinkle { animation: none; }
+          .sf-tw { animation: none; }
           .sf-layer,
           .sf-nebula { transform: none !important; will-change: auto !important; }
         }

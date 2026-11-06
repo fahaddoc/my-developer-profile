@@ -40,6 +40,7 @@ import { type QualityPreset, PRESETS } from '@/lib/quality'
 import { type PlanetId, type ScenePalette, useScenePalette } from '@/lib/palette'
 import { DRAWER_OPEN_EVENT, DRAWER_CLOSE_EVENT } from '@/components/ui/drawerPrefetch'
 import { NebulaBackground } from '@/components/r3f/NebulaBackground'
+import { Precompile } from '@/components/r3f/Precompile'
 import { SeaWorld } from '@/components/r3f/sea/SeaWorld'
 import { seaLookDir } from '@/components/r3f/sea/seaShared'
 import { SkillsOrbit, SKILL_TILE } from '@/components/r3f/SkillsOrbit'
@@ -1142,6 +1143,11 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
             <SkillsAnchor curve={curve} stationT={skillsT} motion={motion} sea={sea} />
           </Suspense>
         </ProximityGate>
+
+        {/* Links every off-screen station's shaders (the Work ring) once,
+            after the first frame and under the loader, instead of mid
+            flight. Keyed on the world so a theme swap gets the same. */}
+        <Precompile key={sea ? 'sea' : 'space'} />
 
         {/* No EffectComposer: grain and vignette are CSS layers above the
             canvas. Bloom allocates 5–8 viewport-sized framebuffers and an

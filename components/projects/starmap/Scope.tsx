@@ -10,6 +10,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
+import Image from 'next/image'
 import { FaArrowLeft, FaArrowRight, FaXmark } from 'react-icons/fa6'
 import type { Project } from '@/data/projects'
 import { STARS, seaCoords, skyCoords } from './layout'
@@ -22,6 +23,12 @@ const pad = (n: number) => String(n).padStart(2, '0')
 const CAM = 'cubic-bezier(0.32, 0.72, 0, 1)'
 const OPEN_MS = 760
 const CLOSE_MS = 480
+
+/** How wide the shot is drawn: the lens (Scope.module.css --d: at most 470px,
+ *  250px on phones) times the 1.12 overscale, cover-cropped, so a landscape
+ *  shot is that height and its own aspect wide. Sized for the widest one
+ *  (Agent Shah, 2.5:1); the jpgs are 1168px wide, so they cap at full size. */
+const SHOT_SIZES = '(max-width: 720px) 700px, 1400px'
 
 const TICKS = Array.from({ length: 72 }, (_, k) => {
   const a = (k / 72) * Math.PI * 2
@@ -113,7 +120,18 @@ export function Scope({ i, getStar, closing, onClose, onClosed, onStep, onExplor
 
       <div ref={lensRef} className={s.lens} style={{ '--turn': `${i * 23}deg` } as CSSProperties}>
         <button type="button" className={s.view} onClick={() => onExplore(p)} aria-label={`Explore case study: ${p.title}`}>
-          <img key={p.id} className={`${s.shot} ${stepped ? s.slew : s.focus}`} src={p.image} alt="" decoding="async" draggable={false} />
+          <Image
+            key={p.id}
+            className={`${s.shot} ${stepped ? s.slew : s.focus}`}
+            src={p.image}
+            alt=""
+            fill
+            sizes={SHOT_SIZES}
+            unoptimized={p.image.endsWith('.svg')}
+            loading="eager"
+            decoding="async"
+            draggable={false}
+          />
         </button>
         <svg className={s.reticle} viewBox="-100 -100 200 200" aria-hidden>
           <g className={s.ring}>

@@ -31,3 +31,4 @@ npm-debug.log*
 projects/expense-tracker/
 projects/food-delivery-ui/
 .vercel
+/.next-dev/

@@ -1275,7 +1275,7 @@ function Hero({ onWork }: { onWork: () => void }) {
 
       <div className="ms-hero-copy">
         {/* HoloText runs its own lock-on entrance; no mask wrapper around it */}
-        <HoloText as="h1" id="intro-title" text="Shah Fahad" className="t-display ms-hero-name" />
+        <HoloText as="h1" id="intro-title" instant text="Shah Fahad" className="t-display ms-hero-name" />
         <p className="t-lead ms-hero-lead" data-reveal style={iv(2)}>
           Senior software engineer building real-time web and mobile products. React, Next.js, Flutter and WebRTC,
           from Karachi, Pakistan.

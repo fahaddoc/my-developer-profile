@@ -21,7 +21,8 @@ export function PageHeader({ kicker, title, lead, children }: {
   return (
     <header className={s.header}>
       <p className={`t-data ${s.kicker}`}>{kicker}</p>
-      <HoloText as="h1" text={title} className={`t-display ${s.title}`} />
+      {/* instant: the h1 is SSR-painted and usually the LCP; never hide it behind the lock-on */}
+      <HoloText as="h1" instant text={title} className={`t-display ${s.title}`} />
       {lead && <p className={`t-lead ${s.lead}`}>{lead}</p>}
       {children && <div className={s.headerActions}>{children}</div>}
     </header>
