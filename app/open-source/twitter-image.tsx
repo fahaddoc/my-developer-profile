@@ -1,4 +1,4 @@
-import { renderOpenSourceOg, OG_SIZE, OG_OPENSOURCE_ALT } from '@/lib/seo/og'
+import { renderOpenSourceOg, OG_SIZE, OG_OPENSOURCE_ALT } from '@/lib/og'
 import { openSourceStats } from '@/data/open-source'
 
 export const runtime = 'nodejs'

@@ -1,0 +1,242 @@
+/* ProjectCase — a case study in the cockpit HUD language. Machined plates,
+   mono readouts, chrome accent; tokens only, so dark titanium and the light
+   sea chart both come from globals. */
+
+.case { display: block; }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.muted { color: rgb(var(--ink-3)); }
+
+/* both worlds' words are rendered; the theme shows one */
+.inSea { display: none; }
+:global(:root[data-theme='light']) .inSpace { display: none; }
+:global(:root[data-theme='light']) .inSea { display: inline; }
+
+/* ---------- the screenshot ---------- */
+.figure { margin: 0; }
+.frame {
+  position: relative;
+  aspect-ratio: var(--ar, 16 / 10);
+  border: 1px solid rgb(var(--line) / 0.9);
+  background: rgb(var(--surface));
+}
+.shot { object-fit: cover; }
+/* phone screens stand upright on a plotting grid instead of being cropped */
+.portrait {
+  aspect-ratio: 16 / 10;
+  background-color: rgb(var(--space-1));
+  background-image: radial-gradient(rgb(var(--line) / 0.55) 1px, transparent 1.4px);
+  background-size: 22px 22px;
+  background-position: center;
+}
+.portrait .shot { object-fit: contain; padding: clamp(18px, 3vw, 36px) 0; }
+
+.caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 20px;
+  margin-top: 18px;
+  color: rgb(var(--ink-3));
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+}
+
+/* ---------- telemetry strip ---------- */
+dl.telemetry {
+  margin-top: clamp(36px, 5vw, 56px);
+  grid-template-columns: 1.5fr 0.55fr 0.9fr 1.7fr 1.2fr;
+}
+.links { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+
+/* ---------- story blocks: a mono label column, then the content ---------- */
+.block {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  gap: 20px clamp(24px, 4vw, 56px);
+  margin-top: clamp(64px, 9vw, 112px);
+  padding-top: 24px;
+  border-top: 1px solid rgb(var(--line) / 0.7);
+}
+.label {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  color: rgb(var(--ink-3));
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+  font-weight: 500;
+}
+.num { color: rgb(var(--accent-text)); }
+
+.description {
+  max-width: 38ch;
+  margin: 0;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: clamp(20px, 2.05vw, 27px);
+  font-weight: 400;
+  line-height: 1.42;
+  letter-spacing: -0.005em;
+  color: rgb(var(--ink));
+  text-wrap: pretty;
+}
+
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  color: rgb(var(--ink-3));
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+  font-weight: 500;
+}
+/* a small status lamp; the solution's is lit */
+.panelHead::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid rgb(var(--ink-3));
+}
+.panelHeadOn { color: rgb(var(--accent-text)); }
+.panelHeadOn::before { border-color: rgb(var(--accent)); background: rgb(var(--accent)); box-shadow: 0 0 10px rgb(var(--accent) / 0.6); }
+.panelText { margin: 0; font-size: 16px; line-height: 1.7; color: rgb(var(--ink-2)); text-wrap: pretty; }
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 32px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.feature {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px 0 18px;
+  border-top: 1px solid rgb(var(--line) / 0.6);
+  font-size: 16px;
+  line-height: 1.55;
+  color: rgb(var(--ink));
+}
+.features > .feature:nth-child(-n + 2) { border-top-color: transparent; padding-top: 0; }
+.featureNum { padding-top: 3px; color: rgb(var(--accent-text)); }
+
+/* ---------- shares a stack with ---------- */
+/* two across: four pills in one row left ~190px each and cut longer names */
+.related { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.relLink {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 10px 18px 10px 10px;
+  border: 1px solid rgb(var(--line) / 0.85);
+  border-radius: 999px;
+  background: rgb(var(--surface) / 0.7);
+  color: rgb(var(--ink));
+  text-decoration: none;
+  transition: border-color var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out);
+}
+.thumb {
+  position: relative;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgb(var(--space-1));
+  box-shadow: 0 0 0 1px rgb(var(--line)), 0 0 0 4px rgb(var(--space-0) / 0.5);
+}
+.thumbImg { object-fit: cover; }
+/* the lab's SVG posters carry their title text in the middle; a round crop of
+   it reads as a cut word, so the thumb shows the poster's orbit mark instead */
+.thumbPoster { object-position: 100% 50%; }
+.relText { display: grid; gap: 3px; min-width: 0; }
+.relName {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 15px;
+  line-height: 1.15;
+}
+.relMeta { color: rgb(var(--ink-3)); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
+
+/* ---------- previous / next ---------- */
+.pager {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: clamp(72px, 10vw, 128px);
+}
+.pg {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: clamp(20px, 3vw, 30px);
+  border: 1px solid rgb(var(--line) / 0.9);
+  border-radius: 18px;
+  background: var(--panel-bg, rgb(var(--surface) / 0.8));
+  color: rgb(var(--ink));
+  text-decoration: none;
+  transition: border-color var(--dur-2) var(--ease-out);
+}
+:global(:root[data-theme='light']) .pg {
+  background: rgb(var(--surface) / 0.86);
+  border-color: rgb(var(--line));
+  box-shadow: 0 18px 50px -30px rgb(var(--ink) / 0.35);
+}
+.pgNext { justify-items: end; text-align: right; }
+.pgLabel { display: inline-flex; align-items: center; gap: 10px; color: rgb(var(--ink-3)); text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px; }
+.arrow { display: inline-block; color: rgb(var(--accent-text)); font-size: 14px; transition: transform var(--dur-2) var(--ease-out); }
+.pgTitle { font-size: clamp(22px, 2.6vw, 34px); }
+.pgMeta { color: rgb(var(--ink-3)); text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; }
+.pgMap .pgTitle { color: rgb(var(--ink-2)); }
+
+.relLink:focus-visible,
+.pg:focus-visible { outline: 2px solid rgb(var(--accent-text)); outline-offset: 3px; }
+/* keep the plate's own shape (the global focus ring rounds to 6px) */
+.relLink:focus-visible { border-radius: 999px; }
+.pg:focus-visible { border-radius: 18px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .relLink:hover { border-color: rgb(var(--ink-3)); background: rgb(var(--surface-2) / 0.9); }
+  .pg:hover { border-color: rgb(var(--ink-3)); }
+  .pg:hover .arrow { transform: translateX(4px); }
+  .pg:not(.pgNext):hover .arrow { transform: translateX(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .relLink, .pg, .arrow { transition: none; }
+}
+
+/* ---------- narrower screens ---------- */
+@media (max-width: 1080px) {
+  dl.telemetry { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  dl.telemetry > :nth-child(4) { grid-column: span 2; }
+}
+@media (max-width: 820px) {
+  .block { grid-template-columns: minmax(0, 1fr); }
+  .pair, .features { grid-template-columns: minmax(0, 1fr); }
+  .features > .feature:nth-child(2) { border-top-color: rgb(var(--line) / 0.6); padding-top: 16px; }
+}
+@media (max-width: 720px) {
+  .portrait { aspect-ratio: 4 / 5; }
+  dl.telemetry { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  dl.telemetry > :nth-child(1),
+  dl.telemetry > :nth-child(4),
+  dl.telemetry > :nth-child(5) { grid-column: 1 / -1; }
+  .related { grid-template-columns: minmax(0, 1fr); }
+  .pager { grid-template-columns: minmax(0, 1fr); }
+  .pgNext { justify-items: start; text-align: left; }
+  .pgNext .pgLabel { flex-direction: row-reverse; }
+}

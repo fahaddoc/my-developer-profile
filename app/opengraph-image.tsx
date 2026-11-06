@@ -1,4 +1,4 @@
-import { renderOgImage, OG_SIZE, OG_ALT } from '@/lib/seo/og'
+import { renderOgImage, OG_SIZE, OG_ALT } from '@/lib/og'
 
 export const runtime = 'nodejs'
 export const alt = OG_ALT

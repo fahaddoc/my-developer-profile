@@ -1,0 +1,107 @@
+/* 404: the lost signal on the left, the stations to jump to on the right.
+   Tokens only; hover lives under a real pointer; motion stops when reduced. */
+
+.layout {
+  display: grid;
+  gap: clamp(36px, 5vw, 64px);
+  align-items: start;
+}
+@media (min-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+    min-height: calc(100dvh - 260px);
+    align-items: center;
+  }
+}
+
+.lost { min-width: 0; }
+
+/* the blip in the kicker: a weak, searching signal */
+.blip {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 10px 1px 0;
+  border-radius: 50%;
+  background: rgb(var(--accent));
+  box-shadow: 0 0 0 3px rgb(var(--accent) / 0.16);
+  vertical-align: middle;
+  animation: blip 1.8s var(--ease-out) infinite;
+}
+@keyframes blip {
+  0%, 100% { opacity: 1; }
+  45% { opacity: 0.25; }
+  55% { opacity: 0.9; }
+  65% { opacity: 0.3; }
+}
+
+/* theme copy, as in the HUD bar: set a course in space, chart one at sea */
+.seaCopy { display: none; }
+:global(:root[data-theme='light']) .spaceCopy { display: none; }
+:global(:root[data-theme='light']) .seaCopy { display: inline; }
+
+.telemetry { max-width: 560px; }
+.path {
+  color: rgb(var(--ink));
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.scanning { color: rgb(var(--ink-3)); }
+
+/* ---------- destinations ---------- */
+.panel { min-width: 0; }
+.list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.list > li + li { border-top: 1px solid rgb(var(--line) / 0.6); }
+
+.dest {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin: 0 -12px;
+  padding: 13px 12px;
+  border-radius: 10px;
+  color: rgb(var(--ink));
+  text-decoration: none;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.dest:focus-visible {
+  outline: 2px solid rgb(var(--accent-text));
+  outline-offset: 2px;
+}
+.num { color: rgb(var(--ink-3)); letter-spacing: 0.06em; }
+.text { display: grid; gap: 3px; min-width: 0; }
+.name { font-size: 17px; text-transform: uppercase; letter-spacing: 0.03em; }
+.sub {
+  overflow: hidden;
+  color: rgb(var(--ink-3));
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.arrow {
+  color: rgb(var(--ink-3));
+  transition: transform var(--dur-2) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dest:hover { background: rgb(var(--ink) / 0.05); }
+  .dest:hover .num,
+  .dest:hover .arrow { color: rgb(var(--accent-text)); }
+  .dest:hover .arrow { transform: translateX(3px); }
+}
+
+@media (max-width: 520px) {
+  .dest { grid-template-columns: 28px minmax(0, 1fr) auto; gap: 12px; padding: 12px; }
+  .name { font-size: 16px; }
+  .sub { white-space: normal; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blip { animation: none; }
+  .dest, .arrow { transition: none; }
+}

@@ -10,7 +10,11 @@
   max-width: 100%;
   /* holo.ts squeezes this on fast scrolls */
   font-variation-settings: 'wdth' var(--holo-wdth, 100);
+  /* how far the lock-on brackets sit outside the letters */
+  --holo-gap: 20px;
 }
+/* phones: page gutters are 16-20px, keep the brackets on screen */
+@media (max-width: 720px) { .holo { --holo-gap: 11px; } }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .glyphs {
@@ -48,10 +52,10 @@
   pointer-events: none;
   transition: transform 460ms var(--ease-out), opacity 300ms var(--ease-out);
 }
-.tl { left: -20px; top: -8px; border-width: 2px 0 0 2px; transform: translate(-16px, -16px); }
-.tr { left: calc(var(--holo-w, 100%) + 4px); top: -8px; border-width: 2px 2px 0 0; transform: translate(16px, -16px); }
-.bl { left: -20px; bottom: -8px; border-width: 0 0 2px 2px; transform: translate(-16px, 16px); }
-.br { left: calc(var(--holo-w, 100%) + 4px); bottom: -8px; border-width: 0 2px 2px 0; transform: translate(16px, 16px); }
+.tl { left: calc(-1 * var(--holo-gap)); top: -8px; border-width: 2px 0 0 2px; transform: translate(-16px, -16px); }
+.tr { left: calc(var(--holo-w, 100%) + var(--holo-gap) - 16px); top: -8px; border-width: 2px 2px 0 0; transform: translate(16px, -16px); }
+.bl { left: calc(-1 * var(--holo-gap)); bottom: -8px; border-width: 0 0 2px 2px; transform: translate(-16px, 16px); }
+.br { left: calc(var(--holo-w, 100%) + var(--holo-gap) - 16px); bottom: -8px; border-width: 0 2px 2px 0; transform: translate(16px, 16px); }
 .holo[data-on] .c { opacity: 0.55; transform: none; }
 
 .scan {

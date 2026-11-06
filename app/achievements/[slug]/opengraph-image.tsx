@@ -1,4 +1,4 @@
-import { renderAchievementOg, OG_SIZE, OG_ACHIEVEMENT_ALT } from '@/lib/seo/og'
+import { renderAchievementOg, OG_SIZE, OG_ACHIEVEMENT_ALT } from '@/lib/og'
 import { contributions, getContribution } from '@/data/open-source'
 
 export const runtime = 'nodejs'
