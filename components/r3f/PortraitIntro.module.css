@@ -1,0 +1,140 @@
+/* components/r3f/PortraitIntro.module.css
+   The intro video in place of the hero portrait (PortraitIntro.tsx) and the
+   crossfade between them. FlipPhotoCard puts .root on the portrait button
+   (with data-live) and .figure on the photo's figure.
+
+   Geometry, in % of the portrait box (3:4, so 1% of its width is 0.75% of
+   its height; plain % rather than cqw, for older Safari). The video is a
+   720x720 cutout whose content ends 10.8% above its bottom edge (a hard cut
+   through the arms) and whose head sits at ~66% of its width. It is placed
+   so that:
+     - that hard cut lands at 98% of the portrait height, under the same
+       bottom fade as the photo (black 66% -> transparent 97%), so the arms
+       dissolve exactly where the portrait's legs do;
+     - the head lands over the portrait's head (--x), a little larger and a
+       little lower, like the camera pushing in.
+   --v is the video's side as a multiple of the portrait width. */
+
+/* ─── Crossfade ──────────────────────────────────────────────────────────── */
+.figure {
+  transform-origin: 50% 100%;
+  transition:
+    opacity 420ms var(--ease-out) 80ms,
+    transform 420ms var(--ease-out) 80ms;
+}
+.root[data-live='true'] .figure {
+  opacity: 0;
+  transform: scale(0.98);
+  transition-delay: 0ms;
+}
+
+.intro {
+  --lvl: 0;
+  --v: 1.36;
+  --hx: 0.66;
+  --x: 0.53;
+  --wave-y: 82.5%;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(12px);
+  /* out: quicker than in, and first, so the portrait returns into clear space */
+  transition:
+    opacity 360ms var(--ease-out),
+    transform 360ms var(--ease-out),
+    visibility 0s linear 360ms;
+}
+.root[data-live='true'] .intro {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 520ms var(--ease-out-expo) 80ms,
+    transform 520ms var(--ease-out-expo) 80ms,
+    visibility 0s;
+}
+
+/* ─── The speaker ────────────────────────────────────────────────────────── */
+.clip {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  left: calc((var(--x) - var(--hx) * var(--v)) * 100%);
+  width: calc(var(--v) * 100%);
+  /* same bottom fade as .portraitFigure, plus a short left fade where the
+     frame cuts through the arm */
+  -webkit-mask-image:
+    linear-gradient(to bottom, black 66%, transparent 97%),
+    linear-gradient(to right, transparent 0%, black 22%);
+  mask-image:
+    linear-gradient(to bottom, black 66%, transparent 97%),
+    linear-gradient(to right, transparent 0%, black 22%);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+.video {
+  position: absolute;
+  left: 0;
+  /* 2.6% of the width below the box bottom minus the 10.8% transparent foot,
+     converted to % of the height */
+  bottom: calc((2.6 - 10.8 * var(--v)) * 0.75%);
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  /* Lit like the photo: ember key rim from the upper left, a cold edge from
+     the right; the rim and a soft ember bloom brighten with the voice. */
+  filter:
+    drop-shadow(-1.5px -1.5px 0 rgb(var(--accent) / calc(0.45 + var(--lvl) * 0.55)))
+    drop-shadow(1.5px 0 0 rgb(var(--nebula-a) / var(--cold-a, 0.55)))
+    drop-shadow(0 0 calc(3px + var(--lvl) * 18px) rgb(var(--accent) / calc(var(--lvl) * 0.5)));
+}
+
+/* ─── Sound wave along the arc below the speaker ─────────────────────────── */
+.wave {
+  position: absolute;
+  left: -22%;
+  top: var(--wave-y);
+  width: 124%;
+  height: auto;
+  aspect-ratio: 400 / 48; /* the viewBox, undistorted */
+  overflow: visible;
+  opacity: calc(0.4 + var(--lvl) * 0.6);
+  filter: drop-shadow(0 0 calc(2px + var(--lvl) * 6px) rgb(var(--accent) / calc(0.35 + var(--lvl) * 0.5)));
+}
+.wave path {
+  fill: none;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.wave stop { stop-color: rgb(var(--accent)); }
+
+/* While he talks, the hover cue drops from the chest (his chin, in the
+   close-up) to the shirt, below the face. */
+.root[data-live='true'] .cue { top: 80%; }
+
+/* Daylight: the cold edge would read as a pale halo on a bright ground. */
+:global(:root[data-theme='light']) .intro { --cold-a: 0.3; }
+
+/* ─── Reduced motion: plain crossfade, nothing travels ───────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .figure,
+  .root[data-live='true'] .figure {
+    transform: none;
+    transition: opacity 300ms linear;
+  }
+  .intro {
+    transform: none;
+    transition: opacity 300ms linear, visibility 0s linear 300ms;
+  }
+  .root[data-live='true'] .intro {
+    transform: none;
+    transition: opacity 300ms linear, visibility 0s;
+  }
+}

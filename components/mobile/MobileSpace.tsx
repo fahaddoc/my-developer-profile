@@ -3,7 +3,8 @@
 // MobileSpace — the classic experience: touch devices, screens under 1024px
 // and reduced-motion desktops (AppShell decides). Same journey and the same
 // copy as the desktop tunnel (DESIGN.md §8), told as seven scenes in one
-// scroller over the CSS starfield.
+// scroller over the CSS starfield (dark) or the illustrated sea (light:
+// SeaBackground, with SeaIslands standing in for the planets).
 //
 // Three compositions from one markup:
 // - phones (<640px): one column, 44px left gutter for the rail.
@@ -52,6 +53,8 @@ import {
 } from 'react-icons/fa6'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { StarfieldBackground } from '@/components/mobile/StarfieldBackground'
+import { SeaBackground } from '@/components/mobile/SeaBackground'
+import { AboutIsle, Coast, HeroIsleBack, HeroIsleFront, SeaIslandStyles } from '@/components/mobile/SeaIslands'
 import { FeaturedAchievement } from '@/components/featured/FeaturedAchievement'
 import { prefetchDrawer } from '@/components/ui/drawerPrefetch'
 import { projects, experience, skills } from '@/data/projects'
@@ -199,7 +202,13 @@ export default function MobileSpace() {
 
   return (
     <>
-      <StarfieldBackground scrollRef={scrollRef} />
+      {/* Dark: deep space. Light: the illustrated sea. Both stay mounted and
+          the data-theme attribute picks one, so a toggle swaps them in place. */}
+      <div className="ms-bg-space">
+        <StarfieldBackground scrollRef={scrollRef} />
+      </div>
+      <SeaBackground />
+      <SeaIslandStyles />
       <TopBar onHome={() => goTo(0, true)} />
       <StationRail active={active} onGo={(i) => goTo(i, true)} />
 
@@ -215,6 +224,7 @@ export default function MobileSpace() {
             after={
               <div className="ms-horizon" aria-hidden="true">
                 <div className="ms-horizon-orb" />
+                <AboutIsle />
               </div>
             }
           >
@@ -236,7 +246,12 @@ export default function MobileSpace() {
             i={6}
             setRef={setStationRef(6)}
             className="ms-st--contact"
-            after={<div className="ms-home-planet" aria-hidden="true" />}
+            after={
+              <>
+                <div className="ms-home-planet" aria-hidden="true" />
+                <Coast />
+              </>
+            }
           >
             <Contact />
           </Station>
@@ -409,7 +424,7 @@ export default function MobileSpace() {
            --nebula-a 32% into --space-0); match it so the scrim leaves no band. */
         @supports (color: color-mix(in srgb, red 50%, blue)) {
           :root[data-theme='light'] .ms-topbar {
-            --sky-top: color-mix(in srgb, rgb(var(--nebula-a)) 32%, rgb(var(--space-0)));
+            --sky-top: #c9dff0; /* SeaBackground's zenith (--sky-top there) */
             background: linear-gradient(
               color-mix(in srgb, var(--sky-top) 94%, transparent) 0%,
               color-mix(in srgb, var(--sky-top) 80%, transparent) 58%,
@@ -698,6 +713,21 @@ export default function MobileSpace() {
             0 -22px 70px -8px rgb(var(--accent) / 0.12);
         }
         :root[data-theme='light'] .ms-intro-ctl { background: rgb(var(--surface) / 0.86); }
+
+        /* Daylight is the sea (SeaBackground + SeaIslands): the planets give
+           way to islands, so the orbs and their masks step aside. Dark keeps
+           every planet exactly as it is. */
+        .ms-bg-space { display: contents; }
+        :root[data-theme='light'] .ms-bg-space { visibility: hidden; }
+        :root[data-theme='light'] .ms-planet-orb,
+        :root[data-theme='light'] .ms-horizon-orb,
+        :root[data-theme='light'] .ms-home-planet { display: none; }
+        :root[data-theme='light'] .ms-planet,
+        :root[data-theme='light'] .ms-horizon {
+          -webkit-mask-image: none;
+          mask-image: none;
+        }
+        :root[data-theme='light'] .ms-sunrise { opacity: 0.45; }
 
         /* Tablets and narrow windows: the portrait stands centred on a flatter
            planet and the copy sits below the rim's lowest point across its own
@@ -1327,10 +1357,12 @@ function Hero({ onWork }: { onWork: () => void }) {
     <>
       <div className="ms-hero-scene">
         <div className="ms-sunrise" aria-hidden="true" />
+        <HeroIsleBack />
         <IntroCard />
       </div>
       <div className="ms-planet" aria-hidden="true">
         <div className="ms-planet-orb" />
+        <HeroIsleFront />
       </div>
 
       <div className="ms-hero-copy">

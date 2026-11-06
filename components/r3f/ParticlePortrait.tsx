@@ -7,10 +7,11 @@
 //           an ember rim on the edges facing the upper-left key light, a soft
 //           cold fill from the right and, in dark, a slight lift of the black
 //           sweater (DESIGN.md §7, the same light as the planets).
-//   Active: only on intent, which the caller decides (hover dwell, keyboard
-//           focus, click). The photo hands over to a particle field built from
-//           the same image at device resolution; the particles burst and
-//           settle into a few lines of text.
+//   Active: only on intent, which the caller decides (hover dwell or keyboard
+//           focus, never while the intro video plays in its place). The
+//           photo hands over to a particle field built from the same image
+//           at device resolution; the particles burst and settle into a few
+//           lines of text.
 //   Off:    they fly home, the photo returns underneath, the canvas fades off
 //           it and the loop stops.
 //

@@ -5,12 +5,15 @@
 // into space at the bottom. No projector ring, brackets, halos or chip.
 //
 // The whole portrait is one toggle button for the intro video: click, Enter
-// or Space flips the shared soundStore, which IntroMiniPlayer plays from. The
-// top bar keeps the only visible "Play intro" button; here the cue is a small
-// label on the chest that fades in on hover or keyboard focus.
+// or Space flips the shared soundStore (as does the top bar's "Play intro").
+// The video then plays in place of the photo, in the same dock ("you come
+// alive in place", PortraitIntro): the photo fades and eases back, the
+// speaker rises in on the same baseline; on stop or end it reverses. Here the
+// cue is a small label on the chest that fades in on hover or keyboard focus.
 //
 // Particles only on intent, never on a passing cursor: a 300 ms hover dwell
-// (cancelled on leave), keyboard focus, or a click. Gated to a fine hover
+// (cancelled on leave) or keyboard focus, and never while the intro plays (a
+// click is a play/stop press, not particle intent). Gated to a fine hover
 // pointer without reduced motion (useParticleGate). Its width follows the
 // parent, so the HUD sizes it from the viewport.
 
@@ -19,8 +22,10 @@ import type { FocusEvent, KeyboardEvent, PointerEvent } from 'react'
 import { FaPlay, FaStop } from 'react-icons/fa6'
 import { useSound } from '@/lib/tunnel'
 import { ParticlePortrait, useParticleGate } from '@/components/r3f/ParticlePortrait'
+import { PortraitIntro } from '@/components/r3f/PortraitIntro'
 import hud from './TunnelHUD.module.css'
 import s from './FlipPhotoCard.module.css'
+import pi from './PortraitIntro.module.css'
 
 const DWELL_MS = 300
 /** Interactive descendants never arm the particles. */
@@ -36,9 +41,10 @@ interface FlipPhotoCardProps {
 export function FlipPhotoCard({ width = '100%' }: FlipPhotoCardProps) {
   const [sound, setSound] = useSound()
   const gate = useParticleGate()
-  const [hovered, setHovered] = useState(false) // dwell passed, or clicked
+  const [hovered, setHovered] = useState(false) // dwell passed
   const [focused, setFocused] = useState(false) // keyboard focus
   const [warm, setWarm]       = useState(false) // pointer arrived: prebuild
+  const [live, setLive]       = useState(false) // intro frames on screen
   const dwellRef = useRef(0)
 
   const cancelDwell = () => {
@@ -47,7 +53,17 @@ export function FlipPhotoCard({ width = '100%' }: FlipPhotoCardProps) {
   }
   useEffect(() => () => window.clearTimeout(dwellRef.current), [])
 
+  // Play/stop is never particle intent: a resting cursor or a kept focus must
+  // not burst the photo the moment the intro ends. Fresh movement re-arms it.
+  useEffect(() => {
+    window.clearTimeout(dwellRef.current)
+    dwellRef.current = 0
+    setHovered(false)
+    setFocused(false)
+  }, [sound])
+
   const toggle = () => setSound(!sound)
+  const playing = sound || live
 
   const overControl = (e: PointerEvent<HTMLDivElement>) => {
     const t = e.target
@@ -62,7 +78,7 @@ export function FlipPhotoCard({ width = '100%' }: FlipPhotoCardProps) {
     if (!gate || e.pointerType === 'touch') return
     if (!warm) setWarm(true)
     if (overControl(e)) { cancelDwell(); setHovered(false); return }
-    if (hovered || dwellRef.current) return
+    if (playing || hovered || dwellRef.current) return
     if (e.movementX === 0 && e.movementY === 0) return
     dwellRef.current = window.setTimeout(() => {
       dwellRef.current = 0
@@ -79,15 +95,14 @@ export function FlipPhotoCard({ width = '100%' }: FlipPhotoCardProps) {
     if (e.target !== e.currentTarget) return
     let keyboard = false
     try { keyboard = e.currentTarget.matches(':focus-visible') } catch { /* old engines */ }
-    if (keyboard && gate) { setWarm(true); setFocused(true) }
+    if (keyboard && gate) { setWarm(true); if (!playing) setFocused(true) }
   }
 
   const onBlur = () => setFocused(false)
 
   const onClick = () => {
     toggle()
-    // A click is intent: skip whatever is left of the dwell.
-    if (gate) { cancelDwell(); setWarm(true); setHovered(true) }
+    cancelDwell()
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -101,21 +116,24 @@ export function FlipPhotoCard({ width = '100%' }: FlipPhotoCardProps) {
       role="button"
       tabIndex={0}
       aria-pressed={sound}
-      aria-label="Play intro video"
+      aria-label={sound ? 'Stop intro video' : 'Play intro video'}
+      data-live={live}
       onClick={onClick}
       onKeyDown={onKeyDown}
       onFocus={onFocus}
       onBlur={onBlur}
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
-      className={`${hud.portrait} ${s.root}`}
+      className={`${hud.portrait} ${s.root} ${pi.root}`}
       style={{ width }}
     >
-      <div className={hud.portraitFigure}>
-        <ParticlePortrait active={gate && (hovered || focused)} warm={warm} />
+      <div className={`${hud.portraitFigure} ${pi.figure}`}>
+        <ParticlePortrait active={gate && !playing && (hovered || focused)} warm={warm} />
       </div>
 
-      <span aria-hidden="true" className={`t-label ${s.cue}`}>
+      <PortraitIntro on={sound} onLive={setLive} onEnd={() => setSound(false)} />
+
+      <span aria-hidden="true" className={`t-label ${s.cue} ${pi.cue}`}>
         {sound ? <FaStop /> : <FaPlay />}
         {sound ? 'Stop intro' : 'Play intro'}
       </span>

@@ -69,6 +69,38 @@ export interface ScenePalette {
     sink:         number
   }
   planets: Record<PlanetId, PlanetAlbedo>
+  /** Light mode only: the world becomes a sea with islands (components/r3f/sea). */
+  sea?: SeaPalette
+}
+
+/** The daylight sea world (stylized cinematic: painterly water, sculpted
+ *  islands, soft clouds, one warm sun from the upper left). Linear-ish hex
+ *  values tuned by eye against the ink tokens for HUD contrast. */
+export interface SeaPalette {
+  skyZenith:  string
+  skyMid:     string
+  skyHorizon: string
+  sun:        string
+  sunGlow:    string
+  cloud:      string
+  cloudShade: string
+  waterDeep:  string
+  waterMid:   string
+  waterFar:   string
+  shallow:    string
+  foam:       string
+  sand:       string
+  grass:      string
+  grassDark:  string
+  rock:       string
+  rockDark:   string
+  bird:       string
+  /** world-space direction TO the sun (sky glow + water glints, ahead-left) */
+  sunDir:     [number, number, number]
+  /** world-space key light on the islands (front-left, so the faces we see
+   *  are lit; stylized, decoupled from the visible sun) */
+  keyDir:     [number, number, number]
+  fog:        { color: string; near: number; far: number }
 }
 
 // Key light direction shared by both themes (DESIGN.md section 7: one warm
@@ -155,6 +187,29 @@ export const PALETTES: Record<ThemeMode, ScenePalette> = {
       opensource: { deep: '#7a818b', mid: '#9ca3ad', bright: '#c6ccd3' },
       experience: { deep: '#6c8295', mid: '#94a8b9', bright: '#c7d3de', cap: '#e8eef3' },
       contact:    { deep: '#3d6b94', mid: '#5c8bb3', bright: '#8e9a6e', cap: '#f3f6f8', cloud: '#ffffff' },
+    },
+    sea: {
+      skyZenith:  '#6e9fd2',
+      skyMid:     '#a8c8e6',
+      skyHorizon: '#f3e7d9',
+      sun:        '#fff6e6',
+      sunGlow:    '#ffd7a3',
+      cloud:      '#ffffff',
+      cloudShade: '#c4d3e4',
+      waterDeep:  '#2f6f8b',
+      waterMid:   '#4f93ab',
+      waterFar:   '#cfdfe8',
+      shallow:    '#7cc4c1',
+      foam:       '#ffffff',
+      sand:       '#e6d0a4',
+      grass:      '#86a85a',
+      grassDark:  '#618443',
+      rock:       '#a39280',
+      rockDark:   '#776a5a',
+      bird:       '#26303c',
+      sunDir:     [-0.5, 0.62, -0.6],
+      keyDir:     [-0.55, 0.7, 0.45],
+      fog:        { color: '#e8e8e4', near: 70, far: 330 },
     },
   },
 }

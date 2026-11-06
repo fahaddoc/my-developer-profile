@@ -37,7 +37,7 @@ Reference feel (borrow the feeling, not the layout): Apple product launch pages 
 
 1. **The site is the proof.** Every effect must read as deliberate engineering, not decoration; if it would look like a template or a demo reel, cut it.
 2. **Facts at a glance, wonder on the way.** The journey is cinematic, but who/what/proof/contact are reachable in one move from anywhere.
-3. **One voice, two lights.** Deep space (dark) is the signature; the light variant is the same world in daylight, not a different site.
+3. **One voice, two worlds.** Dark is deep space; light is the same journey over a daylight sea, islands where the planets were. Same stations, copy and type; only the world changes.
 4. **Honest drama.** Big type and slow light do the persuading; copy stays specific and verifiable (PR numbers, shipped products, real dates).
 5. **Fast is part of premium.** Quality tiers, touch-gated effects and reduced-motion paths are part of the design, not an afterthought.
 

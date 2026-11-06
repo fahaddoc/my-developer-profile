@@ -33,6 +33,25 @@ export function useSound(): [boolean, (v: boolean) => void] {
   return [s, soundStore.set]
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Intro audio level — how loud the intro video is right now, 0..1, smoothed.
+// Written once per animation frame by the hero portrait (PortraitIntro) while
+// the intro plays, decays to exactly 0 when it stops, and stays 0 when Web
+// Audio is unavailable. Mirrored to window.__sfIntroLevel so the WebGL scene
+// can read it per frame without importing anything. Not reactive on purpose:
+// read it inside your own rAF / useFrame loop.
+// ─────────────────────────────────────────────────────────────────────────────
+let _introLevel = 0
+export const introLevel = {
+  get: () => _introLevel,
+  set: (v: number) => {
+    _introLevel = v > 0 ? (v < 1 ? v : 1) : 0
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __sfIntroLevel?: number }).__sfIntroLevel = _introLevel
+    }
+  },
+}
+
 // Tiny util: hex string ("#RRGGBB") → rgba string with alpha.
 // For WebGL / canvas-adjacent code only; DOM UI uses rgb(var(--token) / a).
 export function hexAlpha(hex: string, alpha: number): string {

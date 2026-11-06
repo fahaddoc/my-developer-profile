@@ -30,7 +30,6 @@ import type { IconType } from 'react-icons'
 import { contributions, openSourceStats } from '@/data/open-source'
 import { FlutterLogo, GitHubLogo, MergedGlyph } from '@/components/featured/BrandLogos'
 import { STATIONS, nearestStation, useScrollProgress, useSound, type StationDef } from '@/lib/tunnel'
-import { IntroMiniPlayer } from '@/components/r3f/IntroMiniPlayer'
 import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
 import { QualityToggleSlot } from '@/components/r3f/QualityToggle'
 import { lenisInstance } from '@/components/providers/SmoothScroll'
@@ -101,10 +100,14 @@ function focusStation(id: string) {
   }, 140)
 }
 
-function scrollToStation(id: string, { focus = false } = {}) {
+function scrollToStation(id: string, { focus = false, then }: { focus?: boolean; then?: () => void } = {}) {
   const t = T[id]
   if (t === undefined) return
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const arrive = () => {
+    if (focus) focusStation(id)
+    then?.()
+  }
 
   if (lenisInstance) {
     // Lenis measured the page before the 500vh spacer mounted; refresh.
@@ -112,11 +115,12 @@ function scrollToStation(id: string, { focus = false } = {}) {
     const limit  = lenisInstance.limit
     const target = t * limit
     const dist   = Math.abs(target - lenisInstance.scroll)
-    if (dist < 1) { if (focus) focusStation(id); return }
+    if (dist < 1) { arrive(); return }
 
     if (reduce) {
       lenisInstance.scrollTo(target, { immediate: true, force: true })
-      if (focus) focusStation(id)
+      // let the hero portrait mount before anything that needs it
+      window.setTimeout(arrive, 60)
       return
     }
 
@@ -129,7 +133,7 @@ function scrollToStation(id: string, { focus = false } = {}) {
       force: true,
       onComplete: () => {
         setNavTarget(null)
-        if (focus) focusStation(id)
+        arrive()
       },
     })
     return
@@ -137,7 +141,7 @@ function scrollToStation(id: string, { focus = false } = {}) {
 
   const el = document.getElementById(id)
   if (el) window.scrollTo({ top: el.offsetTop, behavior: reduce ? 'auto' : 'smooth' })
-  if (focus) focusStation(id)
+  window.setTimeout(arrive, reduce ? 60 : 900)
 }
 
 function currentProgress() {
@@ -239,7 +243,6 @@ export function TunnelHUD() {
 
       <TopBar />
       <StationRail activeId={station.id} />
-      <IntroMiniPlayer />
 
       <main id="content" className={styles.main}>
         <StationStage station={station} progress={progress} />
@@ -275,7 +278,17 @@ const TopBar = memo(function TopBar() {
       <a href="#hero" onClick={goHome} className={styles.wordmark}>Shah Fahad</a>
 
       <div className={styles.cluster}>
-        <button type="button" onClick={() => setSound(!sound)} className={styles.chromeBtn}>
+        <button
+          type="button"
+          onClick={() => {
+            if (sound) { setSound(false); return }
+            // The intro plays in the hero portrait; from any other station,
+            // fly back to the hero first and start it on arrival.
+            if (nearestStation(currentProgress()).id === FIRST.id) setSound(true)
+            else scrollToStation(FIRST.id, { then: () => setSound(true) })
+          }}
+          className={styles.chromeBtn}
+        >
           {sound ? <FaStop size={10} aria-hidden /> : <FaPlay size={10} aria-hidden />}
           {sound ? 'Stop intro' : 'Play intro'}
         </button>

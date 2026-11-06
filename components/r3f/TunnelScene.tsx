@@ -40,6 +40,8 @@ import { type QualityPreset, PRESETS } from '@/lib/quality'
 import { type PlanetId, type ScenePalette, useScenePalette } from '@/lib/palette'
 import { DRAWER_OPEN_EVENT, DRAWER_CLOSE_EVENT } from '@/components/ui/drawerPrefetch'
 import { NebulaBackground } from '@/components/r3f/NebulaBackground'
+import { SeaWorld } from '@/components/r3f/sea/SeaWorld'
+import { seaLookDir } from '@/components/r3f/sea/seaShared'
 import { SkillsOrbit, SKILL_TILE } from '@/components/r3f/SkillsOrbit'
 
 // Shared scroll progress — read each frame inside R3F, also subscribed via the
@@ -101,6 +103,9 @@ const sceneState = {
   drawerOpen:  false,
 }
 /** Keep the RenderDriver at the full frame rate for `ms` more. */
+/** Damped camera progress, for components outside this module. */
+function getCamT() { return sceneState.camT }
+
 function kick(ms = 250) {
   if (typeof performance === 'undefined') return
   sceneState.activeUntil = Math.max(sceneState.activeUntil, performance.now() + ms)
@@ -144,7 +149,7 @@ function useReducedMotion(): boolean {
 // there: +Z points back along the camera's look direction (the curve point
 // LOOK_AHEAD further on), so the group's axes are exactly the camera's
 // (x right, y up, -z ahead) when the camera rests at `t` with no roll.
-function useCurveAnchor(curve: THREE.CatmullRomCurve3, t: number) {
+function useCurveAnchor(curve: THREE.CatmullRomCurve3, t: number, sea = false) {
   const ref = useRef<THREE.Group>(null)
   useEffect(() => {
     if (!ref.current) return
@@ -152,10 +157,11 @@ function useCurveAnchor(curve: THREE.CatmullRomCurve3, t: number) {
     const ahead = new THREE.Vector3()
     curve.getPointAt(t, pos)
     curve.getPointAt(Math.min(0.9999, t + LOOK_AHEAD), ahead)
-    const dir = ahead.sub(pos).normalize()
+    // The sea world levels the camera (fixed horizon), so anchors follow suit.
+    const dir = sea ? seaLookDir(pos, ahead, new THREE.Vector3()) : ahead.sub(pos).normalize()
     ref.current.position.copy(pos)
     ref.current.lookAt(pos.clone().sub(dir))
-  }, [curve, t])
+  }, [curve, t, sea])
   return ref
 }
 
@@ -677,8 +683,23 @@ function Planet({ id, cfg, palette, motion, stationT, offset, radius }: {
     }
   }, [palette, id, mat, haloMat, ringMat, cfg])
 
+  // Intro video audio level (window.__sfIntroLevel, 0..1) warms the hero limb.
+  const baseAtmo = useRef(cfg.atmoStrength)
+  const baseHalo = useRef(cfg.halo?.strength ?? 0)
+  useEffect(() => {
+    baseAtmo.current = mat.uniforms.uAtmoStrength.value
+    if (haloMat) baseHalo.current = haloMat.uniforms.uStrength.value
+  }, [palette, mat, haloMat])
+  const introRef = useRef(0)
+
   const lastVis = useRef(-1)
   useFrame((_, delta) => {
+    if (id === 'hero') {
+      const lvl = (window as unknown as { __sfIntroLevel?: number }).__sfIntroLevel ?? 0
+      introRef.current += (lvl - introRef.current) * 0.25
+      mat.uniforms.uAtmoStrength.value = baseAtmo.current * (1 + introRef.current * 1.4)
+      if (haloMat) haloMat.uniforms.uStrength.value = baseHalo.current * (1 + introRef.current * 1.6)
+    }
     const root = rootRef.current
     const vis  = visibilityAt(cfg, sceneState.camT - stationT)
     if (Math.abs(vis - lastVis.current) > 1e-4) {
@@ -770,6 +791,13 @@ function computeSkillsLayout(W: number, H: number): SkillsLayout {
   }
 }
 
+/** Screen x (fraction of width) of the skills orbit centre. */
+function skillsScreenX(W: number, H: number): number {
+  const l = computeSkillsLayout(W, H)
+  const f = H / 2 / Math.tan((CAMERA_FOV * Math.PI) / 360)
+  return (W / 2 + (l.offset[0] * f) / SKILLS_DEPTH) / W
+}
+
 function useSkillsLayout(): SkillsLayout {
   const width  = useThree((s) => s.size.width)
   const height = useThree((s) => s.size.height)
@@ -796,12 +824,13 @@ function Station({ curve, station, palette, motion }: {
 }
 
 // SkillsAnchor — places the orbit exactly where the skills planet sits.
-function SkillsAnchor({ curve, stationT, motion }: {
+function SkillsAnchor({ curve, stationT, motion, sea }: {
   curve:    THREE.CatmullRomCurve3
   stationT: number
   motion:   number
+  sea:      boolean
 }) {
-  const ref    = useCurveAnchor(curve, stationT)
+  const ref    = useCurveAnchor(curve, stationT, sea)
   const layout = useSkillsLayout()
   return (
     <group ref={ref}>
@@ -825,7 +854,7 @@ function SkillsAnchor({ curve, stationT, motion }: {
 // bank into turns that only applies while moving, so every station frame
 // rests level and exactly on its authored composition.
 // ─────────────────────────────────────────────────────────────────────────────
-function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
+function CameraRig({ curve, sea }: { curve: THREE.CatmullRomCurve3; sea: boolean }) {
   const pos      = useMemo(() => new THREE.Vector3(), [])
   const ahead    = useMemo(() => new THREE.Vector3(), [])
   const wantDir  = useMemo(() => new THREE.Vector3(), [])
@@ -862,14 +891,16 @@ function CameraRig({ curve }: { curve: THREE.CatmullRomCurve3 }) {
 
     curve.getPointAt(t, pos)
     curve.getPointAt(Math.min(0.9999, t + LOOK_AHEAD), ahead)
-    wantDir.copy(ahead).sub(pos).normalize()
+    if (sea) seaLookDir(pos, ahead, wantDir)
+    else wantDir.copy(ahead).sub(pos).normalize()
     if (!primed.current || jumped) lookDir.copy(wantDir)
     else lookDir.lerp(wantDir, 1 - Math.exp(-6 * dt)).normalize()
 
     curve.getTangentAt(t, tanNow)
     curve.getTangentAt(Math.min(0.999, t + 0.02), tanAhead)
     const bank       = THREE.MathUtils.clamp(speedRef.current / BANK_SPEED, 0, 1)
-    const targetRoll = THREE.MathUtils.clamp((tanAhead.x - tanNow.x) * BANK_GAIN, -BANK_MAX, BANK_MAX) * bank
+    const bankMax    = sea ? BANK_MAX * 0.4 : BANK_MAX   // a level horizon should stay nearly level
+    const targetRoll = THREE.MathUtils.clamp((tanAhead.x - tanNow.x) * BANK_GAIN, -bankMax, bankMax) * bank
     rollRef.current = primed.current && !jumped
       ? THREE.MathUtils.damp(rollRef.current, targetRoll, 3, dt)
       : targetRoll
@@ -991,6 +1022,9 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
   ), [])
 
   const skillsT = STATIONS.find((s) => s.id === 'skills')?.t ?? 0.35
+  // Light mode is a different world: a sea with islands instead of space.
+  const sea = palette.mode === 'light' && !!palette.sea
+  const skyColor = sea ? palette.sea!.skyHorizon : palette.bg
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
@@ -1072,25 +1106,40 @@ export function TunnelScene({ preset = PRESETS.high }: { preset?: QualityPreset 
         <RenderDriver idleFps={36} activeFps={60} />
 
         {/* First subscriber: the camera moves before anything reads it. */}
-        <CameraRig curve={curve} />
+        <CameraRig curve={curve} sea={sea} />
 
-        {/* Clear colour + fog match the page background token (--space-0). */}
-        <color attach="background" args={[palette.bg]} />
-        <fog attach="fog" args={[palette.bg, 30, 170]} />
+        {/* Clear colour + fog: space matches --space-0; the sea hazes into
+            its own horizon colour. */}
+        <color attach="background" args={[skyColor]} />
+        <fog attach="fog" args={sea ? [skyColor, palette.sea!.fog.near, palette.sea!.fog.far] : [palette.bg, 30, 170]} />
 
-        {/* Sky: nebula + stars, drawn first and following the camera. */}
-        <NebulaBackground palette={palette} preset={preset} motion={motion} />
-
-        {STATIONS.map((s) => (
-          <Station key={s.id} curve={curve} station={s} palette={palette} motion={motion} />
-        ))}
+        {sea ? (
+          <SeaWorld
+            palette={palette}
+            preset={preset}
+            motion={motion}
+            curve={curve}
+            lookAhead={LOOK_AHEAD}
+            skillsSx={skillsScreenX}
+            onActive={kick}
+            getCamT={getCamT}
+          />
+        ) : (
+          <>
+            {/* Sky: nebula + stars, drawn first and following the camera. */}
+            <NebulaBackground palette={palette} preset={preset} motion={motion} />
+            {STATIONS.map((s) => (
+              <Station key={s.id} curve={curve} station={s} palette={palette} motion={motion} />
+            ))}
+          </>
+        )}
 
         {/* Skills station — the tile orbit around the ice planet. Mounted
             within 0.14 of the station (unmounted past 0.18), so it never
             churns at the Work station (0.55). */}
         <ProximityGate stationT={skillsT} threshold={0.14} hysteresis={0.04}>
           <Suspense fallback={null}>
-            <SkillsAnchor curve={curve} stationT={skillsT} motion={motion} />
+            <SkillsAnchor curve={curve} stationT={skillsT} motion={motion} sea={sea} />
           </Suspense>
         </ProximityGate>
 

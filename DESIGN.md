@@ -8,8 +8,9 @@ tunnel, HUD, mobile, drawers, loader, later the subpages) follows it.
 A hiring manager clicks a link late in the day, in a dim room or inside the
 LinkedIn app. The screen goes dark like a cinema before the titles: cold deep
 space, a single warm light, a name set big and wide. Calm, expensive, precise.
-Daylight mode is the same world seen from orbit at noon: pale cool sky, ink
-type, the same warm light.
+Light mode is the same journey flown low over a daylight sea: islands
+where the planets were, birds lifting off the peaks, soft clouds, one warm
+sun (stylized cinematic, not photoreal).
 
 Reference feel: Apple launch pacing and restraint; Active Theory's cinematic
 WebGL that still reads as a product; the classic teal-and-orange film grade.
@@ -176,8 +177,17 @@ never bounce/elastic. Durations: 160 (hover), 280 (state), 520 (reveal),
   gimmicks: Archivo wide 600, ink at low alpha, no float animation.
 - **Grain:** global CSS `.grain` (already mounted in layout). Vignette via
   `.vignette` over the canvas. No EffectComposer unless measured on high.
-- **Daylight:** pale sky haze, faint warm sun side, stars mostly hidden,
-  planets lit the same way, all text in ink.
+- **Light mode = the sea world** (`components/r3f/sea/*`): a levelled camera
+  (fixed horizon ~35% down), a sky dome with a warm sun glow and painted
+  clouds, a painterly ocean (sky reflection, sun glints, foam and shallows
+  around islands), one sculpted island per station solved from a screen
+  shot (same compositions as the planets), gull flocks circling each peak
+  that lift off when the island is hovered. Colours in `palette.sea`.
+  Mobile mirrors it with SVG/CSS (`components/mobile/SeaBackground.tsx`,
+  `SeaIslands.tsx`).
+- **Intro video:** plays in place of the hero portrait (transparent cutout),
+  its audio level warms the hero planet's ember limb / the sea sun and an
+  ember wave under the speaker. No separate player box.
 
 ## 8. Station content (copy) — honest, specific
 
