@@ -7,7 +7,7 @@
 // SeaBackground, with SeaIslands standing in for the planets).
 //
 // Three compositions from one markup:
-// - phones (<640px): one column, 44px left gutter for the rail.
+// - phones (<640px): one column, even gutters; a Set course dock at the bottom.
 // - tablets and narrow windows (640-1023px): the column widens to 880px and
 //   centres; the hero planet flattens so its ember rim stays above the copy.
 // - >=1024px (iPad landscape, reduced-motion desktops): stations split into
@@ -19,7 +19,7 @@
 // - StarfieldBackground owns the parallax: one passive rAF-throttled scroll
 //   listener writing transforms on its four moving layers (fed by `scrollRef`).
 // - One IntersectionObserver tracks the station under the centre line for the
-//   rail; one one-shot observer plays reveals once and then lets go; one more
+//   Set course dock; one one-shot observer plays reveals once and then lets go; one more
 //   warms the contact drawer chunk when Contact comes into view.
 // - Reveals only hide content after JS sets `data-ms-ready`; reduced motion
 //   never sets it, so content is visible by default. Focus reveals at once.
@@ -57,6 +57,8 @@ import { SeaBackground } from '@/components/mobile/SeaBackground'
 import { AboutIsle, Coast, HeroIsleBack, HeroIsleFront, SeaIslandStyles } from '@/components/mobile/SeaIslands'
 import { FeaturedAchievement } from '@/components/featured/FeaturedAchievement'
 import { StarMap } from '@/components/projects/starmap/StarMap'
+import { CourseDock, NavComputer } from '@/components/nav/NavComputer'
+import { STATIONS as JOURNEY } from '@/lib/tunnel'
 import { prefetchDrawer } from '@/components/ui/drawerPrefetch'
 import { projects, experience, skills } from '@/data/projects'
 import type { Project } from '@/data/projects'
@@ -64,7 +66,6 @@ import { testimonials } from '@/data/testimonials'
 import { openSourceStats } from '@/data/open-source'
 
 // ── content ──────────────────────────────────────────────────────────────────
-const STATIONS = ['Intro', 'About', 'Skills', 'Work', 'Open source', 'Experience', 'Contact'] as const
 const STATION_IDS = ['intro', 'about', 'skills', 'work', 'open-source', 'experience', 'contact'] as const
 const WORK = 3
 const CONTACT = 6
@@ -187,6 +188,7 @@ export default function MobileSpace() {
   }, [])
 
   const closeSheet = useCallback(() => setOpenProject(null), [])
+  const [course, setCourse] = useState(false)
 
   return (
     <>
@@ -198,7 +200,18 @@ export default function MobileSpace() {
       <SeaBackground />
       <SeaIslandStyles />
       <TopBar onHome={() => goTo(0, true)} />
-      <StationRail active={active} onGo={(i) => goTo(i, true)} />
+      {/* the flight plan's phone form: a dock that opens the nav computer */}
+      <div className="ms-dock" data-ms-inert>
+        <CourseDock station={JOURNEY[active]} onOpen={() => setCourse(true)} />
+      </div>
+      <NavComputer
+        open={course}
+        onClose={() => setCourse(false)}
+        progress={JOURNEY[active].t}
+        activeId={JOURNEY[active].id}
+        showEta={false}
+        onGo={(id) => goTo(JOURNEY.findIndex((st) => st.id === id), true)}
+      />
 
       <div ref={scrollRef} className="mob-scroll" data-lenis-prevent data-ms-inert>
         <main>
@@ -271,7 +284,7 @@ export default function MobileSpace() {
         .ms-st {
           --pad-t: 92px;
           --pad-b: 76px;
-          --pad-l: calc(44px + env(safe-area-inset-left));
+          --pad-l: max(20px, env(safe-area-inset-left));
           --pad-r: max(20px, env(safe-area-inset-right));
           position: relative;
           min-height: 100svh;
@@ -326,7 +339,7 @@ export default function MobileSpace() {
           .ms-st {
             --pad-t: 104px;
             --pad-b: 88px;
-            --pad-l: calc(72px + env(safe-area-inset-left));
+            --pad-l: max(40px, env(safe-area-inset-left));
             --pad-r: max(40px, env(safe-area-inset-right));
           }
           .ms-inner { max-width: 880px; margin-inline: auto; }
@@ -436,95 +449,13 @@ export default function MobileSpace() {
         }
         .ms-wordmark:active { transform: scale(0.97); transition-duration: 80ms; }
 
-        /* ── rail: a labelled progress spine ─────────────────────────────── */
-        .ms-rail {
-          --item-h: 44px;
+        /* ── set course dock (components/nav/NavComputer) ─────────────────── */
+        .ms-dock {
           position: fixed;
-          left: env(safe-area-inset-left);
-          top: 50%;
+          left: 50%;
+          bottom: max(16px, env(safe-area-inset-bottom));
           z-index: var(--z-chrome);
-          width: 44px;
-          transform: translateY(-50%);
-        }
-        .ms-rail ol { position: relative; list-style: none; margin: 0; padding: 0; }
-        .ms-rail ol::before {
-          content: '';
-          position: absolute;
-          left: 12px;
-          top: calc(var(--item-h) / 2);
-          bottom: calc(var(--item-h) / 2);
-          width: 1px;
-          background: rgb(var(--ink) / 0.16);
-        }
-        .ms-rail-btn {
-          display: flex;
-          align-items: center;
-          width: 44px;
-          height: var(--item-h);
-          padding: 0 0 0 12px;
-          border: 0;
-          background: none;
-          cursor: pointer;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .ms-rail-btn:focus-visible { outline-offset: -2px; }
-        .ms-rail-tick {
-          display: block;
-          width: 7px;
-          height: 1px;
-          background: rgb(var(--ink-3));
-          transform-origin: left center;
-          transition: transform var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out);
-        }
-        .ms-rail-btn:active .ms-rail-tick { background: rgb(var(--ink)); transform: scaleX(1.4); transition-duration: 80ms; }
-        .ms-rail-btn[aria-current='step'] .ms-rail-tick {
-          background: rgb(var(--accent));
-          transform: scaleX(1.72) scaleY(2);
-        }
-        @media (hover: hover) and (pointer: fine) {
-          .ms-rail-btn:hover .ms-rail-tick { background: rgb(var(--ink)); }
-          .ms-rail-btn[aria-current='step']:hover .ms-rail-tick { background: rgb(var(--accent)); }
-        }
-        .ms-rail-label {
-          position: absolute;
-          left: 25px;
-          top: 0;
-          width: 16px;
-          height: var(--item-h);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          pointer-events: none;
-          transform: translate3d(0, calc(var(--active, 0) * var(--item-h)), 0);
-          transition: transform var(--dur-3) var(--ease-out);
-        }
-        .ms-rail-label span {
-          writing-mode: vertical-rl;
-          transform: rotate(180deg);
-          white-space: nowrap;
-          font-family: var(--font-body), system-ui, sans-serif;
-          font-size: 13px;
-          font-weight: 500;
-          letter-spacing: 0.01em;
-          color: rgb(var(--ink));
-          animation: ms-fade var(--dur-2) var(--ease-out) both;
-        }
-        @media (max-height: 520px) {
-          .ms-rail { --item-h: 32px; top: calc(50% + 22px); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .ms-rail-label { transition: none; }
-          .ms-rail-label span { animation: none; }
-          .ms-rail-tick { transition: none; }
-        }
-        /* Windows High Contrast: backgrounds are dropped, so paint the spine
-           and ticks in system colours and mark the current station. */
-        @media (forced-colors: active) {
-          .ms-rail ol::before { forced-color-adjust: none; background: CanvasText; }
-          .ms-rail-tick { forced-color-adjust: none; background: CanvasText; }
-          .ms-rail-btn[aria-current='step'] .ms-rail-tick { background: Highlight; }
-          .ms-rail-label span { forced-color-adjust: none; color: CanvasText; }
+          translate: -50% 0;
         }
 
         /* ── 0 · intro ───────────────────────────────────────────────────── */
@@ -1311,31 +1242,6 @@ function TopBar({ onHome }: { onHome: () => void }) {
         <FaCircleHalfStroke aria-hidden />
       </button>
     </header>
-  )
-}
-
-function StationRail({ active, onGo }: { active: number; onGo: (i: number) => void }) {
-  return (
-    <nav className="ms-rail" aria-label="Sections" style={{ ['--active' as string]: active } as CSSProperties} data-ms-inert>
-      <ol>
-        {STATIONS.map((label, i) => (
-          <li key={label}>
-            <button
-              type="button"
-              className="ms-rail-btn"
-              aria-label={label}
-              aria-current={i === active ? 'step' : undefined}
-              onClick={() => onGo(i)}
-            >
-              <span className="ms-rail-tick" />
-            </button>
-          </li>
-        ))}
-      </ol>
-      <span className="ms-rail-label" aria-hidden="true">
-        <span key={active}>{STATIONS[active]}</span>
-      </span>
-    </nav>
   )
 }
 

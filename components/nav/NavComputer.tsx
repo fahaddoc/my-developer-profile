@@ -34,13 +34,15 @@ function follow(href: string, download = false) {
   a.click()
 }
 
-export function NavComputer({ open, onClose, progress, activeId, onGo, onPlayIntro, stations = STATIONS }: {
+export function NavComputer({ open, onClose, progress, activeId, onGo, onPlayIntro, showEta = true, stations = STATIONS }: {
   open: boolean
   onClose: () => void
   progress: number
   activeId: string
   onGo: (id: string) => void
   onPlayIntro?: () => void
+  /** flight times only mean something where the camera flies (the tunnel) */
+  showEta?: boolean
   stations?: StationDef[]
 }) {
   const ref = useRef<HTMLDialogElement>(null)
@@ -68,7 +70,7 @@ export function NavComputer({ open, onClose, progress, activeId, onGo, onPlayInt
       num: st.num,
       title: st.short,
       sub: st.subtitle,
-      meta: st.id === activeId ? 'here' : `${eta(progress, st.t).toFixed(1)}s`,
+      meta: st.id === activeId ? 'here' : showEta ? `${eta(progress, st.t).toFixed(1)}s` : '',
       run: () => onGo(st.id),
     })),
     { id: 'resume', group: 'Actions', title: 'Résumé', sub: 'One page, PDF', meta: '↓', run: () => follow('/Shah_Fahad_Resume.pdf', true) },
@@ -79,7 +81,7 @@ export function NavComputer({ open, onClose, progress, activeId, onGo, onPlayInt
       sub: theme === 'dark' ? 'Light theme' : 'Dark theme', meta: '◐', run: toggle,
     },
     ...(onPlayIntro ? [{ id: 'intro', group: 'Actions' as const, title: 'Play intro', sub: 'The video hello', meta: '▶', run: onPlayIntro }] : []),
-  ], [stations, activeId, progress, onGo, theme, toggle, onPlayIntro])
+  ], [stations, activeId, progress, showEta, onGo, theme, toggle, onPlayIntro])
 
   const query = q.trim().toLowerCase()
   const shown = query ? items.filter((it) => `${it.num ?? ''} ${it.title} ${it.sub}`.toLowerCase().includes(query)) : items

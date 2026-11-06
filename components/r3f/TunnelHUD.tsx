@@ -18,7 +18,7 @@
 // outside its band or while a rail flight is heading somewhere else.
 
 import {
-  memo, useEffect, useRef, useState, useSyncExternalStore,
+  memo, useCallback, useEffect, useRef, useState, useSyncExternalStore,
   type CSSProperties, type FocusEvent, type MouseEvent,
 } from 'react'
 import Link from 'next/link'
@@ -36,6 +36,8 @@ import { lenisInstance } from '@/components/providers/SmoothScroll'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { experience, skills } from '@/data/projects'
 import { StarMap } from '@/components/projects/starmap/StarMap'
+import { FlightPlan } from '@/components/nav/FlightPlan'
+import { NavComputer } from '@/components/nav/NavComputer'
 import { testimonials } from '@/data/testimonials'
 import { AUTHOR, SOCIALS } from '@/lib/seo/site'
 import styles from './TunnelHUD.module.css'
@@ -242,7 +244,7 @@ export function TunnelHUD() {
       <div className={`vignette ${styles.vignetteLayer}`} aria-hidden="true" />
 
       <TopBar />
-      <StationRail activeId={station.id} />
+      <FlightRail activeId={station.id} progress={progress} />
 
       <main id="content" className={styles.main}>
         <StationStage station={station} progress={progress} />
@@ -280,13 +282,7 @@ const TopBar = memo(function TopBar() {
       <div className={styles.cluster}>
         <button
           type="button"
-          onClick={() => {
-            if (sound) { setSound(false); return }
-            // The intro plays in the hero portrait; from any other station,
-            // fly back to the hero first and start it on arrival.
-            if (nearestStation(currentProgress()).id === FIRST.id) setSound(true)
-            else scrollToStation(FIRST.id, { then: () => setSound(true) })
-          }}
+          onClick={() => { if (sound) setSound(false); else startIntro(setSound) }}
           className={styles.chromeBtn}
         >
           {sound ? <FaStop size={10} aria-hidden /> : <FaPlay size={10} aria-hidden />}
@@ -307,29 +303,47 @@ const TopBar = memo(function TopBar() {
   )
 })
 
-const StationRail = memo(function StationRail({ activeId }: { activeId: string }) {
+/** The intro plays in the hero portrait; from any other station, fly back to
+    the hero first and start it on arrival. */
+function startIntro(setSound: (v: boolean) => void) {
+  if (nearestStation(currentProgress()).id === FIRST.id) setSound(true)
+  else scrollToStation(FIRST.id, { then: () => setSound(true) })
+}
+
+// The station rail as a flight plan, plus the ⌘K / Ctrl K nav computer.
+const FlightRail = memo(function FlightRail({ activeId, progress }: { activeId: string; progress: number }) {
+  const [, setSound] = useSound()
+  const [course, setCourse] = useState(false)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'k') return
+      if (document.documentElement.hasAttribute('data-drawer-open')) return
+      e.preventDefault()
+      setCourse((v) => !v)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const go = useCallback((id: string, keyboard: boolean) => scrollToStation(id, { focus: keyboard }), [])
+  const goFromComputer = useCallback((id: string) => scrollToStation(id, { focus: true }), [])
+  const playIntro = useCallback(() => startIntro(setSound), [setSound])
+
   return (
-    <nav aria-label="Stations" className={styles.rail}>
-      <ol className={styles.railList}>
-        {STATIONS.map((s) => {
-          const active = s.id === activeId
-          return (
-            <li key={s.id}>
-              <button
-                type="button"
-                // detail === 0: activated from the keyboard, so move focus too
-                onClick={(e) => scrollToStation(s.id, { focus: e.detail === 0 })}
-                aria-current={active ? 'step' : undefined}
-                className={styles.railBtn}
-              >
-                <span className={styles.tick} aria-hidden="true" />
-                {s.short}
-              </button>
-            </li>
-          )
-        })}
-      </ol>
-    </nav>
+    <>
+      <div className={styles.rail}>
+        <FlightPlan activeId={activeId} progress={progress} onGo={go} onSetCourse={() => setCourse(true)} />
+      </div>
+      <NavComputer
+        open={course}
+        onClose={() => setCourse(false)}
+        progress={progress}
+        activeId={activeId}
+        onGo={goFromComputer}
+        onPlayIntro={playIntro}
+      />
+    </>
   )
 })
 
