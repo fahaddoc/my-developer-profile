@@ -9,6 +9,10 @@
    Global .vignette (globals.css) sits above the canvas, below every HUD layer. */
 .vignetteLayer { z-index: var(--z-content); }
 
+/* The HUD stage is the page's <main>; static so its fixed children keep
+   their own z-index against the canvas and vignette. */
+.main { position: static; z-index: auto; }
+
 /* ─── Top bar ───────────────────────────────────────────────────────────── */
 .topbar {
   position: fixed;
@@ -36,25 +40,8 @@
   color: rgb(var(--ink));
   text-shadow: var(--body-shadow);
 }
-.wordmark:hover { color: rgb(var(--ink)); }
-
-.progress {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: clamp(140px, 14vw, 220px);
-  height: 2px;
-  border-radius: 2px;
-  overflow: hidden;
-  transform: translate(-50%, -50%);
-  background: rgb(var(--line));
-}
-.progressFill {
-  position: absolute;
-  inset: 0;
-  background: rgb(var(--accent));
-  transform-origin: 0 50%;
-  transform: scaleX(0);
+@media (hover: hover) and (pointer: fine) {
+  .wordmark:hover { color: rgb(var(--ink)); }
 }
 
 .cluster {
@@ -88,11 +75,15 @@
     background-color var(--dur-1) var(--ease-out);
 }
 .chromeBtn svg { flex: none; }
-.chromeBtn:hover { color: rgb(var(--ink)); background-color: rgb(var(--ink) / 0.07); }
-.chromeBtn:active { background-color: rgb(var(--ink) / 0.1); }
+@media (hover: hover) and (pointer: fine) {
+  .chromeBtn:hover { color: rgb(var(--ink)); background-color: rgb(var(--ink) / 0.07); }
+}
+.chromeBtn:active { background-color: rgb(var(--ink) / 0.1); transform: scale(0.97); transition-duration: 80ms; }
 .chromeBtn:focus-visible { border-radius: 999px; outline-offset: 2px; }
 .chromeQuiet { color: rgb(var(--ink-3)); }
-.chromeQuiet:hover { color: rgb(var(--ink)); }
+@media (hover: hover) and (pointer: fine) {
+  .chromeQuiet:hover { color: rgb(var(--ink)); }
+}
 
 /* ─── Station rail ──────────────────────────────────────────────────────── */
 .rail {
@@ -157,9 +148,13 @@
     transform var(--dur-2) var(--ease-out),
     background-color var(--dur-2) var(--ease-out);
 }
-.railBtn:hover,
+@media (hover: hover) and (pointer: fine) {
+  .railBtn:hover { color: rgb(var(--ink)); }
+}
 .railBtn:focus-visible { color: rgb(var(--ink)); }
-.railBtn:hover .tick::before { background: rgb(var(--ink-2)); transform: scale(0.75, 0.5); }
+@media (hover: hover) and (pointer: fine) {
+  .railBtn:hover .tick::before { background: rgb(var(--ink-2)); transform: scale(0.75, 0.5); }
+}
 .railBtn[aria-current='step'] { color: rgb(var(--ink)); }
 .railBtn[aria-current='step'] .tick::before { background: rgb(var(--accent)); transform: none; }
 
@@ -183,8 +178,20 @@
     color var(--dur-1) var(--ease-out),
     background-color var(--dur-1) var(--ease-out);
 }
-.socialLink:hover { color: rgb(var(--ink)); background-color: rgb(var(--ink) / 0.07); }
+@media (hover: hover) and (pointer: fine) {
+  .socialLink:hover { color: rgb(var(--ink)); background-color: rgb(var(--ink) / 0.07); }
+}
 .socialLink:focus-visible { border-radius: 999px; }
+.chromeBtn,
+.socialLink {
+  transition:
+    color var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+.railBtn { transition: color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out); }
+.railBtn:active,
+.socialLink:active { transform: scale(0.97); transition-duration: 80ms; }
 
 .scrollHint {
   position: fixed;
@@ -215,7 +222,7 @@
   inset: 0;
   background: rgb(var(--accent));
   transform: translateY(-100%);
-  animation: scrollCue 2.2s var(--ease-in-out) infinite;
+  animation: scrollCue 2.2s var(--ease-in-out) 1.2s 3 both;
 }
 .scrollHint[data-visible='false'] .scrollLine::after { animation: none; }
 @keyframes scrollCue {
@@ -239,8 +246,9 @@
   grid-area: 1 / 1;
   align-self: center;
   color: rgb(var(--ink));
-  transition: opacity 200ms linear;
 }
+/* focused programmatically after a rail jump; the region itself needs no ring */
+.panel:focus { outline: none; }
 .panel[data-leaving='true'] {
   opacity: 0 !important;
   transition: opacity var(--dur-2) var(--ease-out);
@@ -402,7 +410,9 @@
     border-color var(--dur-1) var(--ease-out),
     transform var(--dur-1) var(--ease-out);
 }
-.iconBtn:hover { background: rgb(var(--ink) / 0.06); border-color: rgb(var(--ink) / 0.42); }
+@media (hover: hover) and (pointer: fine) {
+  .iconBtn:hover { background: rgb(var(--ink) / 0.06); border-color: rgb(var(--ink) / 0.42); }
+}
 .iconBtn:active { transform: translateY(1px); }
 .iconBtn:focus-visible { border-radius: 999px; }
 .iconBtnQuiet {
@@ -412,7 +422,9 @@
   background: transparent;
   color: rgb(var(--ink-3));
 }
-.iconBtnQuiet:hover { color: rgb(var(--ink)); border-color: transparent; background: rgb(var(--ink) / 0.07); }
+@media (hover: hover) and (pointer: fine) {
+  .iconBtnQuiet:hover { color: rgb(var(--ink)); border-color: transparent; background: rgb(var(--ink) / 0.07); }
+}
 
 /* Crossfading stack: every item shares one grid cell, so the block is as tall
    as its tallest item and nothing jumps when the item changes. */
@@ -422,18 +434,22 @@
   opacity: 0;
   visibility: hidden;
   transform: translateY(8px);
+  filter: blur(2px);
   transition:
-    opacity var(--dur-2) var(--ease-out),
-    transform 0s linear var(--dur-2),
-    visibility 0s linear var(--dur-2);
+    opacity 160ms var(--ease-out),
+    filter 160ms var(--ease-out),
+    transform 0s linear 160ms,
+    visibility 0s linear 160ms;
 }
 .stackItem[data-active='true'] {
   opacity: 1;
   visibility: visible;
   transform: none;
+  filter: none;
   transition:
-    opacity var(--dur-3) var(--ease-out) 80ms,
-    transform var(--dur-3) var(--ease-out-expo) 80ms,
+    opacity var(--dur-2) var(--ease-out) 120ms,
+    filter var(--dur-2) var(--ease-out) 120ms,
+    transform var(--dur-3) var(--ease-out-expo) 120ms,
     visibility 0s;
 }
 
@@ -500,7 +516,9 @@
   background: rgb(var(--ink-3) / 0.45);
   transition: background-color var(--dur-1) var(--ease-out);
 }
-.dot:hover .dotTrack { background: rgb(var(--ink-2)); }
+@media (hover: hover) and (pointer: fine) {
+  .dot:hover .dotTrack { background: rgb(var(--ink-2)); }
+}
 .dot[aria-current='true'] .dotTrack { background: rgb(var(--ink) / 0.2); }
 .dotFill {
   position: absolute;
@@ -509,10 +527,12 @@
   transform-origin: 0 50%;
   transform: scaleX(0);
 }
-.dot[aria-current='true'] .dotFill { transform: scaleX(1); }
-.dot[aria-current='true'] .dotFill[data-running='true'] {
+.dot[aria-current='true'] .dotFill {
   animation: dotFill var(--autoplay, 7000ms) linear both;
+  animation-play-state: paused;
 }
+.dot[aria-current='true'] .dotFill[data-running='true'] { animation-play-state: running; }
+.dot[aria-current='true'] .dotFill[data-done='true'] { animation: none; transform: scaleX(1); }
 @keyframes dotFill {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
@@ -543,7 +563,6 @@
   position: fixed;
   z-index: var(--z-hud);
   pointer-events: none;
-  transition: opacity 240ms linear;
 }
 
 /* Work: the showcase (ProjectShowcase, owned elsewhere) starts on the same
@@ -557,27 +576,11 @@
   transform: translateY(-50%);
 }
 
-/* About: a closing caption in the bottom-right corner, the one region the
-   station's planet and its 3D label never use at 1280–1440. */
-.aboutSide {
-  right: 4vw;
-  bottom: clamp(56px, 9vh, 88px);
-  width: min(30vw, 400px);
-  text-align: right;
-}
-.statement {
-  margin: 0;
-  font-size: clamp(22px, 1.95vw, 28px);
-  color: rgb(var(--ink));
-  text-shadow: var(--body-shadow);
-}
-
 .journey {
   right: 0;
-  top: 50%;
+  top: 15vh;
   width: min(56vw, 780px);
-  height: min(74vh, 560px);
-  transform: translateY(-50%);
+  height: 46vh;
 }
 .journey::before { content: none; }
 .journeyPath {
@@ -653,6 +656,7 @@
   transform: translateY(-50%);
 }
 .orbit::before { content: none; }
+.orbitList { list-style: none; margin: 0; padding: 0; }
 .orbitNode {
   position: absolute;
   width: 0;
@@ -686,8 +690,12 @@
 }
 :global(:root[data-theme='light']) .orbitChip { box-shadow: 0 12px 26px -16px rgb(var(--ink) / 0.3); }
 .orbitLabel { text-shadow: var(--body-shadow); transition: color var(--dur-1) var(--ease-out); }
-.orbitLink:hover .orbitChip { border-color: rgb(var(--accent) / 0.7); color: rgb(var(--accent-text)); transform: translateY(-2px); }
-.orbitLink:hover .orbitLabel { color: rgb(var(--ink)); }
+@media (hover: hover) and (pointer: fine) {
+  .orbitLink:hover .orbitChip { border-color: rgb(var(--accent) / 0.7); color: rgb(var(--accent-text)); transform: translateY(-2px); }
+}
+@media (hover: hover) and (pointer: fine) {
+  .orbitLink:hover .orbitLabel { color: rgb(var(--ink)); }
+}
 .orbitLink:focus-visible { outline: none; }
 .orbitLink:focus-visible .orbitChip { outline: 2px solid rgb(var(--accent-text)); outline-offset: 3px; }
 
@@ -700,7 +708,6 @@
   /* tied to the viewport so it never reaches the hero text (1024–1280px)
      and always clears the intro player docked top-right (ends at 346px) */
   width: min(30vw, 440px, calc((100vh - 352px) * 0.75));
-  transition: opacity 200ms linear;
 }
 .portrait {
   position: relative;
@@ -725,10 +732,12 @@
   background: rgb(var(--surface) / 0.9);
   pointer-events: none;
 }
-.portrait:hover .portraitChip,
+@media (hover: hover) and (pointer: fine) {
+  .portrait:hover .portraitChip,
 .portrait:focus-visible .portraitChip {
   background: rgb(var(--surface));
   border-color: rgb(var(--ink) / 0.42);
+}
 }
 
 /* ─── Intro mini player ─────────────────────────────────────────────────── */
@@ -775,6 +784,52 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* ─── Finale: the end of the journey, over the Earth's horizon ───────── */
+.finale {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-hud);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px 14vh;
+  text-align: center;
+  pointer-events: none;
+}
+.finale::before { inset: 16% 20% 26% 20%; }
+.finaleName {
+  margin: 0 0 18px;
+  font-size: clamp(56px, 7vw, 96px);
+  color: rgb(var(--ink));
+}
+.finaleLead { margin: 0 0 22px; max-width: 40ch; font-size: 18px; }
+.finaleEmail {
+  display: inline-block;
+  margin-bottom: 20px;
+  font-size: clamp(22px, 2.2vw, 30px);
+  color: rgb(var(--ink));
+}
+.finaleLinks {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 28px;
+  color: rgb(var(--ink-2));
+}
+.finaleLinks a { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ─── Forced colours: ticks and fills are backgrounds, so restate them ── */
+@media (forced-colors: active) {
+  .tick::before,
+  .railList::before { background: CanvasText; }
+  .railBtn[aria-current='step'] .tick::before { background: Highlight; }
+  .railBtn[aria-current='step'] { text-decoration: underline; }
+  .dotTrack { background: GrayText; }
+  .dotFill { background: Highlight; }
+  .scrollLine::after { background: CanvasText; }
 }
 
 /* ─── Reduced motion: opacity only, no travel, no loops ─────────────────── */

@@ -1,14 +1,14 @@
 'use client'
 
 // Shared scroll rails for the tunnel pages:
-//   • TunnelAnchors  — invisible <div id="…"> targets at each station's t:
-//                      hash links and the no-Lenis fallback of scrollToStation.
-//   • useTunnelLoop  — rAF polling that snaps back to the start when the
-//                      user wheels down past the bottom of the page.
-// Used by both `/` (TunnelMode) and `/tunnel` (preview) so nav + loop
-// behave identically on both routes.
+//   • TunnelAnchors — invisible <div id="…"> targets at each station's t:
+//                     hash links and the no-Lenis fallback of scrollToStation.
+// Used by both `/` (TunnelMode) and `/tunnel` (preview).
+//
+// There is deliberately no automatic loop back to the start: on a trackpad
+// the momentum tail reached the bottom and teleported visitors to the intro.
+// The HUD finale offers "Back to the start" instead.
 
-import { useEffect } from 'react'
 import { STATIONS } from '@/lib/tunnel'
 
 // Must match <main height:500vh> (AppShell TunnelMode, app/tunnel/page.tsx):
@@ -40,44 +40,4 @@ export function TunnelAnchors() {
       ))}
     </>
   )
-}
-
-export function useTunnelLoop() {
-  useEffect(() => {
-    let cooldown      = 0
-    let lastWheelDown = 0
-    const COOLDOWN_MS = 700
-    const RECENT_MS   = 300
-
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY > 0) lastWheelDown = performance.now()
-    }
-    window.addEventListener('wheel', onWheel, { passive: true })
-
-    let rafId = 0
-    const tick = () => {
-      const lenis = (window as unknown as {
-        __lenis?: { scroll: number; limit: number; scrollTo: (y: number, opts?: { immediate?: boolean; force?: boolean; lock?: boolean }) => void }
-      }).__lenis
-
-      if (lenis && lenis.limit > 0) {
-        const now      = performance.now()
-        const atBottom = lenis.scroll >= lenis.limit - 1
-        const wheeled  = now - lastWheelDown < RECENT_MS
-        const ready    = now - cooldown > COOLDOWN_MS
-        if (atBottom && wheeled && ready) {
-          cooldown      = now
-          lastWheelDown = 0
-          lenis.scrollTo(0, { immediate: true, force: true, lock: false })
-        }
-      }
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
-
-    return () => {
-      window.removeEventListener('wheel', onWheel)
-      cancelAnimationFrame(rafId)
-    }
-  }, [])
 }

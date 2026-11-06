@@ -5,10 +5,9 @@
 
 import { TunnelScene } from '@/components/r3f/TunnelScene'
 import { TunnelHUD }   from '@/components/r3f/TunnelHUD'
-import { TunnelAnchors, useTunnelLoop } from '@/components/r3f/TunnelScrollRails'
+import { TunnelAnchors } from '@/components/r3f/TunnelScrollRails'
 
 export default function TunnelPreviewPage() {
-  useTunnelLoop()
 
   return (
     <>

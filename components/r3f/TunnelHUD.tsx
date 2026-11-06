@@ -9,14 +9,21 @@
 // rest fades up after it, a 280ms crossfade on exit). Styles live in
 // TunnelHUD.module.css so hover, focus and reduced motion are real CSS.
 //
-// Perf: useScrollProgress throttles re-renders to 0.003 of progress; the top
-// progress hairline runs on its own rAF + ref (no React state per frame);
-// every side panel returns null outside its band.
+// The right-hand objects (Experience timeline, Contact links, the finale) are
+// placed for the 3D framing in TunnelScene: Experience's planet sits lower
+// right, Contact's Earth rises as a horizon from the bottom edge.
+//
+// Perf: useScrollProgress throttles re-renders to 0.003 of progress; chrome
+// that never depends on progress is memoised; every side object returns null
+// outside its band or while a rail flight is heading somewhere else.
 
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import {
+  memo, useEffect, useRef, useState, useSyncExternalStore,
+  type CSSProperties, type FocusEvent, type MouseEvent,
+} from 'react'
 import Link from 'next/link'
 import {
-  FaArrowLeft, FaArrowRight, FaDownload, FaEnvelope, FaGithub, FaLinkedinIn,
+  FaArrowLeft, FaArrowRight, FaArrowUp, FaDownload, FaEnvelope, FaGithub, FaLinkedinIn,
   FaMoon, FaPause, FaPhone, FaPlay, FaStop, FaSun,
 } from 'react-icons/fa6'
 import type { IconType } from 'react-icons'
@@ -28,7 +35,7 @@ import { FlipPhotoCard } from '@/components/r3f/FlipPhotoCard'
 import { QualityToggleSlot } from '@/components/r3f/QualityToggle'
 import { lenisInstance } from '@/components/providers/SmoothScroll'
 import { useTheme } from '@/components/providers/ThemeProvider'
-import { experience } from '@/data/projects'
+import { experience, skills } from '@/data/projects'
 import { ProjectShowcase } from '@/components/projects/ProjectShowcase'
 import { testimonials } from '@/data/testimonials'
 import { AUTHOR, SOCIALS } from '@/lib/seo/site'
@@ -36,31 +43,67 @@ import styles from './TunnelHUD.module.css'
 
 const T = Object.fromEntries(STATIONS.map((s) => [s.id, s.t])) as Record<string, number>
 const FIRST = STATIONS[0]
+const LAST  = STATIONS[STATIONS.length - 1]
+
+/** Where the finale takes over from Contact (fully in by FINALE_FULL, well
+ *  before the last 2% of scroll). */
+const FINALE_START = 0.945
+const FINALE_FULL  = 0.97
 
 /** Distance from a station. Before the first station (page load sits at
  *  progress 0, the hero at 0.04) counts as arrived, so the first screen is
- *  fully present instead of 57% faded. */
+ *  fully present. Past the last station the distance grows twice as fast, so
+ *  Contact has left before the finale arrives. */
 function stationDist(progress: number, s: { id: string; t: number }) {
-  return s.id === FIRST.id ? Math.max(0, progress - s.t) : Math.abs(progress - s.t)
+  if (s.id === FIRST.id) return Math.max(0, progress - s.t)
+  if (s.id === LAST.id && progress > s.t) return (progress - s.t) * 2
+  return Math.abs(progress - s.t)
 }
-const pad = (n: number) => String(n).padStart(2, '0')
+const pad   = (n: number) => String(n).padStart(2, '0')
 const order = (n: number) => ({ '--i': n }) as CSSProperties
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x))
+const smoothstep = (a: number, b: number, x: number) => {
+  const t = clamp01((x - a) / (b - a))
+  return t * t * (3 - 2 * t)
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Navigation
-// Lenis hijacks native scroll, so scrollIntoView({behavior:'smooth'}) gets
-// cancelled mid-flight. Drive lenis.scrollTo ourselves and land exactly on
-// the station's t (progress = scroll / limit), so the overlay reaches full
-// opacity. While a jump is in flight only the target station may reveal, so
-// the stations we fly past do not flash their content.
+// A flight is Lenis' own tween, so a wheel or trackpad gesture can take over
+// mid-way. While it is heading somewhere, only the destination may reveal:
+// the stations flown past keep their content (and their side objects) hidden.
 // ─────────────────────────────────────────────────────────────────────────────
-let scrollRafId = 0
 let navTarget: string | null = null
+const navListeners = new Set<() => void>()
 
-function scrollToStation(id: string) {
+function setNavTarget(v: string | null) {
+  if (navTarget === v) return
+  navTarget = v
+  navListeners.forEach((cb) => cb())
+}
+function subscribeNav(cb: () => void) {
+  navListeners.add(cb)
+  return () => { navListeners.delete(cb) }
+}
+function useNavTarget() {
+  return useSyncExternalStore(subscribeNav, () => navTarget, () => null)
+}
+/** True while a flight is heading to a station other than `id`. */
+function useHiddenByFlight(id: string) {
+  const target = useNavTarget()
+  return target !== null && target !== id
+}
+
+function focusStation(id: string) {
+  window.setTimeout(() => {
+    const el = document.querySelector<HTMLElement>(`[data-station-panel="${id}"]`)
+    el?.focus({ preventScroll: true })
+  }, 140)
+}
+
+function scrollToStation(id: string, { focus = false } = {}) {
   const t = T[id]
   if (t === undefined) return
-  if (scrollRafId) { cancelAnimationFrame(scrollRafId); scrollRafId = 0 }
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   if (lenisInstance) {
@@ -68,37 +111,72 @@ function scrollToStation(id: string) {
     lenisInstance.resize()
     const limit  = lenisInstance.limit
     const target = t * limit
-    const startY = lenisInstance.scroll
-    const dist   = target - startY
-    if (Math.abs(dist) < 1) return
+    const dist   = Math.abs(target - lenisInstance.scroll)
+    if (dist < 1) { if (focus) focusStation(id); return }
+
     if (reduce) {
-      lenisInstance.scrollTo(target, { immediate: true, lock: false, force: true })
+      lenisInstance.scrollTo(target, { immediate: true, force: true })
+      if (focus) focusStation(id)
       return
     }
 
     // Longer jumps take a little longer, capped so the rail never feels slow.
-    const duration = Math.min(1400, 700 + (Math.abs(dist) / Math.max(1, limit)) * 1200)
-    const startT   = performance.now()
-    const easeOut  = (x: number) => 1 - Math.pow(1 - x, 5) // quint
-    navTarget = id
-
-    const step = (now: number) => {
-      if (!lenisInstance) { scrollRafId = 0; navTarget = null; return }
-      const p = Math.min(1, (now - startT) / duration)
-      lenisInstance.scrollTo(startY + dist * easeOut(p), { immediate: true, lock: false, force: true })
-      if (p < 1) {
-        scrollRafId = requestAnimationFrame(step)
-      } else {
-        scrollRafId = 0
-        navTarget = null
-      }
-    }
-    scrollRafId = requestAnimationFrame(step)
+    const duration = Math.min(1.4, 0.7 + (dist / Math.max(1, limit)) * 1.2)
+    setNavTarget(id)
+    lenisInstance.scrollTo(target, {
+      duration,
+      easing: (x: number) => 1 - Math.pow(1 - x, 5), // quint
+      force: true,
+      onComplete: () => {
+        setNavTarget(null)
+        if (focus) focusStation(id)
+      },
+    })
     return
   }
 
   const el = document.getElementById(id)
   if (el) window.scrollTo({ top: el.offsetTop, behavior: reduce ? 'auto' : 'smooth' })
+  if (focus) focusStation(id)
+}
+
+function currentProgress() {
+  const w = window as unknown as { __lenis?: { scroll: number; limit: number }; __scrollRef?: { current: number } }
+  if (w.__lenis && w.__lenis.limit > 0) return w.__lenis.scroll / w.__lenis.limit
+  return w.__scrollRef?.current ?? 0
+}
+
+/** User input takes over a flight; PageDown/PageUp/Space step between stations. */
+function useNavigationKeys() {
+  useEffect(() => {
+    const cancel = () => setNavTarget(null)
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
+      if (el && (el.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]'))) return
+      // Space on a button/link activates it; only handle it on the page itself.
+      const onControl = !!el && el !== document.body && !!el.closest('button, a, [role="button"]')
+
+      let dir = 0
+      if (e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey && !onControl)) dir = 1
+      else if (e.key === 'PageUp' || (e.key === ' ' && e.shiftKey && !onControl)) dir = -1
+      if (!dir) return
+
+      e.preventDefault()
+      const now  = nearestStation(currentProgress())
+      const idx  = STATIONS.findIndex((s) => s.id === (navTarget ?? now.id))
+      const next = STATIONS[Math.max(0, Math.min(STATIONS.length - 1, idx + dir))]
+      if (next) scrollToStation(next.id, { focus: true })
+    }
+    window.addEventListener('wheel', cancel, { passive: true })
+    window.addEventListener('touchstart', cancel, { passive: true })
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('wheel', cancel)
+      window.removeEventListener('touchstart', cancel)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -137,10 +215,13 @@ function useReducedMotion() {
   return reduced
 }
 
-/** Linear fade band used by the right-hand station objects. */
+/** Fade band for the right-hand station objects. Contact leaves early on the
+ *  way out, so the finale has the frame to itself. */
 function band(progress: number, t: number, half = 0.075, ramp = 0.035) {
   const dist = Math.abs(progress - t)
-  return { dist, opacity: Math.max(0, Math.min(1, (half - dist) / ramp)) }
+  let opacity = clamp01((half - dist) / ramp)
+  if (t === LAST.t && progress > t) opacity = Math.min(opacity, clamp01((FINALE_START - progress) / 0.03))
+  return { dist, opacity: smoothstep(0, 1, opacity) }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,6 +230,7 @@ function band(progress: number, t: number, half = 0.075, ramp = 0.035) {
 export function TunnelHUD() {
   const progress = useScrollProgress()
   const station  = nearestStation(progress)
+  useNavigationKeys()
 
   return (
     <>
@@ -159,13 +241,15 @@ export function TunnelHUD() {
       <StationRail activeId={station.id} />
       <IntroMiniPlayer />
 
-      <StationStage station={station} progress={progress} />
+      <main id="content" className={styles.main}>
+        <StationStage station={station} progress={progress} />
 
-      <HeroPortrait progress={progress} />
-      <AboutStatement progress={progress} />
-      <ProjectsGallery progress={progress} />
-      <ExperienceJourney progress={progress} />
-      <ContactOrbit progress={progress} />
+        <HeroPortrait progress={progress} />
+        <ProjectsGallery progress={progress} />
+        <ExperienceJourney progress={progress} />
+        <ContactOrbit progress={progress} />
+        <Finale progress={progress} />
+      </main>
 
       <ScrollHint visible={progress < 0.03} />
       <Socials />
@@ -176,21 +260,19 @@ export function TunnelHUD() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Chrome
 // ─────────────────────────────────────────────────────────────────────────────
-function TopBar() {
+const TopBar = memo(function TopBar() {
   const [sound, setSound] = useSound()
   const { theme, toggle } = useTheme()
   const isDark = theme === 'dark'
 
   const goHome = (e: MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault()
-    scrollToStation('hero')
+    scrollToStation('hero', { focus: e.detail === 0 })
   }
 
   return (
     <header className={styles.topbar}>
       <a href="#hero" onClick={goHome} className={styles.wordmark}>Shah Fahad</a>
-
-      <ProgressLine />
 
       <div className={styles.cluster}>
         <button type="button" onClick={() => setSound(!sound)} className={styles.chromeBtn}>
@@ -210,40 +292,9 @@ function TopBar() {
       </div>
     </header>
   )
-}
+})
 
-/** Hairline journey progress. Follows scroll continuously through a ref, so it
- *  never re-renders React. */
-function ProgressLine() {
-  const fillRef = useRef<HTMLSpanElement>(null)
-  useEffect(() => {
-    let raf  = 0
-    let last = -1
-    const tick = () => {
-      const w = window as unknown as {
-        __scrollRef?: { current: number }
-        __lenis?:     { scroll: number; limit: number }
-      }
-      let cur = w.__scrollRef?.current ?? 0
-      if (w.__lenis && w.__lenis.limit > 0) cur = w.__lenis.scroll / w.__lenis.limit
-      cur = Math.min(1, Math.max(0, cur))
-      if (fillRef.current && Math.abs(cur - last) > 0.0005) {
-        last = cur
-        fillRef.current.style.transform = `scaleX(${cur.toFixed(4)})`
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [])
-  return (
-    <span className={styles.progress} aria-hidden="true">
-      <span ref={fillRef} className={styles.progressFill} />
-    </span>
-  )
-}
-
-function StationRail({ activeId }: { activeId: string }) {
+const StationRail = memo(function StationRail({ activeId }: { activeId: string }) {
   return (
     <nav aria-label="Stations" className={styles.rail}>
       <ol className={styles.railList}>
@@ -253,7 +304,8 @@ function StationRail({ activeId }: { activeId: string }) {
             <li key={s.id}>
               <button
                 type="button"
-                onClick={() => scrollToStation(s.id)}
+                // detail === 0: activated from the keyboard, so move focus too
+                onClick={(e) => scrollToStation(s.id, { focus: e.detail === 0 })}
                 aria-current={active ? 'step' : undefined}
                 className={styles.railBtn}
               >
@@ -266,7 +318,7 @@ function StationRail({ activeId }: { activeId: string }) {
       </ol>
     </nav>
   )
-}
+})
 
 function ScrollHint({ visible }: { visible: boolean }) {
   return (
@@ -277,7 +329,7 @@ function ScrollHint({ visible }: { visible: boolean }) {
   )
 }
 
-function Socials() {
+const Socials = memo(function Socials() {
   return (
     <nav aria-label="Profiles" className={styles.socials}>
       <a href={SOCIALS.github} target="_blank" rel="noopener noreferrer" aria-label="GitHub" className={styles.socialLink}>
@@ -291,7 +343,7 @@ function Socials() {
       </a>
     </nav>
   )
-}
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Station stage — the left overlay. When the nearest station changes, the
@@ -331,43 +383,49 @@ function StationStage({ station, progress }: { station: StationDef; progress: nu
 }
 
 function StationPanel({ station, progress, leaving }: { station: StationDef; progress: number; leaving: boolean }) {
-  const proximity = Math.max(0, 1 - stationDist(progress, station) / 0.10)
-  const opacity   = Math.pow(proximity, 1.1)
+  const proximity = clamp01(1 - stationDist(progress, station) / 0.10)
+  // Near full opacity by the time the title starts to rise.
+  const opacity   = smoothstep(0, 0.6, proximity)
   const armed     = useArmed()
-  const near      = useLatch(proximity, 0.35, 0.2)
-  const isIn      = armed && near && (navTarget === null || navTarget === station.id)
+  const near      = useLatch(proximity, 0.6, 0.35)
+  const elsewhere = useHiddenByFlight(station.id)
+  const isIn      = armed && near && !elsewhere
   const live      = isIn && !leaving
+  const titleId   = `station-${station.id}-title`
 
   return (
     <section
       className={`${styles.panel} ${styles.reveal}`}
       data-in={isIn}
       data-leaving={leaving}
+      data-station-panel={station.id}
+      aria-labelledby={titleId}
+      tabIndex={-1}
       style={{ opacity }}
       inert={!live}
     >
-      <StationCard station={station} active={live} />
+      <StationCard station={station} active={live} titleId={titleId} />
     </section>
   )
 }
 
-function StationCard({ station, active }: { station: StationDef; active: boolean }) {
+function StationCard({ station, active, titleId }: { station: StationDef; active: boolean; titleId: string }) {
   switch (station.id) {
-    case 'hero':       return <HeroCard       station={station} />
-    case 'about':      return <AboutCard      station={station} />
-    case 'skills':     return <SkillsCard     station={station} />
-    case 'opensource': return <OpenSourceCard station={station} active={active} />
-    case 'experience': return <ExperienceCard station={station} />
-    case 'contact':    return <ContactCard    station={station} />
+    case 'hero':       return <HeroCard       station={station} titleId={titleId} />
+    case 'about':      return <AboutCard      station={station} titleId={titleId} />
+    case 'skills':     return <SkillsCard     station={station} titleId={titleId} />
+    case 'opensource': return <OpenSourceCard station={station} titleId={titleId} active={active} />
+    case 'experience': return <ExperienceCard station={station} titleId={titleId} />
+    case 'contact':    return <ContactCard    station={station} titleId={titleId} />
     default:           return null
   }
 }
 
 /** Station title whose lines ("\n" in the copy) each rise out of a mask. */
-function MaskedTitle({ text, as: Tag = 'h2', className }: { text: string; as?: 'h1' | 'h2'; className: string }) {
+function MaskedTitle({ text, as: Tag = 'h2', className, id }: { text: string; as?: 'h1' | 'h2'; className: string; id?: string }) {
   const lines = text.split('\n')
   return (
-    <Tag className={className}>
+    <Tag className={className} id={id}>
       {lines.map((line, i) => (
         <span key={i} className={styles.line}>
           <span className={styles.lineInner} style={order(i)}>
@@ -382,17 +440,19 @@ function MaskedTitle({ text, as: Tag = 'h2', className }: { text: string; as?: '
 // ─────────────────────────────────────────────────────────────────────────────
 // Station cards (left overlay)
 // ─────────────────────────────────────────────────────────────────────────────
-function HeroCard({ station }: { station: StationDef }) {
+interface CardProps { station: StationDef; titleId: string }
+
+function HeroCard({ station, titleId }: CardProps) {
   return (
     <>
-      <MaskedTitle as="h1" text={station.heading} className={`t-display ${styles.heroName}`} />
+      <MaskedTitle as="h1" id={titleId} text={station.heading} className={`t-display ${styles.heroName}`} />
       <p className={`t-lead ${styles.lead} ${styles.heroLead} ${styles.rise}`} style={order(0)}>
         {station.tagline}
       </p>
       <div className={`${styles.actions} ${styles.rise} ${styles.hit}`} style={order(1)}>
         <a
           href="#projects"
-          onClick={(e) => { e.preventDefault(); scrollToStation('projects') }}
+          onClick={(e) => { e.preventDefault(); scrollToStation('projects', { focus: e.detail === 0 }) }}
           className="btn btn--primary"
         >
           See the work <span className="btn-arrow" aria-hidden="true">→</span>
@@ -405,13 +465,13 @@ function HeroCard({ station }: { station: StationDef }) {
   )
 }
 
-function AboutCard({ station }: { station: StationDef }) {
+function AboutCard({ station, titleId }: CardProps) {
   return (
     <>
-      <MaskedTitle text={station.heading} className={`t-title ${styles.title}`} />
+      <MaskedTitle id={titleId} text={station.heading} className={`t-title ${styles.title}`} />
       <p className={`t-lead ${styles.lead} ${styles.rise}`} style={order(0)}>{station.tagline}</p>
       <ul className={`${styles.facts} ${styles.rise}`} style={order(1)}>
-        <li className="t-data">8+ years</li>
+        <li className="t-data"><span className={styles.ember}>8+</span>&nbsp;years</li>
         <li className="t-data">DigitalHire · Kistpay · Miletap</li>
         <li className="t-data">Karachi, PK</li>
       </ul>
@@ -419,12 +479,14 @@ function AboutCard({ station }: { station: StationDef }) {
   )
 }
 
-function SkillsCard({ station }: { station: StationDef }) {
+const SKILL_GROUPS = skills.map((s) => s.label).join(' · ')
+
+function SkillsCard({ station, titleId }: CardProps) {
   return (
     <>
-      <MaskedTitle text={station.heading} className={`t-title ${styles.title}`} />
+      <MaskedTitle id={titleId} text={station.heading} className={`t-title ${styles.title}`} />
       <p className={`t-lead ${styles.lead} ${styles.rise}`} style={order(0)}>{station.tagline}</p>
-      <p className={`t-label ${styles.hint} ${styles.rise}`} style={order(1)}>Select a skill to spin the orbit</p>
+      <p className={`t-label ${styles.hint} ${styles.rise}`} style={order(1)}>{SKILL_GROUPS}</p>
     </>
   )
 }
@@ -433,7 +495,7 @@ function SkillsCard({ station }: { station: StationDef }) {
 const OS_AUTOPLAY_MS = 7000
 const OS_MERGED = openSourceStats().merged
 
-function OpenSourceCard({ station, active }: { station: StationDef; active: boolean }) {
+function OpenSourceCard({ station, titleId, active }: CardProps & { active: boolean }) {
   const [idx, setIdx]               = useState(0)
   const [hoverPaused, setHover]     = useState(false)
   const [userPaused, setUserPaused] = useState(false)
@@ -441,120 +503,133 @@ function OpenSourceCard({ station, active }: { station: StationDef; active: bool
   const n       = contributions.length
   const running = active && !hoverPaused && !userPaused && !reduced && n > 1
 
-  // One timeout per card so a manual pick restarts the clock and the dot fill.
+  // Pausing keeps the time already spent on this card; picking a card resets.
+  const elapsedRef = useRef(0)
+  const startRef   = useRef(0)
+  useEffect(() => { elapsedRef.current = 0 }, [idx])
   useEffect(() => {
     if (!running) return
-    const id = window.setTimeout(() => setIdx((i) => (i + 1) % n), OS_AUTOPLAY_MS)
-    return () => window.clearTimeout(id)
+    startRef.current = performance.now()
+    const remaining = Math.max(0, OS_AUTOPLAY_MS - elapsedRef.current)
+    const id = window.setTimeout(() => setIdx((i) => (i + 1) % n), remaining)
+    return () => {
+      window.clearTimeout(id)
+      elapsedRef.current += performance.now() - startRef.current
+    }
   }, [running, idx, n])
 
+  const leave = (e: FocusEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHover(false)
+  }
   const [before, after = ''] = station.tagline.split('{n}')
 
   return (
     <>
-      <MaskedTitle text={station.heading} className={`t-title ${styles.title}`} />
+      <MaskedTitle id={titleId} text={station.heading} className={`t-title ${styles.title}`} />
       <p className={`t-lead ${styles.lead} ${styles.rise}`} style={order(0)}>
         {before}
         {station.tagline.includes('{n}') && <span className={styles.leadNum}>{OS_MERGED}</span>}
         {after}
       </p>
 
+      {/* Hover or focus anywhere in the card or its controls pauses rotation. */}
       <div
-        className={`${styles.surface} ${styles.prCard} ${styles.rise} ${styles.hit}`}
-        style={order(1)}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         onFocusCapture={() => setHover(true)}
-        onBlurCapture={() => setHover(false)}
+        onBlurCapture={leave}
       >
-        <div className={styles.stack} aria-live={running ? 'off' : 'polite'}>
-          {contributions.map((c, i) => {
-            const on = i === idx
-            return (
-              <article key={c.id} className={styles.stackItem} data-active={on} aria-hidden={!on}>
-                <div className={styles.prHead}>
-                  {c.org === 'Flutter'
-                    ? <FlutterLogo size={22} className={styles.flutter} title="Flutter" />
-                    : <span className={`t-label ${styles.prOrg}`}>{c.org}</span>}
-                  <GitHubLogo size={20} className={styles.gh} />
-                  <span className={`t-label ${styles.merged}`}>
-                    <MergedGlyph size={13} /> Merged
-                  </span>
-                </div>
-                <h3 className={`t-subtitle ${styles.prTitle}`}>{c.prTitle}</h3>
-                <p className={`t-data ${styles.prMeta}`}>
-                  {c.repo} · #{c.prNumber} · {c.displayDate} ·{' '}
-                  <span className={styles.add}>+{c.additions}</span>/<span className={styles.del}>−{c.deletions}</span>
-                </p>
-                <div className={styles.actions}>
-                  <a href={c.prUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary">
-                    View pull request <span className="btn-arrow" aria-hidden="true">↗</span>
-                  </a>
-                  <Link href={`/achievements/${c.id}`} className="btn btn--ghost">
-                    Read case study <span className="btn-arrow" aria-hidden="true">→</span>
-                  </Link>
-                </div>
-              </article>
-            )
-          })}
-        </div>
-      </div>
-
-      {n > 1 && (
-        <div className={`${styles.carousel} ${styles.rise} ${styles.hit}`} style={order(2)}>
-          <div role="group" aria-label="Merged pull requests" className={styles.dots}>
+        <div className={`${styles.surface} ${styles.prCard} ${styles.rise} ${styles.hit}`} style={order(1)}>
+          <div className={styles.stack} aria-live={running ? 'off' : 'polite'}>
             {contributions.map((c, i) => {
               const on = i === idx
               return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => { setIdx(i); setUserPaused(true) }}
-                  aria-label={`Pull request #${c.prNumber}, ${c.repo}`}
-                  aria-current={on ? 'true' : undefined}
-                  className={styles.dot}
-                >
-                  <span className={styles.dotTrack}>
-                    <span
-                      key={`${idx}-${running}`}
-                      className={styles.dotFill}
-                      data-running={on && running}
-                      style={{ '--autoplay': `${OS_AUTOPLAY_MS}ms` } as CSSProperties}
-                    />
-                  </span>
-                </button>
+                <article key={c.id} className={styles.stackItem} data-active={on} aria-hidden={!on} inert={!on}>
+                  <div className={styles.prHead}>
+                    {c.org === 'Flutter'
+                      ? <FlutterLogo size={22} className={styles.flutter} title="Flutter" />
+                      : <span className={`t-label ${styles.prOrg}`}>{c.org}</span>}
+                    <GitHubLogo size={20} className={styles.gh} />
+                    <span className={`t-label ${styles.merged}`}>
+                      <MergedGlyph size={13} /> Merged
+                    </span>
+                  </div>
+                  <h3 className={`t-subtitle ${styles.prTitle}`}>{c.prTitle}</h3>
+                  <p className={`t-data ${styles.prMeta}`}>
+                    {c.repo} · #{c.prNumber} · {c.displayDate} ·{' '}
+                    <span className={styles.add}>+{c.additions}</span>/<span className={styles.del}>−{c.deletions}</span>
+                  </p>
+                  <div className={styles.actions}>
+                    <a href={c.prUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary">
+                      View pull request <span className="btn-arrow" aria-hidden="true">↗</span>
+                    </a>
+                    <Link href={`/achievements/${c.id}`} className="btn btn--ghost">
+                      Read case study <span className="btn-arrow" aria-hidden="true">→</span>
+                    </Link>
+                  </div>
+                </article>
               )
             })}
           </div>
-          <span className={`t-data ${styles.counter}`}>{pad(idx + 1)} / {pad(n)}</span>
-          <button
-            type="button"
-            onClick={() => setUserPaused(!userPaused)}
-            aria-label={userPaused ? 'Resume rotation' : 'Pause rotation'}
-            className={`${styles.iconBtn} ${styles.iconBtnQuiet}`}
-          >
-            {userPaused ? <FaPlay size={9} aria-hidden /> : <FaPause size={9} aria-hidden />}
-          </button>
         </div>
-      )}
+
+        {n > 1 && (
+          <div className={`${styles.carousel} ${styles.rise} ${styles.hit}`} style={order(2)}>
+            <div role="group" aria-label="Merged pull requests" className={styles.dots}>
+              {contributions.map((c, i) => {
+                const on = i === idx
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { setIdx(i); setUserPaused(true) }}
+                    aria-label={`Pull request #${c.prNumber}, ${c.repo}`}
+                    aria-current={on ? 'true' : undefined}
+                    className={styles.dot}
+                  >
+                    <span className={styles.dotTrack}>
+                      <span
+                        key={idx}
+                        className={styles.dotFill}
+                        data-running={on && running}
+                        data-done={on && (userPaused || reduced)}
+                        style={{ '--autoplay': `${OS_AUTOPLAY_MS}ms` } as CSSProperties}
+                      />
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            <span className={`t-data ${styles.counter}`}>{pad(idx + 1)} / {pad(n)}</span>
+            <button
+              type="button"
+              onClick={() => setUserPaused(!userPaused)}
+              aria-label={userPaused ? 'Resume rotation' : 'Pause rotation'}
+              className={`${styles.iconBtn} ${styles.iconBtnQuiet}`}
+            >
+              {userPaused ? <FaPlay size={9} aria-hidden /> : <FaPause size={9} aria-hidden />}
+            </button>
+          </div>
+        )}
+      </div>
     </>
   )
 }
 
-function ExperienceCard({ station }: { station: StationDef }) {
+function ExperienceCard({ station, titleId }: CardProps) {
   const [ti, setTi] = useState(0)
   const n = testimonials.length
   const go = (d: number) => setTi((t) => (t + d + n) % n)
 
   return (
     <>
-      <MaskedTitle text={station.heading} className={`t-title ${styles.title}`} />
+      <MaskedTitle id={titleId} text={station.heading} className={`t-title ${styles.title}`} />
       <p className={`t-lead ${styles.lead} ${styles.rise}`} style={order(0)}>{station.tagline}</p>
 
       <figure className={`${styles.surface} ${styles.quoteCard} ${styles.rise} ${styles.hit}`} style={order(1)}>
         <div className={styles.stack} aria-live="polite">
           {testimonials.map((q, i) => (
-            <div key={q.name} className={styles.stackItem} data-active={i === ti} aria-hidden={i !== ti}>
+            <div key={q.name} className={styles.stackItem} data-active={i === ti} aria-hidden={i !== ti} inert={i !== ti}>
               <blockquote className={`t-lead ${styles.quote}`}>&ldquo;{q.short}&rdquo;</blockquote>
               <figcaption>
                 <span className={`t-subtitle ${styles.quoteName}`}>{q.name}</span>
@@ -579,11 +654,11 @@ function ExperienceCard({ station }: { station: StationDef }) {
   )
 }
 
-function ContactCard({ station }: { station: StationDef }) {
+function ContactCard({ station, titleId }: CardProps) {
   const call = station.cta?.href ?? 'https://cal.com/shahfahad'
   return (
     <>
-      <MaskedTitle text={station.heading} className={`t-title ${styles.title}`} />
+      <MaskedTitle id={titleId} text={station.heading} className={`t-title ${styles.title}`} />
       <p className={`t-lead ${styles.lead} ${styles.rise}`} style={order(0)}>{station.tagline}</p>
       <div className={`${styles.rise} ${styles.hit}`} style={order(1)}>
         <a href={`mailto:${AUTHOR.email}`} className={`link-quiet t-subtitle ${styles.email}`}>{AUTHOR.email}</a>
@@ -611,58 +686,56 @@ function ContactCard({ station }: { station: StationDef }) {
 /** Hero portrait. Bottom-anchored and sized from the viewport (CSS), so it
  *  clears the hero text at 1024–1280px and the intro player above it. */
 function HeroPortrait({ progress }: { progress: number }) {
-  const opacity = Math.pow(Math.max(0, 1 - stationDist(progress, FIRST) / 0.10), 1.1)
-  if (opacity < 0.01) return null
+  const opacity  = smoothstep(0, 0.6, clamp01(1 - stationDist(progress, FIRST) / 0.10))
+  const hidden   = useHiddenByFlight(FIRST.id)
+  if (opacity < 0.01 || hidden) return null
   return (
-    <div className={styles.portraitDock} style={{ opacity }} inert={opacity < 0.4}>
+    <div className={styles.portraitDock} style={{ opacity }} inert={opacity < 0.5}>
       <FlipPhotoCard />
     </div>
   )
 }
 
-function AboutStatement({ progress }: { progress: number }) {
-  const { dist, opacity } = band(progress, T.about)
-  const armed = useArmed()
-  const near  = useLatch(opacity, 0.55, 0.35)
-  if (dist > 0.08) return null
-  return (
-    <div className={`${styles.side} ${styles.reveal} ${styles.aboutSide}`} data-in={armed && near} style={{ opacity }} aria-hidden={!near}>
-      <p className={`t-subtitle ${styles.statement} ${styles.rise}`} style={order(1)}>
-        Clean code, real performance, interfaces that feel <span className={styles.ember}>alive.</span>
-      </p>
-    </div>
-  )
-}
+// The showcase is heavy; never re-render it just because progress moved.
+const Showcase = memo(ProjectShowcase)
 
 // A readable project gallery takes over the station, then fades before OSS.
 function ProjectsGallery({ progress }: { progress: number }) {
   const projectT  = T.projects
   const midpoint  = (projectT + T.opensource) / 2
   const distance  = Math.abs(progress - projectT)
-  const approach  = Math.max(0, Math.min(1, (0.11 - distance) / 0.04))
-  const departure = progress <= projectT ? 1 : Math.max(0, Math.min(1, (midpoint - progress) / 0.025))
-  const opacity   = Math.min(approach, departure)
-  if (opacity < 0.01) return null
+  const approach  = clamp01((0.11 - distance) / 0.04)
+  const departure = progress <= projectT ? 1 : clamp01((midpoint - progress) / 0.025)
+  const opacity   = smoothstep(0, 1, Math.min(approach, departure))
+  const hidden    = useHiddenByFlight('projects')
+  if (opacity < 0.01 || hidden) return null
 
   return (
     <div className={styles.gallery} style={{ opacity, pointerEvents: opacity > 0.4 ? 'auto' : 'none' }}>
-      <ProjectShowcase />
+      <Showcase />
     </div>
   )
 }
 
-// Experience: a quiet trajectory, newest role on top. The path draws in once
-// when the station arrives; no floating, no flowing dashes.
-const EJ_NODES = [{ x: 78, y: 10 }, { x: 40, y: 36 }, { x: 70, y: 62 }, { x: 34, y: 95 }]
-const EJ_PATH  = 'M 78 10 C 55 20, 50 26, 40 36 S 78 52, 70 62 S 42 84, 34 95'
+// Experience: a quiet trajectory in the clear sky above the station's planet
+// (which sits lower right), newest role at the top. Coordinates are % of the
+// .journey box; every label stays off the planet disc at 1280–1440 wide.
+const EJ_NODES: { x: number; y: number; side: 'left' | 'right' }[] = [
+  { x: 82, y: 4,  side: 'left'  },
+  { x: 54, y: 33, side: 'right' },
+  { x: 76, y: 62, side: 'left'  },
+  { x: 47, y: 92, side: 'right' },
+]
+const EJ_PATH = 'M 82 4 C 70 14, 60 22, 54 33 S 80 50, 76 62 S 52 84, 47 92'
 
 function ExperienceJourney({ progress }: { progress: number }) {
   // Experience (0.75) and contact (0.90) both use the right side; the tight
   // band hands off around their midpoint without overlap.
   const { dist, opacity } = band(progress, T.experience)
-  const armed = useArmed()
-  const near  = useLatch(opacity, 0.55, 0.35)
-  if (dist > 0.08) return null
+  const armed  = useArmed()
+  const near   = useLatch(opacity, 0.6, 0.35)
+  const hidden = useHiddenByFlight('experience')
+  if (dist > 0.08 || hidden) return null
   const roles = experience.slice(0, EJ_NODES.length)
 
   return (
@@ -677,11 +750,10 @@ function ExperienceJourney({ progress }: { progress: number }) {
       </svg>
       {roles.map((e, i) => {
         const p = EJ_NODES[i]
-        const side = p.x > 50 ? 'left' : 'right'
         return (
           <div key={e.id} className={styles.node} data-current={e.current} style={{ left: `${p.x}%`, top: `${p.y}%` }}>
             <span className={styles.nodeDot} />
-            <div className={styles.nodeLabel} data-side={side}>
+            <div className={styles.nodeLabel} data-side={p.side}>
               <div className={`${styles.rise} ${styles.nodeTag}`} style={order(i)}>
                 <span className={`t-data ${styles.nodePeriod}`}>{e.period}</span>
                 <span className={`t-subtitle ${styles.nodeRole}`}>{e.role}</span>
@@ -695,21 +767,23 @@ function ExperienceJourney({ progress }: { progress: number }) {
   )
 }
 
-// Contact: the four real channels sit around the contact planet like
-// satellites. Every node is a direct link (mailto, LinkedIn, GitHub, tel).
+// Contact: the four real channels ride an arc just above the Earth's horizon
+// (which rises from the bottom edge, apex around 68% across). Coordinates are
+// % of the .orbit box; the arc echoes the horizon curve.
 interface Channel { icon: IconType; label: string; href: string; aria: string; external: boolean; x: number; y: number }
 const CHANNELS: Channel[] = [
-  { icon: FaEnvelope,   label: 'Email',    href: `mailto:${AUTHOR.email}`,                 aria: `Email ${AUTHOR.email}`,                  external: false, x: 24, y: 24 },
-  { icon: FaLinkedinIn, label: 'LinkedIn', href: SOCIALS.linkedin,                          aria: 'LinkedIn profile, opens in a new tab',   external: true,  x: 78, y: 30 },
-  { icon: FaGithub,     label: 'GitHub',   href: SOCIALS.github,                            aria: 'GitHub profile, opens in a new tab',     external: true,  x: 22, y: 76 },
-  { icon: FaPhone,      label: 'Phone',    href: `tel:${AUTHOR.phone.replace(/\s+/g, '')}`, aria: `Phone ${AUTHOR.phone}`,                  external: false, x: 78, y: 72 },
+  { icon: FaEnvelope,   label: 'Email',    href: `mailto:${AUTHOR.email}`,                 aria: `Email ${AUTHOR.email}`,                external: false, x: 9,  y: 75 },
+  { icon: FaLinkedinIn, label: 'LinkedIn', href: SOCIALS.linkedin,                          aria: 'LinkedIn profile, opens in a new tab', external: true,  x: 34, y: 70 },
+  { icon: FaGithub,     label: 'GitHub',   href: SOCIALS.github,                            aria: 'GitHub profile, opens in a new tab',   external: true,  x: 59, y: 73 },
+  { icon: FaPhone,      label: 'Phone',    href: `tel:${AUTHOR.phone.replace(/\s+/g, '')}`, aria: `Phone ${AUTHOR.phone}`,                external: false, x: 84, y: 83 },
 ]
 
 function ContactOrbit({ progress }: { progress: number }) {
   const { dist, opacity } = band(progress, T.contact)
-  const armed = useArmed()
-  const near  = useLatch(opacity, 0.55, 0.35)
-  if (dist > 0.08) return null
+  const armed  = useArmed()
+  const near   = useLatch(opacity, 0.6, 0.35)
+  const hidden = useHiddenByFlight('contact')
+  if (dist > 0.08 || opacity < 0.01 || hidden) return null
   const isIn = armed && near
 
   return (
@@ -719,7 +793,7 @@ function ContactOrbit({ progress }: { progress: number }) {
       style={{ opacity }}
       inert={!near}
     >
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+      <ul className={styles.orbitList}>
         {CHANNELS.map((c, i) => {
           const Icon = c.icon
           return (
@@ -740,5 +814,54 @@ function ContactOrbit({ progress }: { progress: number }) {
         })}
       </ul>
     </div>
+  )
+}
+
+// End of the journey: the name again over the Earth's horizon, the one
+// address to write to, and a way back to the start (no automatic loop).
+function Finale({ progress }: { progress: number }) {
+  const opacity = smoothstep(FINALE_START, FINALE_FULL, progress)
+  const armed   = useArmed()
+  const near    = useLatch(opacity, 0.6, 0.3)
+  const hidden  = useHiddenByFlight('finale')
+  if (opacity < 0.01 || hidden) return null
+  const isIn = armed && near
+
+  return (
+    <section
+      className={`${styles.finale} ${styles.reveal}`}
+      data-in={isIn}
+      aria-labelledby="finale-title"
+      style={{ opacity }}
+      inert={!near}
+    >
+      <MaskedTitle id="finale-title" text={'Shah Fahad'} className={`t-display ${styles.finaleName}`} />
+      <p className={`t-lead ${styles.finaleLead} ${styles.rise}`} style={order(0)}>
+        Thanks for flying through. Say hello any time.
+      </p>
+      <div className={`${styles.rise} ${styles.hit}`} style={order(1)}>
+        <a href={`mailto:${AUTHOR.email}`} className={`link-quiet t-subtitle ${styles.finaleEmail}`}>{AUTHOR.email}</a>
+      </div>
+      <div className={`${styles.finaleLinks} ${styles.rise} ${styles.hit}`} style={order(2)}>
+        <a href={SOCIALS.github} target="_blank" rel="noopener noreferrer" className="link-quiet t-label">
+          <FaGithub size={14} aria-hidden /> GitHub
+        </a>
+        <a href={SOCIALS.linkedin} target="_blank" rel="noopener noreferrer" className="link-quiet t-label">
+          <FaLinkedinIn size={14} aria-hidden /> LinkedIn
+        </a>
+        <a href="/Shah_Fahad_Resume.pdf" download className="link-quiet t-label">
+          <FaDownload size={12} aria-hidden /> Resume
+        </a>
+      </div>
+      <div className={`${styles.rise} ${styles.hit}`} style={order(3)}>
+        <button
+          type="button"
+          onClick={(e) => scrollToStation('hero', { focus: e.detail === 0 })}
+          className="btn btn--ghost"
+        >
+          <FaArrowUp size={12} aria-hidden /> Back to the start
+        </button>
+      </div>
+    </section>
   )
 }

@@ -20,7 +20,7 @@ import dynamic from 'next/dynamic'
 
 import { useQualityLevel } from '@/components/r3f/useQualityLevel'
 import { QualityToggle } from '@/components/r3f/QualityToggle'
-import { TunnelAnchors, useTunnelLoop } from '@/components/r3f/TunnelScrollRails'
+import { TunnelAnchors } from '@/components/r3f/TunnelScrollRails'
 import { PRESETS, type QualityLevel } from '@/lib/quality'
 import {
   BOOT_FADE_MS,
@@ -206,8 +206,6 @@ function TunnelMode({
     rafId = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafId)
   }, [ready, reportLowFps])
-
-  useTunnelLoop()
 
   const preset = PRESETS[level]
 
