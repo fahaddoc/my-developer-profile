@@ -10,6 +10,7 @@ export interface Concept { slug: string; title: string; blurb: string }
 export const CONCEPTS: Concept[] = [
   { slug: 'current',   title: 'Lit screen',  blurb: 'Today’s version: the featured project on a lit screen, a project library beside it.' },
   { slug: 'stars',     title: 'Star map',    blurb: 'Your career as a night sky. Every project is a star, time runs left to right, and a telescope opens on the one you pick. In light mode it becomes a sea chart and a spyglass.' },
+  { slug: 'menu',      title: 'Menu: flight plan', blurb: 'The station rail as a flown route with a probe riding it, plus ⌘K “Set course”, a nav computer with real flight times. Scroll the box, hover a stop, press ⌘K.' },
   { slug: 'orbit',     title: 'Orbit',       blurb: 'Projects ride a slow 3D ring around you. Drag, scroll or use the arrows to bring one to the front.' },
   { slug: 'deck',      title: 'Deck',        blurb: 'Projects fanned out like a hand of cards. Pick one and it flies to the centre and opens up.' },
   { slug: 'postcards', title: 'Postcards',   blurb: 'Every project is a postcard from an island, with a stamp and a postmark. Flip it for the story.' },

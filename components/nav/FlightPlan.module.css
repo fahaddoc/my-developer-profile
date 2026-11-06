@@ -1,0 +1,129 @@
+/* FlightPlan — the station rail as a flown route (space) / a sailed route (sea). */
+
+.sea { display: none; }
+:global(:root[data-theme='light']) .space { display: none; }
+:global(:root[data-theme='light']) .sea { display: inline; }
+
+.plan {
+  --halo: var(--space-0);
+  position: relative;
+  width: 200px;
+  /* readable over the 3D scene without a panel behind it */
+  text-shadow: 0 0 4px rgb(var(--halo)), 0 0 12px rgb(var(--halo));
+}
+:global(:root[data-theme='light']) .plan { --halo: var(--space-0); }
+
+/* ---------- the route ---------- */
+.route { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.measure { fill: none; stroke: none; }
+.ahead { fill: none; stroke: rgb(var(--ink-3) / 0.7); stroke-width: 1.8; stroke-dasharray: 0.5 5.5; stroke-linecap: round; }
+.trail { fill: none; stroke: rgb(var(--accent) / 0.85); stroke-width: 1.5; stroke-linecap: round; stroke-dasharray: 0 9999; }
+
+.tail { fill: none; stroke: rgb(var(--accent) / 0.5); stroke-width: 2.6; stroke-linecap: round; }
+.core { fill: rgb(var(--accent)); filter: drop-shadow(0 0 4px rgb(var(--accent) / 0.85)); }
+.boat { display: none; fill: rgb(var(--ink)); }
+
+/* ---------- the stops ---------- */
+.stops { position: relative; height: calc(var(--rows) * 46px); margin: 0; padding: 0; list-style: none; }
+.stops li { position: absolute; left: 0; translate: 0 -50%; }
+
+.stop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 12px 0 38px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: rgb(var(--ink-3));
+  font: 500 13px/1 var(--font-body), system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 200ms var(--ease-out);
+}
+.stop:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 0; }
+
+.node {
+  position: absolute;
+  left: calc(var(--x) - 5px);
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  translate: 0 -50%;
+  border-radius: 50%;
+  background: rgb(var(--space-0));
+  box-shadow: inset 0 0 0 1.5px rgb(var(--ink-3) / 0.75);
+  transition: transform 260ms var(--ease-out), background-color 200ms var(--ease-out), box-shadow 260ms var(--ease-out);
+}
+.stop[data-state='past'] { color: rgb(var(--ink-2)); }
+.stop[data-state='past'] .node { background: rgb(var(--ink-2)); box-shadow: none; transform: scale(0.7); }
+.stop[data-state='here'] { color: rgb(var(--ink)); font-weight: 600; }
+.stop[data-state='here'] .node {
+  background: rgb(var(--accent));
+  box-shadow: 0 0 0 3px rgb(var(--accent) / 0.22), 0 0 14px 2px rgb(var(--accent) / 0.55);
+  transform: scale(1.15);
+}
+.stop:active .node { transform: scale(0.85); transition-duration: 80ms; }
+
+.name { transition: translate 220ms var(--ease-out); }
+.eta {
+  margin-left: 10px;
+  font-size: 11px;
+  color: rgb(var(--ink-3));
+  opacity: 0;
+  translate: -4px 0;
+  transition: opacity 160ms var(--ease-out), translate 220ms var(--ease-out);
+}
+.stop:focus-visible .eta { opacity: 1; translate: 0 0; }
+@media (hover: hover) and (pointer: fine) {
+  .stop:hover { color: rgb(var(--ink)); }
+  .stop:hover .name { translate: 2px 0; }
+  .stop:hover .eta { opacity: 1; translate: 0 0; }
+  .stop:hover .node { box-shadow: inset 0 0 0 1.5px rgb(var(--accent)); }
+  .stop[data-state='here']:hover .node { box-shadow: 0 0 0 3px rgb(var(--accent) / 0.3), 0 0 16px 3px rgb(var(--accent) / 0.6); }
+}
+
+/* ---------- set course ---------- */
+.course {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  margin: 14px 0 0 26px;
+  padding: 0 8px 0 14px;
+  border: 1px solid rgb(var(--line));
+  border-radius: 999px;
+  background: rgb(var(--surface) / 0.7);
+  color: rgb(var(--ink-2));
+  font: 500 12.5px/1 var(--font-body), system-ui, sans-serif;
+  text-shadow: none;
+  cursor: pointer;
+  transition: color 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.course:active { transform: scale(0.97); }
+.course:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .course:hover { color: rgb(var(--ink)); border-color: rgb(var(--accent) / 0.6); }
+}
+.kbd {
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: rgb(var(--ink) / 0.08);
+  color: rgb(var(--ink-2));
+  font: 500 11px/1 var(--font-mono), ui-monospace, monospace;
+}
+
+/* ---------- light theme: a sailed route with a boat ---------- */
+:global(:root[data-theme='light']) .ahead { stroke: rgb(40 70 100 / 0.45); stroke-dasharray: 4 4; stroke-linecap: butt; }
+:global(:root[data-theme='light']) .trail { stroke: rgb(var(--accent)); }
+:global(:root[data-theme='light']) .tail,
+:global(:root[data-theme='light']) .core { display: none; }
+:global(:root[data-theme='light']) .boat { display: inline; fill: rgb(30 50 70); }
+:global(:root[data-theme='light']) .node { background: rgb(var(--surface)); box-shadow: inset 0 0 0 1.5px rgb(40 70 100 / 0.55); }
+:global(:root[data-theme='light']) .stop[data-state='past'] .node { background: rgb(40 70 100 / 0.7); }
+:global(:root[data-theme='light']) .stop[data-state='here'] .node { background: rgb(var(--accent)); box-shadow: 0 0 0 3px rgb(var(--accent) / 0.22); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stop, .node, .name, .eta, .course { transition: none; }
+}
