@@ -105,7 +105,7 @@ export function FlightPlan({ stations = STATIONS, activeId, progress, onGo, onSe
       {onSetCourse && (
         <button type="button" className={s.course} onClick={onSetCourse} aria-keyshortcuts="Meta+K Control+K">
           <span className={s.space}>Set course</span>
-          <span className={s.sea}>Chart a course</span>
+          <span className={s.sea}>Set sail</span>
           <kbd className={s.kbd}>{mod}</kbd>
         </button>
       )}

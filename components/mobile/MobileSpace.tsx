@@ -57,6 +57,7 @@ import { SeaBackground } from '@/components/mobile/SeaBackground'
 import { AboutIsle, Coast, HeroIsleBack, HeroIsleFront, SeaIslandStyles } from '@/components/mobile/SeaIslands'
 import { FeaturedAchievement } from '@/components/featured/FeaturedAchievement'
 import { StarMap } from '@/components/projects/starmap/StarMap'
+import { HoloText } from '@/components/type/HoloText'
 import { CourseDock, NavComputer } from '@/components/nav/NavComputer'
 import { STATIONS as JOURNEY } from '@/lib/tunnel'
 import { prefetchDrawer } from '@/components/ui/drawerPrefetch'
@@ -188,6 +189,15 @@ export default function MobileSpace() {
   }, [])
 
   const closeSheet = useCallback(() => setOpenProject(null), [])
+
+  // /#<station> (the subpages link back this way): land on that section; the
+  // desktop ids are mapped to this layout's own
+  useEffect(() => {
+    const raw = decodeURIComponent(window.location.hash.slice(1))
+    const alias: Record<string, string> = { hero: 'intro', projects: 'work', opensource: 'open-source' }
+    const i = STATION_IDS.indexOf((alias[raw] ?? raw) as (typeof STATION_IDS)[number])
+    if (i > 0) requestAnimationFrame(() => goTo(i, true))
+  }, [goTo])
   const [course, setCourse] = useState(false)
 
   return (
@@ -298,11 +308,6 @@ export default function MobileSpace() {
         .ms-st:focus { outline: none; }
         .ms-inner { position: relative; z-index: 1; width: 100%; max-width: 560px; }
 
-        .ms-title-mask {
-          overflow: hidden;
-          padding-bottom: 0.12em;
-          margin-bottom: -0.12em;
-        }
         .ms-title {
           font-size: clamp(34px, 10vw, 46px);
           line-height: 1.04;
@@ -1219,12 +1224,10 @@ function Station({ i, setRef, className, after, children }: {
   )
 }
 
-function StationTitle({ i, children }: { i: number; children: ReactNode }) {
-  return (
-    <div className="ms-title-mask" data-mask>
-      <h2 id={`${STATION_IDS[i]}-title`} className="t-title ms-title">{children}</h2>
-    </div>
-  )
+/** Station titles float as zero-gravity HUD text (components/type/HoloText),
+    with their own lock-on entrance instead of the old rise-out-of-a-mask. */
+function StationTitle({ i, children }: { i: number; children: string }) {
+  return <HoloText id={`${STATION_IDS[i]}-title`} text={children} className="t-title ms-title" baseWdth={85} />
 }
 
 function TopBar({ onHome }: { onHome: () => void }) {
@@ -1261,7 +1264,7 @@ function Hero({ onWork }: { onWork: () => void }) {
 
       <div className="ms-hero-copy">
         <div className="ms-title-mask" data-mask>
-          <h1 id="intro-title" className="t-display ms-hero-name">Shah Fahad</h1>
+          <HoloText as="h1" id="intro-title" text="Shah Fahad" className="t-display ms-hero-name" />
         </div>
         <p className="t-lead ms-hero-lead" data-reveal style={iv(2)}>
           Senior software engineer building real-time web and mobile products. React, Next.js, Flutter and WebRTC,

@@ -102,3 +102,8 @@
 @media (prefers-reduced-motion: reduce) { .spec[data-type='hud'] .kicker::after { animation: none; } }
 .spec[data-type='hud'] :global(.t-title) { font-variation-settings: 'wdth' 85; font-weight: 700; letter-spacing: 0; }
 .spec[data-type='hud'] :global(.t-subtitle) { font-variation-settings: 'wdth' 90; font-weight: 600; letter-spacing: 0.01em; }
+
+/* Before: Archivo, with its own width-axis titles (the site's classes are HUD now) */
+.spec[data-type='current'] :global(.t-display) { font-variation-settings: 'wdth' 125; font-weight: 800; text-transform: none; letter-spacing: -0.035em; line-height: 0.92; }
+.spec[data-type='current'] :global(.t-title) { font-variation-settings: 'wdth' 112; font-weight: 700; letter-spacing: -0.025em; }
+.spec[data-type='current'] :global(.t-subtitle) { font-variation-settings: 'wdth' 106; font-weight: 600; letter-spacing: -0.012em; }

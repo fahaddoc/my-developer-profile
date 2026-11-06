@@ -1,2 +1,20 @@
-/* ember palette: filled in by its builder. Contract: components/ideas/palette/CONTRACT.md */
-.root {}
+/* ember palette: the site's colours before titanium armour, for comparison. */
+html.root:not([data-theme='light']) {
+  --space-0: 5 8 15; --space-1: 10 14 23; --surface: 15 20 29; --surface-2: 24 30 41; --line: 45 51 61;
+  --ink: 241 243 248; --ink-2: 184 190 200; --ink-3: 146 153 165;
+  --accent: 252 158 71; --accent-text: 252 158 71; --accent-ink: 5 8 15;
+  --nebula-a: 38 74 128; --nebula-b: 24 92 104;
+  --starlight: 255 214 170; --starlight-hi: 255 240 225; --starlight-lab: 190 210 255; --nebula-glow: 140 160 255;
+  --panel-bg: radial-gradient(120% 90% at 50% 40%, rgb(15 20 29 / 0.5), rgb(5 8 15 / 0.9) 70%), rgb(5 8 15 / 0.82);
+  --panel-material: linear-gradient(transparent, transparent);
+  --panel-bg-solid: rgb(15 20 29);
+}
+html.root[data-theme='light'] {
+  --accent: 221 99 0; --accent-text: 163 66 12; --accent-ink: 18 25 39;
+  --brass: 181 132 62; --brass-dark: 120 82 32; --brass-light: 214 172 104;
+}
+html.root :global(.btn--primary) {
+  background: rgb(var(--accent)); color: rgb(var(--accent-ink)); border-color: transparent;
+  box-shadow: 0 0 0 0 rgb(var(--accent) / 0), 0 10px 30px -12px rgb(var(--accent) / 0.55);
+}
+html.root :global(.btn--ghost) { background: rgb(var(--ink) / 0.02); border-color: rgb(var(--ink) / 0.22); box-shadow: none; }

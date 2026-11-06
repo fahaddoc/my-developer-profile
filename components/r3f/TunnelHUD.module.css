@@ -214,29 +214,6 @@
 }
 .reveal[data-in='true']::before { opacity: 1; }
 
-/* Title lines rise out of their own mask. The padding/negative margin pair
-   gives ascenders and descenders room inside the clip at tight line-heights. */
-.line {
-  display: block;
-  overflow: hidden;
-  padding: 0.12em 0 0.16em;
-  margin: -0.12em 0 -0.16em;
-}
-.lineInner {
-  display: block;
-  opacity: 0;
-  transform: translateY(105%);
-  transition:
-    opacity var(--dur-2) var(--ease-out),
-    transform 0s linear var(--dur-2);
-}
-.reveal[data-in='true'] .lineInner {
-  opacity: 1;
-  transform: none;
-  transition:
-    transform var(--dur-3) var(--ease-out-expo) calc(var(--i, 0) * 60ms),
-    opacity 0s linear calc(var(--i, 0) * 60ms);
-}
 
 /* Lead, actions, cards: fade up 8px after the title. */
 .rise {
@@ -271,7 +248,8 @@
 }
 .lead {
   margin: 0 0 28px;
-  max-width: 46ch;
+  /* ends before 640px: the skills orbit (TunnelScene computeSkillsLayout) starts there */
+  max-width: min(46ch, 420px);
   font-size: 18px;
   text-shadow: var(--body-shadow);
 }
@@ -725,10 +703,8 @@
 
 /* ─── Reduced motion: opacity only, no travel, no loops ─────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .lineInner,
   .rise,
   .stackItem { transform: none !important; }
-  .reveal[data-in='true'] .lineInner,
   .reveal[data-in='true'] .rise,
   .stackItem[data-active='true'] { transition: opacity var(--dur-2) linear; }
   .journeyPath,

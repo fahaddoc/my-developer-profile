@@ -79,7 +79,7 @@ export interface StationDef {
   /** Lead paragraph. "{n}" is replaced by a live number where a station
       derives one from data (open source: merged PR count). */
   tagline:     string
-  color:       string                                // 3D accent only (ember); DOM uses rgb(var(--accent))
+  color:       string                                // 3D accent only (chrome); DOM uses rgb(var(--accent))
   imageSrc?:   string
   cta?:        { text: string; href: string }
   // Secondary copy kept for the 3D scene and any future surface.
@@ -98,7 +98,7 @@ export const STATIONS: StationDef[] = [
     t:         0.04,
     heading:   'Shah\nFahad',
     tagline:   'Senior software engineer building real-time web and mobile products. React, Next.js, Flutter and WebRTC, from Karachi, Pakistan.',
-    color:     '#fc9e47',
+    color:     '#e2e8ef',
     imageSrc:  '/images/shah-fahad-sticker.png',
     cta:       { text: 'See the work', href: '#projects' },
     subtitle:    'Senior software engineer',
@@ -114,7 +114,7 @@ export const STATIONS: StationDef[] = [
     t:         0.20,
     heading:   'I ship products\npeople use.',
     tagline:   "8+ years turning ideas into shipped software, from Miletap's real-time video platform to DigitalHire's hiring system.",
-    color:     '#fc9e47',
+    color:     '#e2e8ef',
     subtitle:    '8+ years · DigitalHire · Kistpay · Miletap · Karachi, PK',
     closer:      ['Clean code, real performance,', 'interfaces that feel alive.'],
     traitsLeft:  ['DigitalHire', 'Kistpay', 'Miletap'],
@@ -128,7 +128,7 @@ export const STATIONS: StationDef[] = [
     t:         0.35,
     heading:   'Eight years\nof craft.',
     tagline:   'React and Next.js on the web, Flutter on mobile, WebRTC and SignalR when it has to be live.',
-    color:     '#fc9e47',
+    color:     '#e2e8ef',
     subtitle:    'Frontend, mobile and real-time',
     closer:      ['Web, mobile', 'and real-time'],
     traitsLeft:  ['React', 'Next.js', 'TypeScript'],
@@ -142,7 +142,7 @@ export const STATIONS: StationDef[] = [
     t:         0.55,
     heading:   'Selected work.',
     tagline:   'Shipped products and engineering demos.',
-    color:     '#fc9e47',
+    color:     '#e2e8ef',
     cta:       { text: 'View case studies', href: '#projects' },
     subtitle:    'Shipped products and engineering demos',
     closer:      ['Shipped products', 'and engineering demos'],
@@ -157,7 +157,7 @@ export const STATIONS: StationDef[] = [
     t:         0.63,
     heading:   'Merged\nupstream.',
     tagline:   '{n} pull requests merged into Flutter and the Supabase Flutter SDK.',
-    color:     '#fc9e47',
+    color:     '#e2e8ef',
     cta:       { text: 'View pull requests', href: '/open-source' },
     subtitle:    'Flutter and the Supabase Flutter SDK',
     closer:      ['Merged pull requests', 'Flutter · Supabase'],
@@ -172,7 +172,7 @@ export const STATIONS: StationDef[] = [
     t:         0.75,
     heading:   "Where I've\nworked.",
     tagline:   'DigitalHire, Kistpay and Miletap, plus part-time work for E-\u2060Ocean and Entertech: frontend, real-time and mobile.', // \u2060 keeps E-Ocean on one line
-    color:     '#fc9e47',
+    color:     '#e2e8ef',
     subtitle:    'Frontend, real-time and mobile',
     closer:      ['DigitalHire · Kistpay', 'Miletap'],
     traitsLeft:  ['Frontend', 'Real-time', 'Mobile'],
@@ -186,7 +186,7 @@ export const STATIONS: StationDef[] = [
     t:         0.90,
     heading:   "Let's build\nsomething.",
     tagline:   'Open to senior frontend and real-time roles, full-time or contract.',
-    color:     '#fc9e47',
+    color:     '#e2e8ef',
     cta:       { text: 'Book a 15-min call', href: 'https://cal.com/shahfahad' },
     subtitle:    'hello@shahfahad.dev',
     closer:      ['Open to senior', 'frontend roles'],

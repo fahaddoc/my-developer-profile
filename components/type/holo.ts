@@ -24,10 +24,19 @@ let listening = false
 const FIELD = 150                 // px radius of the pointer field
 const PUSH = 16                   // px at the centre of the field
 
-function scrollPos() {
-  const L = (window as unknown as { __lenis?: { scroll: number } }).__lenis
-  return L ? L.scroll : window.scrollY
+// The scroll position of whatever is scrolling: the window (Lenis drives it
+// on desktop) or a scroll container (the phone layout scrolls .mob-scroll).
+// A capture-phase listener sees both; switching containers resets the
+// baseline so it never reads as a jump.
+let pos = 0
+let source: EventTarget | null = null
+function onScroll(e: Event) {
+  const t = e.target
+  const next = t === document || t === document.documentElement ? window.scrollY : (t as Element).scrollTop
+  if (t !== source) { source = t; lastScroll = next }
+  pos = next
 }
+function scrollPos() { return pos }
 
 function onPointer(e: PointerEvent) {
   if (e.pointerType !== 'mouse') return
@@ -94,6 +103,8 @@ function wake() {
 export function holo(root: HTMLElement, glyphEls: HTMLElement[], baseWdth = 100) {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {}
   if (!listening) {
+    pos = window.scrollY
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true })
     window.addEventListener('pointermove', onPointer, { passive: true })
     document.documentElement.addEventListener('pointerleave', offPointer)
     listening = true
@@ -111,7 +122,7 @@ export function holo(root: HTMLElement, glyphEls: HTMLElement[], baseWdth = 100)
     if (item.on) { wake(); return }
     // off screen: drop the warp, so it never comes back squeezed
     item.wdth = item.base
-    root.style.removeProperty('--holo-wdth')
+    root.style.setProperty('--holo-wdth', String(item.base))
   }, { rootMargin: '80px 0px' })
   io.observe(root)
   return () => {

@@ -11,10 +11,11 @@ import type { CSSProperties } from 'react'
 import { holo } from './holo'
 import s from './HoloText.module.css'
 
-export function HoloText({ text, as: Tag = 'h2', className, baseWdth = 100 }: {
+export function HoloText({ text, as: Tag = 'h2', className, id, baseWdth = 100 }: {
   text: string
   as?: 'h1' | 'h2' | 'h3'
   className?: string
+  id?: string
   /** the resting width-axis value the warp eases back to */
   baseWdth?: number
 }) {
@@ -25,20 +26,41 @@ export function HoloText({ text, as: Tag = 'h2', className, baseWdth = 100 }: {
     if (!root) return
     const glyphs = Array.from(root.querySelectorAll<HTMLElement>(`.${s.g}`))
     const stop = holo(root, glyphs, baseWdth)
-    // lock on the first time it comes into view
+    // A wrapped heading's box is as wide as its column, not its letters: put
+    // the right-hand brackets at the longest line's end instead (--holo-w).
+    const words = Array.from(root.querySelectorAll<HTMLElement>(`.${s.word}`))
+    const measure = () => {
+      const left = root.getBoundingClientRect().left
+      const right = Math.max(...words.map((w) => w.getBoundingClientRect().right))
+      if (Number.isFinite(right)) root.style.setProperty('--holo-w', `${Math.round(right - left)}px`)
+    }
+    const ro = new ResizeObserver(measure)
+    ro.observe(root)
+    document.fonts?.ready.then(measure)
+    // Lock on the first time it is in view. Inside a reveal container (an
+    // ancestor with data-in, like the tunnel's station cards) also wait until
+    // that container is revealed, so a flight passing a station doesn't play
+    // the title ahead of its card.
     root.setAttribute('data-armed', '')
-    const io = new IntersectionObserver(([e]) => {
-      if (!e.isIntersecting) return
+    const gate = root.parentElement?.closest('[data-in]') ?? null
+    let seen = false
+    let open = !gate || gate.getAttribute('data-in') !== 'false'
+    const fire = () => {
+      if (!seen || !open) return
       root.setAttribute('data-on', '')
       io.disconnect()
-    }, { threshold: 0.35 })
+      mo?.disconnect()
+    }
+    const io = new IntersectionObserver(([e]) => { seen = e.isIntersecting; fire() }, { threshold: 0.35 })
+    const mo = gate ? new MutationObserver(() => { open = gate.getAttribute('data-in') !== 'false'; fire() }) : null
+    mo?.observe(gate!, { attributes: true, attributeFilter: ['data-in'] })
     io.observe(root)
-    return () => { io.disconnect(); stop() }
+    return () => { io.disconnect(); mo?.disconnect(); ro.disconnect(); stop() }
   }, [text, baseWdth])
 
   let i = 0
   return (
-    <Tag ref={ref} className={`${s.holo} ${className ?? ''}`}>
+    <Tag ref={ref} id={id} className={`${s.holo} ${className ?? ''}`} style={{ '--holo-wdth': baseWdth } as CSSProperties}>
       <span className={s.sr}>{text.replace(/\n/g, ' ')}</span>
       <span className={s.glyphs} aria-hidden>
         {text.split('\n').map((line, li) => (

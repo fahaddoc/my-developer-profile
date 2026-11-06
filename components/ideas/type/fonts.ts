@@ -4,11 +4,13 @@
 // page only downloads the faces it actually renders.
 
 import {
-  Azeret_Mono, Big_Shoulders_Stencil, Bodoni_Moda, Bricolage_Grotesque, Chivo, Chivo_Mono,
+  Archivo, JetBrains_Mono, Azeret_Mono, Big_Shoulders_Stencil, Bodoni_Moda, Bricolage_Grotesque, Chivo, Chivo_Mono,
   Hanken_Grotesk, Martian_Mono, Michroma, Onest, Overpass, Overpass_Mono, Tektur,
 } from 'next/font/google'
 
 // next/font reads its options statically: every call spells them out in full.
+const archivo = Archivo({ subsets: ['latin'], display: 'swap', preload: false, axes: ['wdth'] })
+const jetbrains = JetBrains_Mono({ subsets: ['latin'], display: 'swap', preload: false })
 const michroma = Michroma({ subsets: ['latin'], display: 'swap', preload: false, weight: '400' })
 const overpass = Overpass({ subsets: ['latin'], display: 'swap', preload: false })
 const overpassMono = Overpass_Mono({ subsets: ['latin'], display: 'swap', preload: false })
@@ -38,10 +40,10 @@ export interface TypeStyle {
 
 export const TYPES: TypeStyle[] = [
   {
-    slug: 'current', name: 'Current: Archivo',
-    from: 'What the site uses today: one variable grotesk, expanded and heavy for titles.',
+    slug: 'current', name: 'Before: Archivo',
+    from: 'What the site used before the cockpit HUD: one variable grotesk, expanded and heavy for titles.',
     cast: 'Archivo (titles + text) · JetBrains Mono (data)',
-    display: null, body: null, mono: null,
+    display: archivo.style.fontFamily, body: archivo.style.fontFamily, mono: jetbrains.style.fontFamily,
   },
   {
     slug: 'mission', name: 'Mission control',

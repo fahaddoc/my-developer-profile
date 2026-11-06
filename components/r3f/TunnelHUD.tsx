@@ -4,7 +4,7 @@
 //
 // Station content lives here as flat overlays, not inside the 3D scene, so it
 // never collides with geometry. Layout, type, colour and motion follow
-// DESIGN.md: one ember accent through tokens, Archivo roles (.t-*), a thin
+// DESIGN.md: one chrome accent through tokens (titanium armour), HUD type roles (.t-*), a thin
 // station rail, and a per-station reveal (title lines rise out of a mask, the
 // rest fades up after it, a 280ms crossfade on exit). Styles live in
 // TunnelHUD.module.css so hover, focus and reduced motion are real CSS.
@@ -38,6 +38,7 @@ import { experience, skills } from '@/data/projects'
 import { StarMap } from '@/components/projects/starmap/StarMap'
 import { FlightPlan } from '@/components/nav/FlightPlan'
 import { NavComputer } from '@/components/nav/NavComputer'
+import { HoloText } from '@/components/type/HoloText'
 import { testimonials } from '@/data/testimonials'
 import { AUTHOR, SOCIALS } from '@/lib/seo/site'
 import styles from './TunnelHUD.module.css'
@@ -152,6 +153,28 @@ function currentProgress() {
   return w.__scrollRef?.current ?? 0
 }
 
+/** Station aliases a link may use (the phone layout's section ids). */
+const HASH_ALIAS: Record<string, string> = { intro: 'hero', work: 'projects', 'open-source': 'opensource' }
+
+/** /#<station> (the subpages link back this way) flies to that station once
+    the smooth scroller exists. */
+function useHashLanding() {
+  useEffect(() => {
+    const raw = decodeURIComponent(window.location.hash.slice(1))
+    const id = HASH_ALIAS[raw] ?? raw
+    if (!id || !STATIONS.some((s) => s.id === id)) return
+    let tries = 0
+    const timer = window.setInterval(() => {
+      const lenis = (window as unknown as { __lenis?: { limit: number } }).__lenis
+      if ((lenis && lenis.limit > 0) || ++tries > 40) {
+        window.clearInterval(timer)
+        scrollToStation(id, { focus: true })
+      }
+    }, 100)
+    return () => window.clearInterval(timer)
+  }, [])
+}
+
 /** User input takes over a flight; PageDown/PageUp/Space step between stations. */
 function useNavigationKeys() {
   useEffect(() => {
@@ -237,6 +260,7 @@ export function TunnelHUD() {
   const progress = useScrollProgress()
   const station  = nearestStation(progress)
   useNavigationKeys()
+  useHashLanding()
 
   return (
     <>
@@ -449,19 +473,10 @@ function StationCard({ station, active, titleId }: { station: StationDef; active
 }
 
 /** Station title whose lines ("\n" in the copy) each rise out of a mask. */
-function MaskedTitle({ text, as: Tag = 'h2', className, id }: { text: string; as?: 'h1' | 'h2'; className: string; id?: string }) {
-  const lines = text.split('\n')
-  return (
-    <Tag className={className} id={id}>
-      {lines.map((line, i) => (
-        <span key={i} className={styles.line}>
-          <span className={styles.lineInner} style={order(i)}>
-            {line}{i < lines.length - 1 ? ' ' : ''}
-          </span>
-        </span>
-      ))}
-    </Tag>
-  )
+/** Station titles float as zero-gravity HUD text (components/type/HoloText);
+    the lock-on waits for the card's reveal. */
+function MaskedTitle({ text, as = 'h2', className, id }: { text: string; as?: 'h1' | 'h2'; className: string; id?: string }) {
+  return <HoloText as={as} id={id} text={text} className={className} baseWdth={className.includes('t-display') ? 100 : 85} />
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

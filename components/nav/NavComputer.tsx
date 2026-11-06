@@ -34,7 +34,7 @@ function follow(href: string, download = false) {
   a.click()
 }
 
-export function NavComputer({ open, onClose, progress, activeId, onGo, onPlayIntro, showEta = true, stations = STATIONS }: {
+export function NavComputer({ open, onClose, progress, activeId, onGo, onPlayIntro, showEta = true, fromLabel, stations = STATIONS }: {
   open: boolean
   onClose: () => void
   progress: number
@@ -43,6 +43,8 @@ export function NavComputer({ open, onClose, progress, activeId, onGo, onPlayInt
   onPlayIntro?: () => void
   /** flight times only mean something where the camera flies (the tunnel) */
   showEta?: boolean
+  /** where the visitor is, when it isn't a station (the subpages) */
+  fromLabel?: string
   stations?: StationDef[]
 }) {
   const ref = useRef<HTMLDialogElement>(null)
@@ -123,7 +125,7 @@ export function NavComputer({ open, onClose, progress, activeId, onGo, onPlayInt
             <span className={s.space}>Set course</span>
             <span className={s.sea}>Chart a course</span>
           </span>
-          <span className={`t-data ${s.from}`}>from {here.num} · {here.short}</span>
+          <span className={`t-data ${s.from}`}>from {fromLabel ?? `${here.num} · ${here.short}`}</span>
         </header>
 
         <input

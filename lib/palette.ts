@@ -121,22 +121,24 @@ const KEY_DIR: [number, number, number] = [-0.85, 0.35, 0.1]
 export const PALETTES: Record<ThemeMode, ScenePalette> = {
   dark: {
     mode: 'dark',
-    bg: '#05080f',
-    ink: '#f1f3f8',
-    ink2: '#b8bec8',
-    ink3: '#9299a5',
-    accent: '#fc9e47',
-    accentText: '#fc9e47',
-    accentInk: '#05080f',
-    surface: '#0f141d',
-    line: '#2d333d',
+    // titanium armour (globals.css): matte black, chrome, no hue
+    bg: '#090a0c',
+    ink: '#eceef1',
+    ink2: '#b8bcc2',
+    ink3: '#92969d',
+    accent: '#e2e8ef',
+    accentText: '#e2e8ef',
+    accentInk: '#0b0c0e',
+    surface: '#141619',
+    line: '#3e4147',
+    // graphite smoke with only a breath of cold left in it
     nebula: {
-      inner: { deep: '#020309', mid: '#0b1626', bright: '#2a5a80', alpha: 0.7, brightStrength: 0.8 },
-      outer: { deep: '#020308', mid: '#0a1a24', bright: '#1f5866', alpha: 0.9, brightStrength: 0.55 },
+      inner: { deep: '#020304', mid: '#0d1015', bright: '#3a4452', alpha: 0.7, brightStrength: 0.8 },
+      outer: { deep: '#020303', mid: '#0b0e11', bright: '#2e3740', alpha: 0.9, brightStrength: 0.55 },
     },
     sunSide: { dir: [-0.55, 0.45, 0.7], strength: 0 },
-    stars: { warm: '#ffe6cf', cool: '#dbe6ff', opacity: 1 },
-    keyLight: { dir: KEY_DIR, color: '#ffd9b0', rim: '#7fb2ff' },
+    stars: { warm: '#f2f4f8', cool: '#dde3ec', opacity: 1 },
+    keyLight: { dir: KEY_DIR, color: '#eef1f5', rim: '#b9c6d6' },
     planetLight: {
       shadow:       [0.0045, 0.006, 0.011],
       keyIntensity: 1.7,
@@ -146,7 +148,7 @@ export const PALETTES: Record<ThemeMode, ScenePalette> = {
       sink:         0.45,
     },
     planets: {
-      // Graphite giant behind the intro portrait; ember lives on its lit limb.
+      // Graphite giant behind the intro portrait; chrome lives on its lit limb.
       hero:       { deep: '#0d0f12', mid: '#22262c', bright: '#454a52' },
       // Stone: warm grey, rocky.
       about:      { deep: '#1b1b1b', mid: '#4a4844', bright: '#86837c' },
@@ -168,9 +170,9 @@ export const PALETTES: Record<ThemeMode, ScenePalette> = {
     ink: '#121927',
     ink2: '#454d5d',
     ink3: '#616977',
-    accent: '#dd6300',
-    accentText: '#b24a0f',
-    accentInk: '#121927',
+    accent: '#24282e',
+    accentText: '#24282e',
+    accentInk: '#f4f6f9',
     surface: '#fcfdff',
     line: '#cbd2d9',
     nebula: {

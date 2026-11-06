@@ -1,7 +1,7 @@
 // app/layout.tsx
 
 import type { Metadata, Viewport } from 'next'
-import { Archivo, JetBrains_Mono } from 'next/font/google'
+import { Chivo, Chivo_Mono, Tektur } from 'next/font/google'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
@@ -15,21 +15,25 @@ import { personSchema, websiteSchema } from '@/lib/seo/jsonld'
 import { SITE_URL, SITE_NAME, AUTHOR, KEYWORDS, SOCIALS } from '@/lib/seo/site'
 import './globals.css'
 
-// Archivo — one variable family (wdth 62–125, wght 100–900) carries the whole
-// voice: expanded + heavy for film-title display type, normal width for
-// reading. --font-body aliases it in globals.css, so it downloads once.
-const archivo = Archivo({
+// Tektur — the cockpit-HUD voice for titles: angular, with a width axis
+// (wdth 75–100) that HoloText squeezes on a fast scroll (components/type).
+const tektur = Tektur({
   subsets: ['latin'],
   axes: ['wdth'],
   variable: '--font-display',
   display: 'swap',
 })
 
-// JetBrains Mono — real data only (PR numbers, dates, diffs). 700 is loaded so
-// bold mono is never synthesised.
-const jetbrainsMono = JetBrains_Mono({
+// Chivo — reading text, buttons, labels.
+const chivo = Chivo({
   subsets: ['latin'],
-  weight: ['400', '500', '700'],
+  variable: '--font-body',
+  display: 'swap',
+})
+
+// Chivo Mono — real data only (PR numbers, dates, diffs).
+const chivoMono = Chivo_Mono({
+  subsets: ['latin'],
   variable: '--font-mono',
   display: 'swap',
 })
@@ -113,7 +117,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
   return (
-    <html lang="en" suppressHydrationWarning className={`${archivo.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${tektur.variable} ${chivo.variable} ${chivoMono.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
       </head>

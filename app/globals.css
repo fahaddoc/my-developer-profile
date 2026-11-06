@@ -25,28 +25,49 @@
 
 :root,
 :root[data-theme='dark'] {
-  /* space — oklch(0.135..0.235 0.02 262) */
-  --space-0:   5   8  15;   /* #05080f page / canvas */
-  --space-1:  10  14  23;   /* #0a0e17 */
-  --surface:  15  20  29;   /* #0f141d raised */
-  --surface-2:24  30  41;   /* #181e29 raised, hover */
-  --line:     45  51  61;   /* #2d333d hairlines */
+  /* titanium armour: matte black plate with a 2-4 unit cool lean, so the
+     blacks read as metal, never as warm mud */
+  --space-0:   9  10  12;   /* #090a0c page / canvas */
+  --space-1:  14  15  18;   /* #0e0f12 */
+  --surface:  20  22  25;   /* #141619 raised */
+  --surface-2:30  32  36;   /* #1e2024 raised, hover */
+  --line:     62  65  71;   /* #3e4147 machined seams */
 
   /* ink */
-  --ink:      241 243 248;  /* #f1f3f8 */
-  --ink-2:    184 190 200;  /* #b8bec8 */
-  --ink-3:    146 153 165;  /* #9299a5 */
+  --ink:      236 238 241;  /* #eceef1  17.0:1 on space-0 */
+  --ink-2:    184 188 194;  /* #b8bcc2  10.4:1 */
+  --ink-3:    146 150 157;  /* #92969d   6.7:1 */
 
-  /* the one accent — ember, oklch(0.78 0.15 60) */
-  --accent:      252 158 71;  /* #fc9e47 fills, glows, large text */
-  --accent-text: 252 158 71;  /* small text in accent */
-  --accent-ink:    5   8  15; /* text on an accent fill */
+  /* the one "accent" is polished chrome: no hue at all */
+  --accent:      226 232 239; /* #e2e8ef fills, glows, focus rings */
+  --accent-text: 226 232 239; /* small text in accent, 16.1:1 */
+  --accent-ink:   11  12  14; /* #0b0c0e text on chrome, 15.9:1 */
 
-  /* atmosphere — cold, low chroma; never used for text */
-  --nebula-a:  38  74 128;   /* deep blue */
-  --nebula-b:  24  92 104;   /* sea teal */
+  /* atmosphere — smoke and graphite; never used for text */
+  --nebula-a:  74  78  84;
+  --nebula-b:  48  51  56;
 
-  --grain-opacity: 0.075;
+  /* star map light (components/projects/starmap) */
+  --starlight:     255 255 255;
+  --starlight-hi:  255 255 255;
+  --starlight-lab: 225 230 236;
+  --nebula-glow:   150 156 165;
+
+  /* machined panels: the star-map frame and the ⌘K dialog */
+  --panel-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.10) 0, rgb(255 255 255 / 0.02) 1.5px, transparent 3px),
+    linear-gradient(0deg, rgb(0 0 0 / 0.55) 0, transparent 3px),
+    radial-gradient(120% 60% at 50% -8%, rgb(64 68 75 / 0.5), transparent 62%),
+    radial-gradient(120% 90% at 50% 45%, rgb(18 20 23 / 0.6), rgb(8 9 11 / 0.94) 72%),
+    rgb(9 10 12 / 0.88);
+  --panel-material: var(--ti-brush-lite) 0 0 / 640px 320px repeat;
+  --panel-bg-solid:
+    var(--ti-brush-dark) 0 0 / 640px 320px repeat,
+    linear-gradient(180deg, rgb(255 255 255 / 0.12) 0, rgb(255 255 255 / 0.02) 1.5px, transparent 3px),
+    radial-gradient(120% 50% at 50% 0%, rgb(255 255 255 / 0.05), transparent 70%),
+    linear-gradient(180deg, #1d1f23 0%, #141518 42%, #0e0f11 100%);
+
+  --grain-opacity: 0.065;
   --grain-blend:   overlay;
 
   /* semantic brand colours (kept, theme-aware) */
@@ -54,9 +75,9 @@
   --status-merged:  63 185 80;
   --status-removed: 248 81 73;
 
-  --heading-shadow: 0 2px 24px rgb(5 8 15 / 0.55);
+  --heading-shadow: 0 1px 0 rgb(0 0 0 / 0.55), 0 2px 24px rgb(9 10 12 / 0.6);
   --eyebrow-shadow: none;
-  --body-shadow:    0 1px 12px rgb(5 8 15 / 0.45);
+  --body-shadow:    0 1px 12px rgb(9 10 12 / 0.5);
 
   color-scheme: dark;
 }
@@ -73,9 +94,19 @@
   --ink-2:     69  77  93;  /* #454d5d */
   --ink-3:     87  96 112;  /* #576070 5.9:1, 5.3:1 on the sky */
 
-  --accent:      221  99   0; /* #dd6300 fills, large text */
-  --accent-text: 163  66  12; /* #a3420c small text, 5.9:1, 5.3:1 on the sky */
-  --accent-ink:   18  25  39; /* ink on the ember fill, 4.9:1 */
+  /* the same armour in daylight: graphite instead of chrome */
+  --accent:       36  40  46; /* #24282e fills, focus rings */
+  --accent-text:  36  40  46; /* small text, 13.8:1 on #f4f7fb */
+  --accent-ink:  244 246 249; /* #f4f6f9 on the graphite fill, 13.7:1 */
+
+  --starlight:    236 240 245;
+  --starlight-hi: 255 255 255;
+  /* the spyglass is polished steel, not brass */
+  --brass:       160 167 176;
+  --brass-dark:   78  84  92;
+  --brass-light: 224 228 233;
+  /* the dark theme's machined panels don't belong in daylight */
+  --panel-bg-solid: rgb(var(--surface));
 
   --nebula-a: 150 178 214;
   --nebula-b: 160 205 210;
@@ -110,8 +141,14 @@
   --selection-bg:   var(--accent);
   --selection-fg:   var(--accent-ink);
 
-  /* fonts — Archivo is loaded once as --font-display (app/layout.tsx) */
-  --font-body: var(--font-display);
+  /* fonts: Tektur (--font-display), Chivo (--font-body), Chivo Mono
+     (--font-mono), all set by next/font in app/layout.tsx */
+
+  /* brushed titanium grain: fractal noise stretched along x so it streaks
+     like a brushed plate; -dark cuts black streaks (shows only where light
+     hits), -lite is a faint white grain for unlit panels */
+  --ti-brush-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='b' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0016 0.8' numOctaves='2' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.2 0 0 0 -0.4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3C/svg%3E");
+  --ti-brush-lite: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3Cfilter id='b' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0018 0.5' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0.16 0 0 0 -0.06'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3C/svg%3E");
 
   /* motion */
   --ease-out:       cubic-bezier(0.22, 1, 0.36, 1);   /* quint */
@@ -200,25 +237,27 @@ a {
 
 .t-display {
   font-family: var(--font-display), system-ui, sans-serif;
-  font-variation-settings: 'wdth' 125;
+  /* Tektur caps, full width at rest; HoloText squeezes --holo-wdth on a fast scroll */
+  font-variation-settings: 'wdth' var(--holo-wdth, 100);
   font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 0.92;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 0.95;
   text-wrap: balance;
 }
 .t-title {
   font-family: var(--font-display), system-ui, sans-serif;
-  font-variation-settings: 'wdth' 112;
+  font-variation-settings: 'wdth' var(--holo-wdth, 85);
   font-weight: 700;
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
   line-height: 1.02;
   text-wrap: balance;
 }
 .t-subtitle {
   font-family: var(--font-display), system-ui, sans-serif;
-  font-variation-settings: 'wdth' 106;
+  font-variation-settings: 'wdth' 90;
   font-weight: 600;
-  letter-spacing: -0.012em;
+  letter-spacing: 0.01em;
   line-height: 1.2;
   text-wrap: balance;
 }
@@ -281,16 +320,54 @@ a {
 .btn[aria-disabled='true'] { opacity: 0.45; pointer-events: none; }
 .btn .btn-arrow { transition: transform var(--dur-2) var(--ease-out); }
 
+/* Chrome: a tall mirror gradient with a hard horizon just under the middle
+   (the reflected skyline every chrome part has). It is twice the button's
+   height, so hovering slides the reflection, like tilting the part under a
+   light. Rim: bright top bevel, dark lower lip, a black seat in the plate. */
 .btn--primary {
-  background: rgb(var(--accent));
   color: rgb(var(--accent-ink));
-  box-shadow: 0 0 0 0 rgb(var(--accent) / 0), 0 10px 30px -12px rgb(var(--accent) / 0.55);
+  background:
+    linear-gradient(180deg, #fbfcfd 0%, #e6eaef 14%, #cfd5dc 24%, #a8afb8 25.5%, #c3c9d0 33%,
+      #eef1f4 42%, #ffffff 50%, #dfe3e8 58%, #b9c0c8 74%, #d9dee4 100%) 0 0 / 100% 200% no-repeat,
+    #dfe4ea;
+  border-color: rgb(0 0 0 / 0.55);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.95),
+    inset 0 -1px 0 rgb(40 44 50 / 0.45),
+    0 0 0 1px rgb(255 255 255 / 0.06),
+    0 10px 28px -14px rgb(226 232 239 / 0.45),
+    0 2px 6px -2px rgb(0 0 0 / 0.8);
+  transition:
+    background-position var(--dur-3) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
 }
 
+/* Etched: a dark recessed rail with a fine lit top edge, machined into the plate. */
 .btn--ghost {
-  background: rgb(var(--ink) / 0.02);
   color: rgb(var(--ink));
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.015) 55%, rgb(0 0 0 / 0.2)),
+    rgb(14 15 18 / 0.55);
+  border-color: rgb(226 232 239 / 0.2);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.09), inset 0 -1px 0 rgb(0 0 0 / 0.45), 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+/* Daylight: polished gunmetal with the same horizon, light text; ghost stays light. */
+:root[data-theme='light'] .btn--primary {
+  background:
+    linear-gradient(180deg, #5a6069 0%, #3c4149 12%, #2b2f35 24%, #17191d 25.5%, #24282e 34%,
+      #3a3f46 46%, #2c3036 60%, #34383f 100%) 0 0 / 100% 200% no-repeat,
+    #2a2e34;
+  border-color: rgb(18 20 24 / 0.9);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), inset 0 -1px 0 rgb(0 0 0 / 0.4), 0 10px 24px -14px rgb(20 26 34 / 0.6);
+}
+:root[data-theme='light'] .btn--ghost {
+  background: rgb(var(--ink) / 0.02);
   border-color: rgb(var(--ink) / 0.22);
+  box-shadow: none;
 }
 
 /* Hover only where a real pointer hovers: on touch, :hover sticks after a
@@ -298,10 +375,24 @@ a {
 @media (hover: hover) and (pointer: fine) {
   .btn:hover .btn-arrow { transform: translateX(3px); }
   .btn--primary:hover {
-    background: rgb(var(--accent) / 0.92);
-    box-shadow: 0 0 0 6px rgb(var(--accent) / 0.12), 0 14px 36px -12px rgb(var(--accent) / 0.65);
+    background-position: 0 100%;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 1),
+      inset 0 -1px 0 rgb(40 44 50 / 0.45),
+      0 0 0 5px rgb(226 232 239 / 0.1),
+      0 14px 34px -12px rgb(226 232 239 / 0.55),
+      0 2px 6px -2px rgb(0 0 0 / 0.8);
   }
   .btn--ghost:hover {
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.11), rgb(255 255 255 / 0.03) 55%, rgb(0 0 0 / 0.15)),
+      rgb(20 22 25 / 0.7);
+    border-color: rgb(226 232 239 / 0.46);
+  }
+  :root[data-theme='light'] .btn--primary:hover {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.32), inset 0 -1px 0 rgb(0 0 0 / 0.4), 0 0 0 5px rgb(36 40 46 / 0.1), 0 14px 30px -12px rgb(20 26 34 / 0.65);
+  }
+  :root[data-theme='light'] .btn--ghost:hover {
     background: rgb(var(--ink) / 0.06);
     border-color: rgb(var(--ink) / 0.42);
   }
@@ -314,6 +405,8 @@ a {
   .btn--primary,
   .btn--ghost {
     border: 1px solid ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
     box-shadow: none;
   }
   .btn:focus-visible { outline: 2px solid Highlight; }
