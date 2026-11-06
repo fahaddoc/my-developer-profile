@@ -56,13 +56,16 @@ const PROP_FRAG = /* glsl */ `
     albedo *= 0.92 + pNoise(vW * 3.1) * 0.16;
     // canopies darken toward their underside (self-shadowing clumps)
     float ao = mix(0.6, 1.0, smoothstep(0.35, 0.9, vLocalY));
-    vec3 col = paint(albedo, normalize(vN), vW, ao);
+    // thin two-sided parts (sails, fronds) are lit from whichever side we see
+    vec3 n = normalize(vN);
+    if (!gl_FrontFacing) n = -n;
+    vec3 col = paint(albedo, n, vW, ao);
     gl_FragColor = vec4(col, uOpacity);
     #include <colorspace_fragment>
   }
 `
 
-function propMaterial(sea: SeaPalette) {
+export function propMaterial(sea: SeaPalette) {
   const m = new THREE.ShaderMaterial({
     uniforms: { ...paintUniforms(), uEmber: { value: 0 } },
     vertexShader: PROP_VERT,
@@ -76,7 +79,7 @@ function propMaterial(sea: SeaPalette) {
   return m
 }
 
-function colorize(g: THREE.BufferGeometry, c: THREE.Color) {
+export function colorize(g: THREE.BufferGeometry, c: THREE.Color) {
   const n = g.getAttribute('position').count
   const arr = new Float32Array(n * 3)
   for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b }

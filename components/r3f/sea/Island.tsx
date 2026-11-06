@@ -22,6 +22,7 @@ import { islandVisibility, rng, type IslandShape } from './seaShared'
 import { buildIsland, scatter, type IslandMesh } from './islandShapes'
 import { PAINT_LIGHT_GLSL, PAINT_NOISE_GLSL, applyPaint, paintUniforms } from './paint'
 import { Arch, Lighthouse, Palms, Trees, type PlacedProp } from './IslandProps'
+import { IslandClouds, type CloudSpec } from './Clouds'
 
 // ─── painterly island material ─────────────────────────────────────────────
 const ISLAND_VERT = /* glsl */ `
@@ -117,6 +118,31 @@ function islandMaterial(sea: SeaPalette) {
   })
   applyPaint(m, sea)
   return m
+}
+
+// ─── cinematic clouds per landform ──────────────────────────────────────────
+// In island-local world units: a cap on a summit, wisps across slopes, mist
+// between towers. Sizes are relative to the island's height so they read the
+// same on every screen; nothing drifts over the HUD side of the frame.
+function islandClouds(shape: IslandShape, summit: THREE.Vector3, radius: number, height: number): CloudSpec[] {
+  const sx = shape.stretch * radius
+  // Billboards that slice through rock get a hard depth cut, so every cloud
+  // hangs IN FRONT of the island (local +z faces the station camera): mist
+  // drifting over the land rather than through it.
+  const front = (z: number) => Math.max(z, 1.05) * radius
+  const at = (x: number, y: number, z: number, w: number, h: number, seed: number): CloudSpec =>
+    ({ x: x * sx, y: y * height, z: front(z), w: w * height, h: h * height, seed })
+  const top = (dy: number, w: number, h: number, seed: number): CloudSpec =>
+    ({ x: summit.x + w * height * 0.08, y: summit.y + dy * height, z: Math.max(summit.z + radius * 0.6, radius * 0.75), w: w * height, h: h * height, seed })
+  switch (shape.kind) {
+    case 'peak':     return [top(0.05, 1.15, 0.4, 0.13), at(1.05, 0.62, 1.1, 1.25, 0.38, 0.37)]
+    case 'karst':    return [at(0.8, 0.78, 1.1, 1.15, 0.36, 0.21), at(-0.35, 0.1, 1.2, 1.5, 0.26, 0.84)]
+    case 'islet':    return [at(-1.15, 1.0, 1.1, 1.7, 0.56, 0.33)]
+    case 'sandbar':  return [at(0.45, 2.6, 1.1, 2.8, 0.85, 0.44)]
+    case 'stacks':   return [at(0.95, 1.1, 1.1, 1.05, 0.34, 0.91), at(-0.95, 0.35, 1.1, 1.0, 0.3, 0.47)]
+    case 'terraces': return [top(0.16, 1.15, 0.4, 0.29), at(-0.95, 0.55, 1.1, 1.15, 0.36, 0.66)]
+    case 'cove':     return [top(0.08, 1.15, 0.4, 0.17), at(-0.88, 0.7, 1.1, 1.25, 0.38, 0.52)]
+  }
 }
 
 // ─── props per landform ────────────────────────────────────────────────────
@@ -337,6 +363,8 @@ export function Island({ shape, sea, position, yaw, radius, height, birds, motio
     }
   }, [shape, mesh, radius, height])
 
+  const clouds = useMemo(() => islandClouds(shape, summitWorld, radius, height), [shape, summitWorld, radius, height])
+
   const opacity  = useRef(1)
   const groupRef = useRef<THREE.Group>(null)
   const flockRef = useRef<THREE.Group>(null)
@@ -381,6 +409,7 @@ export function Island({ shape, sea, position, yaw, radius, height, birds, motio
         <Lighthouse sea={sea} at={summitWorld} size={(height * 46) / shape.peakPx} opacity={opacity} motion={motion} />
       )}
       {arch && <Arch sea={sea} from={arch.from} to={arch.to} base={arch.base} opacity={opacity} />}
+      <IslandClouds sea={sea} clouds={clouds} opacity={opacity} motion={motion} />
       {shape.birds && birds > 0 && (
         <group ref={flockRef}>
           <Flock

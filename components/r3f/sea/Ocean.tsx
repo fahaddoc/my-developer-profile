@@ -17,6 +17,7 @@ import type { SeaPalette } from '@/lib/palette'
 import { NOISE2_GLSL, SEA_Y, islandVisibility } from './seaShared'
 
 export const MAX_ISLANDS = 8
+export const MAX_BOATS = 8
 
 const VERT = /* glsl */ `
   varying vec3 vWorld;
@@ -46,6 +47,9 @@ const FRAG = /* glsl */ `
   uniform vec4 uIslands[${MAX_ISLANDS}];   // x, z, footprint radius, x stretch
   uniform float uIslandVis[${MAX_ISLANDS}]; // 0..1, fades with the island
   uniform int uIslandCount;
+  uniform vec4 uBoats[${MAX_BOATS}];      // x, z, heading, hull length
+  uniform vec2 uBoatFx[${MAX_BOATS}];     // visibility, moving (0 moored)
+  uniform int uBoatCount;
   varying vec3 vWorld;
   ${NOISE2_GLSL}
 
@@ -101,6 +105,27 @@ const FRAG = /* glsl */ `
       col = mix(col, uFoam, foam * 0.85 * uIslandVis[i]);
     }
 
+    // boat wakes: a V of foam spreading behind the stern, a churned centre
+    // line, and a ring where the hull meets the water
+    for (int i = 0; i < ${MAX_BOATS}; i++) {
+      if (i >= uBoatCount) break;
+      vec4 b = uBoats[i];
+      vec2 fx = uBoatFx[i];
+      if (fx.x < 0.01) continue;
+      vec2 fwd = vec2(sin(b.z), cos(b.z));
+      vec2 rel = p - b.xy;
+      float u = -dot(rel, fwd);                       // distance behind the boat
+      float v = dot(rel, vec2(fwd.y, -fwd.x));         // sideways
+      float L = b.w;
+      float behind = step(-0.2 * L, u) * (1.0 - smoothstep(0.0, 9.0 * L, u));
+      float arms = 1.0 - smoothstep(0.0, 0.1 * L + u * 0.04, abs(abs(v) - max(u, 0.0) * 0.34));
+      float churn = (1.0 - smoothstep(0.0, 0.16 * L + u * 0.03, abs(v))) * (1.0 - smoothstep(0.0, 3.5 * L, u));
+      float grain = smoothstep(0.3, 0.75, vnoise(p * 2.2 + uTime * 0.6));
+      float wake = (arms * 0.75 + churn * 0.55) * behind * grain * fx.y;
+      float hull = 1.0 - smoothstep(0.0, 0.12 * L, abs(length(rel / vec2(0.42, 1.0)) - 0.32 * L));
+      col = mix(col, uFoam, clamp(wake + hull * 0.5, 0.0, 1.0) * 0.8 * fx.x);
+    }
+
     // haze into the horizon colour
     float f = smoothstep(uFogNear, uFogFar, dist);
     col = mix(col, uSkyHorizon, f);
@@ -112,12 +137,16 @@ const FRAG = /* glsl */ `
 
 export interface OceanIsland { x: number; z: number; radius: number; stretch: number; stationT: number; last: boolean }
 
-export function Ocean({ sea, octaves, motion, islands, getCamT }: {
+export interface OceanBoat { x: number; z: number; heading: number; len: number; vis: number; moving: number }
+
+export function Ocean({ sea, octaves, motion, islands, getCamT, boats }: {
   sea: SeaPalette
   octaves: number
   motion: number
   islands: OceanIsland[]
   getCamT: () => number
+  /** live boat state (written by <Boats/> every frame) */
+  boats?: React.MutableRefObject<OceanBoat[]>
 }) {
   const meshRef = useRef<THREE.Mesh>(null)
 
@@ -141,6 +170,9 @@ export function Ocean({ sea, octaves, motion, islands, getCamT }: {
       uIslands:     { value: Array.from({ length: MAX_ISLANDS }, () => new THREE.Vector4()) },
       uIslandCount: { value: 0 },
       uIslandVis:   { value: new Array(MAX_ISLANDS).fill(1) },
+      uBoats:       { value: Array.from({ length: MAX_BOATS }, () => new THREE.Vector4()) },
+      uBoatFx:      { value: Array.from({ length: MAX_BOATS }, () => new THREE.Vector2()) },
+      uBoatCount:   { value: 0 },
     },
     vertexShader:   VERT,
     fragmentShader: FRAG,
@@ -182,6 +214,15 @@ export function Ocean({ sea, octaves, motion, islands, getCamT }: {
       vis[i] = islandVisibility(camT, islands[i].stationT, islands[i].last)
     }
     mat.uniforms.uTime.value += Math.min(delta, 0.25) * motion
+    const live = boats?.current ?? []
+    const bv = mat.uniforms.uBoats.value as THREE.Vector4[]
+    const bf = mat.uniforms.uBoatFx.value as THREE.Vector2[]
+    const nb = Math.min(MAX_BOATS, live.length)
+    for (let i = 0; i < nb; i++) {
+      bv[i].set(live[i].x, live[i].z, live[i].heading, live[i].len)
+      bf[i].set(live[i].vis, live[i].moving)
+    }
+    mat.uniforms.uBoatCount.value = nb
   })
 
   return (

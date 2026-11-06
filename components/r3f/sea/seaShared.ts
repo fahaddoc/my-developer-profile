@@ -93,6 +93,35 @@ export const ISLANDS: Record<IslandId, IslandShape> = {
   },
 }
 
+/** Sailboats: screen-authored like the islands (where the hull sits when its
+ *  station is at rest). `px` is the hull length on screen at 900px tall;
+ *  `loop` is the loop radius in boat lengths (0 = moored). */
+export interface BoatLayout { station: IslandId; sx: number; wy: number; px: number; loop: number; dir: 1 | -1; heading: number }
+export const BOATS: BoatLayout[] = [
+  { station: 'hero',       sx: 0.58, wy: 0.76, px: 96, loop: 6,  dir: 1,  heading: 2.2 },
+  { station: 'about',      sx: 0.66, wy: 0.53, px: 50, loop: 8,  dir: -1, heading: 1.2 },
+  { station: 'skills',     sx: 0.88, wy: 0.75, px: 74, loop: 6,  dir: 1,  heading: -2.4 },
+  { station: 'opensource', sx: 0.6,  wy: 0.57, px: 58, loop: 7,  dir: -1, heading: 0.6 },
+  { station: 'experience', sx: 0.6,  wy: 0.85, px: 86, loop: 6,  dir: 1,  heading: 2.8 },
+  { station: 'contact',    sx: 0.92, wy: 0.575, px: 66, loop: 0,  dir: 1,  heading: 1.9 },
+]
+
+/** World point on the sea surface that lands at (sx, wy) on screen for a
+ *  camera resting at camPos looking along lookDir; also returns world units
+ *  per screen px at that distance. */
+export function seaPoint(camPos: THREE.Vector3, lookDir: THREE.Vector3, sx: number, wy: number, W: number, H: number) {
+  const f      = H / 2 / Math.tan((SEA_FOV * Math.PI) / 360)
+  const pitch  = Math.atan(SEA_PITCH)
+  const height = Math.max(0.5, camPos.y - SEA_Y)
+  const below  = Math.atan((wy * H - H / 2) / f)
+  const d      = height / Math.tan(Math.max(0.004, pitch + below))
+  const flat  = new THREE.Vector3(lookDir.x, 0, lookDir.z).normalize()
+  const right = new THREE.Vector3().crossVectors(flat, new THREE.Vector3(0, 1, 0)).normalize()
+  const position = new THREE.Vector3().copy(camPos).addScaledVector(flat, d).addScaledVector(right, ((sx * W - W / 2) * d) / f)
+  position.y = SEA_Y
+  return { position, pxWorld: d / f }
+}
+
 export interface IslandPlacement {
   /** world position of the footprint centre at sea level */
   position: THREE.Vector3

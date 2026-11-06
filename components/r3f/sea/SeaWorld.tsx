@@ -7,7 +7,7 @@
 // shot for the current viewport, so the station frames match DESIGN.md at
 // any desktop size.
 
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { ScenePalette } from '@/lib/palette'
@@ -16,7 +16,8 @@ import { STATIONS } from '@/lib/tunnel'
 import { SeaSky } from './SeaSky'
 import { Ocean, type OceanIsland } from './Ocean'
 import { Island } from './Island'
-import { ISLANDS, placeIsland, seaLookDir, type IslandId } from './seaShared'
+import { Boats, type BoatLive, type BoatSpec } from './Boats'
+import { BOATS, ISLANDS, placeIsland, seaLookDir, seaPoint, type IslandId } from './seaShared'
 
 export function SeaWorld({ palette, preset, motion, curve, lookAhead, skillsSx, onActive, getCamT }: {
   palette:   ScenePalette
@@ -56,13 +57,42 @@ export function SeaWorld({ palette, preset, motion, curve, lookAhead, skillsSx, 
     [placed],
   )
 
+  // sailboats: solved from their screen shots like the islands
+  const boatSpecs: BoatSpec[] = useMemo(() => {
+    const pos = new THREE.Vector3()
+    const ahead = new THREE.Vector3()
+    const dir = new THREE.Vector3()
+    const k = Math.max(1, H) / 900
+    const lastId = STATIONS[STATIONS.length - 1].id
+    return BOATS.flatMap((b, i) => {
+      const st = STATIONS.find((s) => s.id === b.station)
+      if (!st) return []
+      curve.getPointAt(st.t, pos)
+      curve.getPointAt(Math.min(0.9999, st.t + lookAhead), ahead)
+      seaLookDir(pos, ahead, dir)
+      const p = seaPoint(pos, dir, b.sx, b.wy, Math.max(1, W), Math.max(1, H))
+      return [{
+        anchor: p.position,
+        size: (b.px * k * p.pxWorld) / 1.2,
+        loop: b.loop,
+        heading: b.heading,
+        dir: b.dir,
+        stationT: st.t,
+        last: b.station === lastId,
+        seed: i + 1,
+      }]
+    })
+  }, [curve, lookAhead, W, H])
+  const boatState = useRef<BoatLive[]>([])
+
   const birds  = preset.starCount >= 3000 ? 12 : preset.starCount >= 1500 ? 9 : 6
   const detail = preset.starCount >= 3000 ? 1 : preset.starCount >= 1500 ? 0.7 : 0.4
 
   return (
     <>
       <SeaSky sea={sea} octaves={preset.nebulaOctaves} motion={motion} />
-      <Ocean sea={sea} octaves={preset.nebulaOctaves} motion={motion} islands={oceanIslands} getCamT={getCamT} />
+      <Ocean sea={sea} octaves={preset.nebulaOctaves} motion={motion} islands={oceanIslands} getCamT={getCamT} boats={boatState} />
+      <Boats sea={sea} boats={boatSpecs} motion={motion} getCamT={getCamT} state={boatState} />
 
 
       {placed.map((p) => (
