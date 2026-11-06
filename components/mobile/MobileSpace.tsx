@@ -476,6 +476,11 @@ export default function MobileSpace() {
              --copy-gap across the copy's left edge, so it never crosses it. */
           --orb: max(300vw, 1000px);
           --copy-gap: 36px;
+          /* The ledge in front of the photo (SeaIslands .isle-front): 1.6x the
+             photo, but never wider than the room on either side of the apex,
+             so neither end runs off a narrow phone. Still wider than the
+             person standing on it. */
+          --isle-w: min(calc(var(--photo-w) * 1.6), calc((100% - var(--apex)) * 2 - 20px), calc(var(--apex) * 2 - 20px));
           justify-content: flex-start;
           padding-top: var(--top);
           overflow: hidden;
@@ -615,6 +620,12 @@ export default function MobileSpace() {
         /* The scene, planet and copy position against the section itself. */
         .ms-st--hero .ms-inner { position: static; max-width: none; }
         .ms-hero-copy { position: relative; z-index: 3; margin-top: var(--copy-gap); max-width: 560px; }
+        /* Daylight: the name starts below the ledge's waterline instead of
+           over it (ledge height = width x 100/464, waterline at 87% of that,
+           its top sits photo-h x 0.0208 above the horizon). */
+        :root[data-theme='light'] .ms-hero-copy {
+          margin-top: max(var(--copy-gap), calc(var(--isle-w) * 0.1875 - var(--photo-h) * 0.0208 + 12px));
+        }
         .ms-hero-name {
           font-size: clamp(44px, 13.5vw, 64px);
           color: rgb(var(--ink));
@@ -1263,9 +1274,8 @@ function Hero({ onWork }: { onWork: () => void }) {
       </div>
 
       <div className="ms-hero-copy">
-        <div className="ms-title-mask" data-mask>
-          <HoloText as="h1" id="intro-title" text="Shah Fahad" className="t-display ms-hero-name" />
-        </div>
+        {/* HoloText runs its own lock-on entrance; no mask wrapper around it */}
+        <HoloText as="h1" id="intro-title" text="Shah Fahad" className="t-display ms-hero-name" />
         <p className="t-lead ms-hero-lead" data-reveal style={iv(2)}>
           Senior software engineer building real-time web and mobile products. React, Next.js, Flutter and WebRTC,
           from Karachi, Pakistan.

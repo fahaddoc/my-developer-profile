@@ -246,9 +246,10 @@ export function SeaIslandStyles() {
          and the rock reaches 0.2 x photo height below it, past --sink. */
       .isle-front {
         position: absolute;
-        left: calc(var(--apex) - var(--photo-w) * 0.8);
+        /* --isle-w (MobileSpace) keeps both ends on screen; centred on the photo */
+        left: calc(var(--apex) - var(--isle-w, calc(var(--photo-w) * 1.6)) / 2);
         top: calc(160px - var(--photo-h) * 0.0208);
-        width: calc(var(--photo-w) * 1.6);
+        width: var(--isle-w, calc(var(--photo-w) * 1.6));
       }
 
       /* Calm water around the ledge's base. At rest it matches the sea under
