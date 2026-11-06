@@ -1,0 +1,80 @@
+/* HoloText — a HUD heading in zero gravity. Motion lives in holo.ts; this is
+   the projection look and the one-time lock-on entrance. */
+
+.holo {
+  position: relative;
+  /* flow-root: .glyphs' negative margins stay inside, so the box (and the
+     lock-on brackets) hug the letters */
+  display: flow-root;
+  width: fit-content;
+  max-width: 100%;
+  /* holo.ts squeezes this on fast scrolls */
+  font-variation-settings: 'wdth' var(--holo-wdth, 100);
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.glyphs {
+  display: block;
+  /* faint projector scanlines through the letters; the box reaches past the
+     glyphs so the mask never cuts their glow off in a hard rectangle */
+  margin: -36px;
+  padding: 36px;
+  mask-image: repeating-linear-gradient(to bottom, #000 0 2px, rgb(0 0 0 / 0.8) 2px 3px);
+}
+.line { display: block; }
+.word { display: inline-block; white-space: nowrap; }
+.g { display: inline-block; will-change: transform; }
+.in { display: inline-block; text-shadow: 0 0 24px rgb(var(--accent) / 0.22); }
+:global(:root[data-theme='light']) .in { text-shadow: 0 2px 18px rgb(var(--accent) / 0.16); }
+
+/* ---------- lock-on: brackets close in, glyphs pull into focus, a scan passes ---------- */
+/* Hidden only once JS has armed the entrance; without JS the text is just there. */
+.holo[data-armed]:not([data-on]) .in { opacity: 0; }
+.holo[data-on] .in {
+  animation: acquire 640ms var(--ease-out) backwards;
+  animation-delay: calc(240ms + var(--i) * 28ms);
+}
+@keyframes acquire {
+  from { opacity: 0; filter: blur(8px); transform: translateY(-0.3em) scale(1.4); }
+  55%  { opacity: 1; }
+}
+
+.c {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 0 solid rgb(var(--accent));
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 460ms var(--ease-out), opacity 300ms var(--ease-out);
+}
+.tl { left: -20px; top: -8px; border-width: 2px 0 0 2px; transform: translate(-16px, -16px); }
+.tr { right: -20px; top: -8px; border-width: 2px 2px 0 0; transform: translate(16px, -16px); }
+.bl { left: -20px; bottom: -8px; border-width: 0 0 2px 2px; transform: translate(-16px, 16px); }
+.br { right: -20px; bottom: -8px; border-width: 0 2px 2px 0; transform: translate(16px, 16px); }
+.holo[data-on] .c { opacity: 0.55; transform: none; }
+
+.scan {
+  position: absolute;
+  left: -14px;
+  right: -14px;
+  top: 0;
+  height: 2px;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, rgb(var(--accent)), transparent);
+  box-shadow: 0 0 14px 2px rgb(var(--accent) / 0.55);
+}
+.holo[data-on] .scan { animation: scan 1100ms var(--ease-in-out) 260ms both; }
+@keyframes scan {
+  0%   { opacity: 0; top: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { opacity: 0; top: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .holo[data-armed]:not([data-on]) .in { opacity: 1; }
+  .holo[data-on] .in, .holo[data-on] .scan { animation: none; }
+  .c { transition: none; }
+}

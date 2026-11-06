@@ -13,11 +13,17 @@ import { skills } from '@/data/projects'
 import { AUTHOR } from '@/lib/seo/site'
 import { FlightPlan } from '@/components/nav/FlightPlan'
 import { StarMap } from '@/components/projects/starmap/StarMap'
+import { HoloText } from '@/components/type/HoloText'
 import { TYPES, type TypeStyle } from './fonts'
 import s from './TypeSpecimen.module.css'
 
 const station = (id: string) => STATIONS.find((st) => st.id === id)!
 const lines = (h: string) => h.split('\n').map((l, i) => <span key={i} className={s.line}>{l}</span>)
+
+/** HUD floats its big titles in zero gravity; the other directions stay still. */
+function Display({ text, className, holo }: { text: string; className: string; holo: boolean }) {
+  return holo ? <HoloText text={text} className={className} /> : <h2 className={className}>{lines(text)}</h2>
+}
 
 export function TypeSpecimen({ type }: { type: TypeStyle }) {
   const vars = {
@@ -26,6 +32,7 @@ export function TypeSpecimen({ type }: { type: TypeStyle }) {
     ...(type.mono && { '--font-mono': type.mono }),
   } as CSSProperties
   const hero = station('hero'), skillsSt = station('skills'), contact = station('contact')
+  const holo = type.slug === 'hud'
 
   return (
     <div className={s.spec} data-type={type.slug} style={vars}>
@@ -48,7 +55,7 @@ export function TypeSpecimen({ type }: { type: TypeStyle }) {
         <FlightPlan className={s.rail} activeId="hero" progress={hero.t} onGo={() => {}} onSetCourse={() => {}} />
         <div>
           <p className={`t-data ${s.kicker}`}>{hero.num} · {hero.short}</p>
-          <h2 className={`t-display ${s.d1}`}>{lines(hero.heading)}</h2>
+          <Display text={hero.heading} className={`t-display ${s.d1}`} holo={holo} />
           <p className={`t-lead ${s.lead}`}>{hero.tagline}</p>
           <div className={s.actions}>
             <span className="btn btn--primary">See the work <span className="btn-arrow" aria-hidden="true">→</span></span>
@@ -60,7 +67,7 @@ export function TypeSpecimen({ type }: { type: TypeStyle }) {
       {/* a station */}
       <section className={s.block}>
         <p className={`t-data ${s.kicker}`}>{skillsSt.num} · {skillsSt.short}</p>
-        <h2 className={`t-display ${s.d2}`}>{lines(skillsSt.heading)}</h2>
+        <Display text={skillsSt.heading} className={`t-display ${s.d2}`} holo={holo} />
         <p className={`t-lead ${s.lead}`}>{skillsSt.tagline}</p>
         <div className={s.groups}>
           {skills.slice(0, 3).map((g) => (
@@ -80,7 +87,7 @@ export function TypeSpecimen({ type }: { type: TypeStyle }) {
       {/* contact */}
       <section className={s.block}>
         <p className={`t-data ${s.kicker}`}>{contact.num} · {contact.short}</p>
-        <h2 className={`t-display ${s.d2}`}>{lines(contact.heading)}</h2>
+        <Display text={contact.heading} className={`t-display ${s.d2}`} holo={holo} />
         <p className={`t-title ${s.mail}`}>{AUTHOR.email}</p>
         <div className={s.actions}>
           <span className="btn btn--primary">Write to me <span className="btn-arrow" aria-hidden="true">→</span></span>

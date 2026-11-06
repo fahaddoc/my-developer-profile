@@ -95,6 +95,10 @@
 
 /* Cockpit HUD: angular caps for the big titles, condensed for the rest */
 .spec[data-type='hud'] { --ds: 0.98; }
-.spec[data-type='hud'] :global(.t-display) { font-variation-settings: 'wdth' 100; font-weight: 800; text-transform: uppercase; letter-spacing: 0.01em; line-height: 0.95; }
+.spec[data-type='hud'] :global(.t-display) { font-variation-settings: 'wdth' var(--holo-wdth, 100); font-weight: 800; text-transform: uppercase; letter-spacing: 0.01em; line-height: 0.95; }
+/* a HUD readout caret after each section label */
+.spec[data-type='hud'] .kicker::after { content: '▍'; margin-left: 6px; animation: caret 1.1s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .spec[data-type='hud'] .kicker::after { animation: none; } }
 .spec[data-type='hud'] :global(.t-title) { font-variation-settings: 'wdth' 85; font-weight: 700; letter-spacing: 0; }
 .spec[data-type='hud'] :global(.t-subtitle) { font-variation-settings: 'wdth' 90; font-weight: 600; letter-spacing: 0.01em; }
