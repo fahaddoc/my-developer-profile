@@ -53,7 +53,7 @@ function step(from: number, dx: number, dy: number, tall: boolean) {
 }
 
 export function StarMap({ title, onExplore = openDrawer }: {
-  /** section heading (the home page); /ideas shows the chart without one */
+  /** section heading (the desktop Work station); the phone layout has its own */
   title?: string
   onExplore?: (p: Project) => void
 }) {

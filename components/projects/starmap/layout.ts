@@ -1,4 +1,4 @@
-// components/ideas/starmap/layout.ts — where every project sits on the star
+// components/projects/starmap/layout.ts — where every project sits on the star
 // map. The sky reads left to right as time (2018 → 2026); each category is a
 // constellation joined in year order, and the six engineering demos form a
 // small cluster ("the lab") at the far right. Positions are hand-placed in a

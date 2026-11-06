@@ -479,7 +479,7 @@
   pointer-events: none;
 }
 
-/* Work: the showcase (ProjectShowcase, owned elsewhere) starts on the same
+/* Work: the star map (components/projects/starmap) starts on the same
    left edge as every station overlay. */
 .gallery {
   position: fixed;

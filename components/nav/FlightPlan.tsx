@@ -6,7 +6,7 @@
 // with the scroll. Hovering or focusing a stop shows the flight time to it;
 // clicking flies there. "Set course" opens the nav computer.
 //
-// Positioning is the parent's job (fixed in the HUD, absolute in /ideas).
+// Positioning is the parent's job (fixed in the HUD).
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
