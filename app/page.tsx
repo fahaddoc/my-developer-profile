@@ -7,18 +7,26 @@
 // AppShell reports ready (capped, see LoadingScreen). Until AppShell's chunk
 // arrives its loading fallback is the loader's last frame (BootFrame), so
 // there is never an empty frame, with or without the card.
+//
+// On the screens that get MobileSpace (phones, tablets, reduced motion) the
+// phone hero itself is in the server HTML too (<HeroShell/>, over the boot
+// frame), so the portrait and the name are the first paint and the LCP; the
+// live hero takes over from it when MobileSpace mounts
+// (components/mobile/hero).
 
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { preload } from 'react-dom'
 import dynamic from 'next/dynamic'
-import { getImageProps } from 'next/image'
 
 import { JsonLd } from '@/components/seo/JsonLd'
 import { profilePageSchema, projectsItemListSchema, faqSchema } from '@/lib/seo/jsonld'
 import { SeoContent } from '@/components/seo/SeoContent'
 import { BootFrame, LoadingScreen, warmAppChunks } from '@/components/ui/LoadingScreen'
+import { HERO_STICKER, HeroShell } from '@/components/mobile/hero/Hero'
+import { registerHeroShell } from '@/components/mobile/hero/handoff'
+import { MOBILE_EXPERIENCE_MEDIA } from '@/components/mobile/hero/media'
 
 const AppShell = dynamic(() => import('@/components/AppShell'), {
   ssr: false,
@@ -48,25 +56,21 @@ if (typeof window !== 'undefined' && window.location.pathname === '/') {
   }
 }
 
-// The phone hero is the sticker <Image priority> in MobileSpace's IntroCard.
-// MobileSpace is client-only, so that image's own preload only reaches the
-// page after two chunks. Emit the same preload (same src, sizes and so the
-// same srcset) in the server HTML, limited to the screens AppShell sends to
-// MobileSpace: not (min-width 1024 + hover), or reduced motion. Keep src and
-// sizes in sync with IntroCard.
-const HERO_STICKER = getImageProps({
-  src: '/images/shah-fahad-sticker.png',
-  alt: '',
-  fill: true,
-  sizes: '(min-width: 1024px) 540px, (min-width: 640px) 500px, 320px',
-}).props
-const MOBILE_EXPERIENCE_MEDIA =
-  'not all and (min-width: 1024px) and (hover: hover), (prefers-reduced-motion: reduce)'
-
 export default function Page() {
   const [booting, setBooting] = useState(true)
+  // The server-rendered hero, until MobileSpace's own hero takes over (or the
+  // tunnel mounts). Desktop never shows it (CSS): drop it once hydrated there.
+  const [heroShell, setHeroShell] = useState(true)
+  useLayoutEffect(() => {
+    if (!window.matchMedia(MOBILE_EXPERIENCE_MEDIA).matches) { setHeroShell(false); return }
+    return registerHeroShell(() => setHeroShell(false))
+  }, [])
 
-  // Hoisted into <head> by React during the server render.
+  // The hero's portrait, hoisted into <head> by React during the server
+  // render: fetched before the parser reaches the stand-in's <img>, with the
+  // same srcset and sizes (so the same candidate), and only on the screens
+  // AppShell sends to MobileSpace (not min-width 1024 + hover, or reduced
+  // motion).
   preload(HERO_STICKER.src, {
     as: 'image',
     imageSrcSet: HERO_STICKER.srcSet,
@@ -104,6 +108,9 @@ export default function Page() {
       <SeoContent />
 
       <AppShell />
+      {/* After AppShell: it paints over the boot frame, and MobileSpace's
+          SVG gradient ids come first in the document. */}
+      {heroShell && <HeroShell />}
       {booting && <LoadingScreen onComplete={onBootComplete} />}
     </>
   )

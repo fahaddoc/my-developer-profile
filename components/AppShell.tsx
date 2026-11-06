@@ -9,7 +9,9 @@
 // point) stays mounted at a fixed place in this tree from AppShell's first
 // render until the first real frame is on screen:
 //   - tunnel: the scene has drawn its first frame and the HUD is mounted;
-//   - classic: MobileSpace has mounted.
+//   - classic: MobileSpace has mounted. On these screens app/page.tsx's
+//     server-rendered hero stands over the veil (which then shows no point)
+//     until MobileSpace's hero takes over from it (components/mobile/hero).
 // It covers eligibility + GPU tier, the experience's chunk, and the scene's
 // first draw (an undrawn alpha:false canvas would show black), sitting above
 // the canvas and below the HUD. Then it fades out (280ms) and
@@ -22,6 +24,7 @@ import { useQualityLevel } from '@/components/r3f/useQualityLevel'
 import { QualityToggle } from '@/components/r3f/QualityToggle'
 import { TunnelAnchors } from '@/components/r3f/TunnelScrollRails'
 import { PRESETS, type QualityLevel } from '@/lib/quality'
+import { releaseHeroShell } from '@/components/mobile/hero/handoff'
 import {
   BOOT_FADE_MS,
   BootFrame,
@@ -149,6 +152,10 @@ function TunnelMode({
   const [sceneDrawn, setSceneDrawn] = useState(false)
   const [hudMounted, setHudMounted] = useState(false)
   const onHudMounted = useCallback(() => setHudMounted(true), [])
+
+  // The server-rendered phone hero (app/page.tsx) is MobileSpace's to take
+  // over; on the tunnel path (?view=tunnel on a phone) it just goes.
+  useEffect(() => { releaseHeroShell() }, [])
 
   // The scene's first rendered frame: the scene fires SCENE_READY_EVENT after
   // it; if it never does, assume it a short while after its canvas exists.

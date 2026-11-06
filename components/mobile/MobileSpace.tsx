@@ -46,15 +46,13 @@ import {
   FaCircleHalfStroke,
   FaGithub,
   FaLinkedinIn,
-  FaPlay,
-  FaVolumeHigh,
-  FaVolumeXmark,
   FaXmark,
 } from 'react-icons/fa6'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { StarfieldBackground } from '@/components/mobile/StarfieldBackground'
 import { SeaBackground } from '@/components/mobile/SeaBackground'
-import { AboutIsle, Coast, HeroIsleBack, HeroIsleFront, SeaIslandStyles } from '@/components/mobile/SeaIslands'
+import { AboutIsle, Coast, SeaIslandStyles } from '@/components/mobile/SeaIslands'
+import { Hero } from '@/components/mobile/hero/Hero'
 import { FeaturedAchievement } from '@/components/featured/FeaturedAchievement'
 import { StarMap } from '@/components/projects/starmap/StarMap'
 import { HoloText } from '@/components/type/HoloText'
@@ -71,9 +69,7 @@ const STATION_IDS = ['intro', 'about', 'skills', 'work', 'open-source', 'experie
 const WORK = 3
 const CONTACT = 6
 const EMAIL = 'hello@shahfahad.dev'
-const RESUME = '/Shah_Fahad_Resume.pdf'
 const CAL = 'https://cal.com/shahfahad'
-const INTRO_POSTER = '/videos/shah-intro-poster-360.webp'
 
 const CATEGORY: Record<Project['category'], string> = { web: 'Web', mobile: 'Mobile', realtime: 'Real-time' }
 
@@ -464,273 +460,19 @@ export default function MobileSpace() {
         }
 
         /* ── 0 · intro ───────────────────────────────────────────────────── */
-        .ms-st--hero {
-          --top: 60px;
-          --scene-h: clamp(180px, calc(100svh - 400px), 380px);
-          --horizon: calc(var(--top) + var(--scene-h));
-          --photo-h: calc(var(--scene-h) * 1.1);
-          --photo-w: calc(var(--photo-h) * 0.7534);
-          --sink: 0.16; /* share of the photo hidden behind the horizon */
-          --apex: 60%;
-          /* Planet diameter. Wide enough that the rim drops less than
-             --copy-gap across the copy's left edge, so it never crosses it. */
-          --orb: max(300vw, 1000px);
-          --copy-gap: 36px;
-          /* The ledge in front of the photo (SeaIslands .isle-front): 1.6x the
-             photo, but never wider than the room on either side of the apex,
-             so neither end runs off a narrow phone. Still wider than the
-             person standing on it. */
-          --isle-w: min(calc(var(--photo-w) * 1.6), calc((100% - var(--apex)) * 2 - 20px), calc(var(--apex) * 2 - 20px));
-          justify-content: flex-start;
-          padding-top: var(--top);
-          overflow: hidden;
-          overflow: clip;
-        }
-        .ms-hero-scene {
-          position: relative;
-          height: var(--scene-h);
-          margin-left: calc(-1 * var(--pad-l));
-          margin-right: calc(-1 * var(--pad-r));
-        }
-        .ms-sunrise {
-          position: absolute;
-          left: var(--apex);
-          bottom: -40px;
-          width: min(150%, 760px);
-          height: 120%;
-          transform: translateX(-50%);
-          pointer-events: none;
-          background:
-            radial-gradient(42% 46% at 50% 100%, rgb(var(--accent) / 0.34), rgb(var(--accent) / 0.1) 48%, transparent 74%);
-        }
-        .ms-intro {
-          position: absolute;
-          left: calc(var(--apex) - var(--photo-w) / 2);
-          bottom: calc(var(--photo-h) * var(--sink) * -1);
-          width: var(--photo-w);
-          height: var(--photo-h);
-        }
-        .ms-intro-card {
-          position: absolute;
-          inset: 0;
-          display: block;
-          padding: 0;
-          border: 0;
-          background: none;
-          cursor: pointer;
-          perspective: 900px;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .ms-intro-card:focus-visible { outline-offset: 6px; border-radius: 14px; }
-        .ms-intro-inner {
-          position: absolute;
-          inset: 0;
-          display: block;
-          transform-style: preserve-3d;
-          transition: transform 560ms var(--ease-in-out);
-        }
-        .ms-intro[data-flipped='true'] .ms-intro-inner { transform: rotateY(180deg); }
-        .ms-intro-face {
-          position: absolute;
-          inset: 0;
-          display: block;
-          backface-visibility: hidden;
-          -webkit-backface-visibility: hidden;
-        }
-        .ms-intro-back { transform: rotateY(180deg); }
-        .ms-intro-media {
-          filter: drop-shadow(0 0 1px rgb(var(--accent) / 0.5)) drop-shadow(-4px -3px 14px rgb(var(--accent) / 0.22));
-        }
-        .ms-intro-video {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          object-position: bottom;
-        }
-        .ms-intro-ctl {
-          position: absolute;
-          left: -18px;
-          bottom: calc(var(--photo-h) * var(--sink) + 18px);
-          z-index: 4;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          height: 36px;
-          padding: 0 14px 0 12px;
-          border-radius: 999px;
-          border: 1px solid rgb(var(--ink) / 0.22);
-          background: rgb(var(--space-0) / 0.74);
-          color: rgb(var(--ink));
-          font-family: var(--font-body), system-ui, sans-serif;
-          font-size: 13px;
-          font-weight: 500;
-          white-space: nowrap;
-          cursor: pointer;
-          transition:
-            border-color var(--dur-1) var(--ease-out),
-            background-color var(--dur-1) var(--ease-out),
-            transform var(--dur-1) var(--ease-out);
-        }
-        .ms-intro-ctl::before { content: ''; position: absolute; inset: -5px -2px; }
-        .ms-intro-ctl svg { width: 11px; height: 11px; flex: none; }
-        .ms-intro-ctl--sound svg { width: 14px; height: 14px; }
-        .ms-intro-card:active .ms-intro-ctl,
-        .ms-intro-ctl:active { transform: scale(0.97); transition-duration: 80ms; }
-        @media (hover: hover) and (pointer: fine) {
-          .ms-intro-card:hover .ms-intro-ctl,
-          .ms-intro-ctl:hover { border-color: rgb(var(--ink) / 0.42); }
-        }
-        .ms-intro-ctl:focus-visible { outline-offset: 3px; border-radius: 999px; }
-        /* Reduced motion: no 3D turn, the two faces crossfade instead. */
-        @media (prefers-reduced-motion: reduce) {
-          .ms-intro-inner { transition: none; transform: none !important; }
-          .ms-intro-face { transition: opacity var(--dur-2) linear; }
-          .ms-intro-back { transform: none; opacity: 0; }
-          .ms-intro[data-flipped='true'] .ms-intro-back { opacity: 1; }
-          .ms-intro[data-flipped='true'] .ms-intro-front { opacity: 0; }
-        }
-
-        .ms-planet {
-          position: absolute;
-          left: 0;
-          right: 0;
-          top: calc(var(--horizon) - 160px);
-          bottom: 0;
-          z-index: 2;
-          overflow: hidden;
-          pointer-events: none;
-          -webkit-mask-image: linear-gradient(#000 calc(100% - 140px), transparent);
-          mask-image: linear-gradient(#000 calc(100% - 140px), transparent);
-        }
-        .ms-planet-orb {
-          position: absolute;
-          top: 160px;
-          left: var(--apex);
-          width: var(--orb);
-          aspect-ratio: 1;
-          border-radius: 50%;
-          transform: translateX(-50%);
-          background: linear-gradient(180deg, rgb(var(--surface-2)) 0px, rgb(var(--space-1)) 70px, rgb(var(--space-0)) 240px);
-          box-shadow:
-            inset 0 1.5px 0 rgb(var(--accent) / 0.9),
-            inset 0 16px 26px -16px rgb(var(--accent) / 0.55),
-            0 -1px 10px rgb(var(--accent) / 0.35),
-            0 -22px 70px -8px rgb(var(--accent) / 0.2);
-        }
-        /* The scene, planet and copy position against the section itself. */
-        .ms-st--hero .ms-inner { position: static; max-width: none; }
-        .ms-hero-copy { position: relative; z-index: 3; margin-top: var(--copy-gap); max-width: 560px; }
-        /* Daylight: the name starts below the ledge's waterline instead of
-           over it (ledge height = width x 100/464, waterline at 87% of that,
-           its top sits photo-h x 0.0208 above the horizon). */
-        :root[data-theme='light'] .ms-hero-copy {
-          margin-top: max(var(--copy-gap), calc(var(--isle-w) * 0.1875 - var(--photo-h) * 0.0208 + 12px));
-        }
-        .ms-hero-name {
-          font-size: clamp(44px, 13.5vw, 64px);
-          color: rgb(var(--ink));
-        }
-        .ms-hero-lead { font-size: 16px; margin-top: 14px; max-width: 36ch; }
-        .ms-ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
-
-        :root[data-theme='light'] .ms-intro-media {
-          filter: drop-shadow(0 14px 20px rgb(var(--ink) / 0.16)) drop-shadow(-2px -2px 10px rgb(var(--accent) / 0.16));
-        }
-        :root[data-theme='light'] .ms-sunrise {
-          background: radial-gradient(42% 46% at 50% 100%, rgb(var(--accent) / 0.2), rgb(var(--accent) / 0.06) 50%, transparent 74%);
-        }
-        :root[data-theme='light'] .ms-planet-orb {
-          background: linear-gradient(180deg, rgb(var(--surface)) 0px, rgb(var(--surface-2)) 80px, rgb(var(--space-1)) 260px);
-          box-shadow:
-            inset 0 1.5px 0 rgb(var(--accent) / 0.7),
-            inset 0 16px 26px -16px rgb(var(--accent) / 0.32),
-            0 -1px 10px rgb(var(--accent) / 0.22),
-            0 -22px 70px -8px rgb(var(--accent) / 0.12);
-        }
-        :root[data-theme='light'] .ms-intro-ctl { background: rgb(var(--surface) / 0.86); }
+        /* The hero's rules live with it (components/mobile/hero/HeroStyles):
+           the server-rendered stand-in in app/page.tsx uses the same ones. */
 
         /* Daylight is the sea (SeaBackground + SeaIslands): the planets give
-           way to islands, so the orbs and their masks step aside. Dark keeps
-           every planet exactly as it is. */
+           way to islands, so the orbs and their masks step aside (the hero's
+           own planet: HeroStyles). Dark keeps every planet exactly as it is. */
         .ms-bg-space { display: contents; }
         :root[data-theme='light'] .ms-bg-space { visibility: hidden; }
-        :root[data-theme='light'] .ms-planet-orb,
         :root[data-theme='light'] .ms-horizon-orb,
         :root[data-theme='light'] .ms-home-planet { display: none; }
-        :root[data-theme='light'] .ms-planet,
         :root[data-theme='light'] .ms-horizon {
           -webkit-mask-image: none;
           mask-image: none;
-        }
-        :root[data-theme='light'] .ms-sunrise { opacity: 0.45; }
-
-        /* Tablets and narrow windows: the portrait stands centred on a flatter
-           planet and the copy sits below the rim's lowest point across its own
-           width (a 4x-viewport planet drops < 48px over half the screen). */
-        @media (min-width: 640px) and (min-height: 541px) {
-          .ms-st--hero {
-            --top: 72px;
-            --scene-h: clamp(240px, calc(100svh - 500px), 640px);
-            --apex: 50%;
-            --orb: max(400vw, 1600px);
-            --copy-gap: 72px;
-          }
-          .ms-st--hero .ms-inner { width: 100%; max-width: 880px; margin-inline: auto; }
-          .ms-hero-scene { position: absolute; left: 0; right: 0; top: var(--top); margin: 0; }
-          .ms-hero-copy { margin-top: calc(var(--scene-h) + var(--copy-gap)); max-width: 640px; }
-          .ms-hero-name { font-size: clamp(64px, 9vw, 88px); }
-          .ms-hero-lead { font-size: 18px; margin-top: 18px; max-width: 44ch; }
-          .ms-ctas { margin-top: 28px; }
-          .ms-sunrise { width: min(120%, 980px); }
-        }
-
-        /* >=1024px: two columns in a centred 1120px frame. The name sits left,
-           centred in the sky above the horizon; the portrait stands on the
-           planet on the right. The horizon is below the copy, so the rim can
-           only ever pass under it. */
-        @media (min-width: 1024px) and (min-height: 541px) {
-          .ms-st--hero {
-            --inner: min(1120px, calc(100vw - 112px));
-            --scene-h: min(calc(82svh - var(--top)), 640px);
-            --apex: calc(50% + 16px + var(--inner) * 0.26);
-            --sink: 0.12;
-            --orb: max(250vw, 2400px);
-            justify-content: center;
-            padding-bottom: calc(100svh - var(--horizon) + 48px);
-          }
-          .ms-st--hero .ms-inner { max-width: var(--inner); }
-          .ms-hero-copy { margin-top: 0; max-width: calc(var(--inner) * 0.52); }
-          .ms-hero-name { font-size: clamp(56px, 5.6vw, 88px); }
-          /* Fade only below the photo's hidden lower edge (the planet's top is
-             160px above the horizon), so the cut never shows through. */
-          .ms-planet {
-            -webkit-mask-image: linear-gradient(#000 calc(176px + var(--photo-h) * var(--sink)), transparent);
-            mask-image: linear-gradient(#000 calc(176px + var(--photo-h) * var(--sink)), transparent);
-          }
-        }
-
-        /* Landscape phones: copy sits in the sky on the left, the planet rises
-           across the bottom and the photo stands on it to the right. */
-        @media (orientation: landscape) and (max-height: 540px) {
-          .ms-st--hero {
-            --top: 56px;
-            --scene-h: calc(100svh - var(--top) - 56px);
-            --apex: 76%;
-            --sink: 0.1;
-            justify-content: center;
-            padding-bottom: 72px;
-          }
-          .ms-hero-scene { position: absolute; left: 0; right: 0; top: var(--top); margin: 0; }
-          /* Only ~56px of planet below the horizon: a short fade keeps the
-             body opaque over the photo's cut-off edge. */
-          .ms-planet {
-            -webkit-mask-image: linear-gradient(#000 calc(100% - 20px), transparent);
-            mask-image: linear-gradient(#000 calc(100% - 20px), transparent);
-          }
-          .ms-hero-copy { margin-top: 0; max-width: min(52%, 420px); }
-          .ms-hero-name { font-size: 44px; }
-          .ms-hero-lead { margin-top: 10px; font-size: 15px; }
-          .ms-ctas { margin-top: 16px; }
         }
 
         /* ── 1 · about ───────────────────────────────────────────────────── */
@@ -1260,128 +1002,8 @@ function TopBar({ onHome }: { onHome: () => void }) {
 }
 
 // ── 0 · intro ───────────────────────────────────────────────────────────────
-function Hero({ onWork }: { onWork: () => void }) {
-  return (
-    <>
-      <div className="ms-hero-scene">
-        <div className="ms-sunrise" aria-hidden="true" />
-        <HeroIsleBack />
-        <IntroCard />
-      </div>
-      <div className="ms-planet" aria-hidden="true">
-        <div className="ms-planet-orb" />
-        <HeroIsleFront />
-      </div>
-
-      <div className="ms-hero-copy">
-        {/* HoloText runs its own lock-on entrance; no mask wrapper around it */}
-        <HoloText as="h1" id="intro-title" instant text="Shah Fahad" className="t-display ms-hero-name" />
-        <p className="t-lead ms-hero-lead" data-reveal style={iv(2)}>
-          Senior software engineer building real-time web and mobile products. React, Next.js, Flutter and WebRTC,
-          from Karachi, Pakistan.
-        </p>
-        <div className="ms-ctas" data-reveal style={iv(3)}>
-          <button type="button" className="btn btn--primary" onClick={onWork}>
-            See the work <span className="btn-arrow" aria-hidden="true">→</span>
-          </button>
-          <a className="btn btn--ghost" href={RESUME} target="_blank" rel="noopener noreferrer">
-            Resume
-          </a>
-        </div>
-      </div>
-    </>
-  )
-}
-
-// The sticker photo standing on the horizon. Tap (or Enter / Space) flips it
-// to the intro video; the pill becomes a mute toggle while it plays. The video
-// fetches nothing (no poster, no preload) until the card is flipped, so it
-// never competes with the sticker for LCP.
-function IntroCard() {
-  const [flipped, setFlipped] = useState(false)
-  const [muted, setMuted] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
-
-  // Mute is kept in sync on its own, so toggling it never restarts playback.
-  useEffect(() => {
-    if (videoRef.current) videoRef.current.muted = muted
-  }, [muted])
-
-  useEffect(() => {
-    const v = videoRef.current
-    if (!v) return
-    if (flipped) {
-      v.play().catch(() => {
-        // Sound was refused (autoplay policy): play muted and say so.
-        v.muted = true
-        setMuted(true)
-        v.play().catch(() => {})
-      })
-    } else if (!v.paused || v.currentTime > 0) {
-      v.pause()
-      v.currentTime = 0
-    }
-  }, [flipped])
-
-  return (
-    // Flip state lives in a data attribute so the element's class never
-    // changes while it plays.
-    <div className="ms-intro" data-flipped={flipped} data-reveal="rise">
-      <button
-        type="button"
-        className="ms-intro-card"
-        aria-pressed={flipped}
-        aria-label="Play the intro video"
-        onClick={() => setFlipped((f) => !f)}
-      >
-        <span className="ms-intro-inner">
-          <span className="ms-intro-face ms-intro-front">
-            <Image
-              src="/images/shah-fahad-sticker.png"
-              alt="Shah Fahad"
-              fill
-              priority
-              sizes="(min-width: 1024px) 540px, (min-width: 640px) 500px, 320px"
-              className="ms-intro-media"
-              style={{ objectFit: 'contain', objectPosition: 'bottom' }}
-            />
-          </span>
-          <span className="ms-intro-face ms-intro-back">
-            <video
-              ref={videoRef}
-              className="ms-intro-video ms-intro-media"
-              poster={flipped ? INTRO_POSTER : undefined}
-              playsInline
-              preload={flipped ? 'auto' : 'none'}
-              onEnded={() => setFlipped(false)}
-              aria-hidden="true"
-              tabIndex={-1}
-            >
-              <source src="/videos/shah-intro.webm" type="video/webm" />
-              <source src="/videos/shah-intro.mov" type='video/mp4; codecs="hvc1"' />
-              <source src="/videos/shah-intro.mp4" type="video/mp4" />
-            </video>
-          </span>
-        </span>
-        {!flipped && (
-          <span className="ms-intro-ctl" aria-hidden="true">
-            <FaPlay /> Play intro
-          </span>
-        )}
-      </button>
-      {flipped && (
-        <button
-          type="button"
-          className="ms-intro-ctl ms-intro-ctl--sound"
-          onClick={() => setMuted((m) => !m)}
-        >
-          {muted ? <FaVolumeXmark aria-hidden /> : <FaVolumeHigh aria-hidden />}
-          {muted ? 'Unmute' : 'Mute'}
-        </button>
-      )}
-    </div>
-  )
-}
+// Hero (and its IntroCard): components/mobile/hero/Hero, shared with the
+// server-rendered stand-in that app/page.tsx paints before this chunk loads.
 
 // ── 1 · about ───────────────────────────────────────────────────────────────
 function About() {

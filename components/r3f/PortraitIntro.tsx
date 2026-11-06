@@ -25,6 +25,7 @@
 // Reduced motion: plain crossfade (CSS) and a still wave line whose
 // brightness alone follows the voice.
 
+import { INTRO_ALPHA_MOV, preferAlphaSource } from '@/lib/introVideo'
 import { useEffect, useRef } from 'react'
 import { introLevel } from '@/lib/tunnel'
 import s from './PortraitIntro.module.css'
@@ -219,6 +220,7 @@ export function PortraitIntro({ on, onLive, onEnd }: PortraitIntroProps) {
       return
     }
 
+    preferAlphaSource(v)
     if (v.preload !== 'auto') v.preload = 'auto'
     if (v.ended) { try { v.currentTime = 0 } catch { /* restarts anyway */ } }
     v.muted = false
@@ -269,7 +271,7 @@ export function PortraitIntro({ on, onLive, onEnd }: PortraitIntroProps) {
       <div className={s.clip}>
         <video ref={videoRef} className={s.video} playsInline preload="none" width={720} height={720}>
           <source src="/videos/shah-intro.webm" type="video/webm" />
-          <source src="/videos/shah-intro.mov"  type='video/mp4; codecs="hvc1"' />
+          <source src={INTRO_ALPHA_MOV}  type='video/mp4; codecs="hvc1"' />
           <source src="/videos/shah-intro.mp4"  type="video/mp4" />
         </video>
       </div>

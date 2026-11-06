@@ -19,7 +19,8 @@
 // Touch (hover: none) — the same card, faster, with no exit: the whole card
 //   fades out from 1120ms and is gone by 1.4s. That fade is on the CSS
 //   timeline, so a slow hydrate on a phone cannot stretch it. Underneath sits
-//   either the app or AppShell's boot frame (the same point, same place).
+//   the app, or the server-rendered phone hero over AppShell's boot frame
+//   (app/page.tsx, components/mobile/hero).
 // Reduced motion: the card is composed from frame 0 and only crossfades.
 //
 // Every animated property is composited (transform / opacity). The CSS ships
@@ -33,6 +34,7 @@
 //   data-booted   this session has seen the card; it is hidden at once
 
 import { useEffect, useRef, useState } from 'react'
+import { MOBILE_EXPERIENCE_MEDIA } from '@/components/mobile/hero/media'
 
 /** Window event AppShell fires once its first real frame is on screen. */
 export const APP_READY_EVENT   = 'sf:app-ready'
@@ -248,7 +250,9 @@ export function LoadingScreen({ onComplete }: Props) {
  * the way to the first real frame (AppShell's chunk, eligibility and GPU
  * tier, the scene's chunk and first draw, MobileSpace's chunk), so nothing
  * ever shows an empty page. `leaving` fades it out (280ms, opacity only);
- * the owner unmounts it after. Static under reduced motion.
+ * the owner unmounts it after. Static under reduced motion. On the screens
+ * that get MobileSpace the server-rendered hero stands over it, so there it
+ * is only the space behind the hero, without the point (EMBER_CSS).
  */
 export function BootFrame({ leaving = false }: { leaving?: boolean }) {
   return (
@@ -535,6 +539,11 @@ const EMBER_CSS = `
   100% { opacity: 1; transform: scale(1); }
 }
 /* idle (BootFrame): starts exactly where the desktop intro draws back to */
+/* On MobileSpace's screens the server-rendered hero (app/page.tsx) stands
+   over the boot frame: no point glowing behind the portrait. */
+@media ${MOBILE_EXPERIENCE_MEDIA} {
+  .sfl-ember--idle { display: none; }
+}
 .sfl-ember--idle .sfl-bloom {
   opacity: 0.55;
   transform: scale(0.36);

@@ -142,8 +142,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               show up in the Vercel dashboard (Analytics tab) once enabled. */}
           <Analytics />
           <SpeedInsights />
-          {/* Chat widget: injected after the first interaction or ≥5s idle,
-              never during the loader or hydration (lazyOnload). */}
+          {/* Chat widget: a CSS launcher + greeting until the visitor reaches
+              for it, then LeFlux loads and takes over (see LeFluxEmbed). */}
           <LeFluxEmbed />
         </StyledJsxRegistry>
       </body>
