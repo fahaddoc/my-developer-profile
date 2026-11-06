@@ -1,0 +1,366 @@
+/* Reel: the Work section as a projector. A 35mm strip runs along the bottom,
+   the frame in the gate is projected onto a screen above it, credits beside.
+   Dark: a cinema at night, an ember beam rising from the gate.
+   Light: an open-air screen on two posts, the beam a soft warm glow. */
+
+.root {
+  --frame-w: 172px;
+  --hole-w: 14px;
+  --pic-h: calc((var(--frame-w) - 10px) * 2 / 3);
+  --screen-w: min(44vw, calc((100dvh - 430px) * 1.5), 680px);
+  --beam-gap: 56px;
+  --film: rgb(var(--surface));
+  --film-edge: rgb(var(--line));
+  --hole: rgb(var(--space-0));
+  --film-ink: rgb(var(--ink-3));
+  --film-ink-on: rgb(var(--accent-text));
+  --beam-a: 0.2;
+  --lamp-a: 0.42;
+  --matte: rgb(var(--space-1));
+  --vignette: rgb(var(--space-0) / 0.6);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--screen-w) minmax(0, 1fr);
+  grid-template-areas:
+    'deck screen credits'
+    'strip strip strip';
+  column-gap: clamp(28px, 3vw, 52px);
+  row-gap: var(--beam-gap);
+  align-items: center;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  color: rgb(var(--ink));
+}
+
+:global(:root[data-theme='light']) .root {
+  --film: rgb(var(--ink));
+  --film-edge: rgb(var(--ink));
+  --hole: rgb(var(--space-0));
+  --film-ink: rgb(var(--space-0) / 0.74);
+  --film-ink-on: rgb(var(--accent));
+  --beam-a: 0.13;
+  --lamp-a: 0.3;
+  --matte: rgb(var(--surface));
+  --vignette: rgb(var(--ink) / 0.16);
+}
+
+/* Over the daylight sea small meta text steps up to ink-2 to keep AA. */
+:global(:root[data-theme='light']) .total,
+:global(:root[data-theme='light']) .tech { color: rgb(var(--ink-2)); }
+
+/* ─── Screen + beam ─────────────────────────────────────────────────────── */
+
+.screenCell { grid-area: screen; position: relative; }
+
+.screen {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  padding: 0;
+  border: 1px solid rgb(var(--line));
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--matte);
+  cursor: pointer;
+  box-shadow: 0 0 140px -30px rgb(var(--accent) / 0.34), 0 40px 80px -40px rgb(var(--space-0) / 0.9);
+}
+:global(:root[data-theme='light']) .screen {
+  border-color: rgb(var(--surface));
+  border-width: 7px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgb(var(--line)), 0 0 110px -10px rgb(var(--accent) / 0.3), 0 26px 50px -30px rgb(var(--ink) / 0.45);
+}
+.screen:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 5px; }
+
+.shot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform var(--dur-3) var(--ease-out), filter var(--dur-2) var(--ease-out);
+  animation: project var(--dur-3) var(--ease-out-expo) backwards;
+}
+@keyframes project {
+  0% { opacity: 0; transform: translateY(-3%); filter: brightness(1.9); }
+  35% { opacity: 1; }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+
+/* vignette: an inset shadow, never a gradient fill */
+.screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 90px 6px var(--vignette);
+  animation: flicker 3.4s steps(1, end) infinite;
+  will-change: opacity;
+}
+
+/* The cone of light: a solid ember trapezoid from the gate to the screen,
+   softened by blur and faded upwards with a mask. */
+.beam {
+  position: absolute;
+  z-index: 1;
+  left: -9%;
+  right: -9%;
+  top: 4%;
+  bottom: calc(-1 * var(--beam-gap) - 2px);
+  pointer-events: none;
+  filter: blur(11px);
+  -webkit-mask-image: linear-gradient(to top, #000 10%, rgb(0 0 0 / 0.55) 55%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 10%, rgb(0 0 0 / 0.55) 55%, transparent 100%);
+  animation: flicker 3.4s steps(1, end) infinite;
+  will-change: opacity;
+}
+.beam::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--accent) / calc(var(--beam-a) * var(--beam-boost, 1)));
+  clip-path: polygon(0 0, 100% 0, calc(50% + var(--frame-w) / 2) 100%, calc(50% - var(--frame-w) / 2) 100%);
+}
+.lamp {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: calc(-1 * var(--beam-gap));
+  width: var(--frame-w);
+  height: 34px;
+  transform: translate(-50%, 50%);
+  border-radius: 50%;
+  background: rgb(var(--accent) / var(--lamp-a));
+  filter: blur(18px);
+  pointer-events: none;
+}
+@keyframes flicker {
+  0% { opacity: 1; }
+  8% { opacity: 0.84; }
+  10% { opacity: 1; }
+  43% { opacity: 0.92; }
+  46% { opacity: 1; }
+  71% { opacity: 0.88; }
+  73% { opacity: 1; }
+}
+
+/* Open-air cinema: the screen stands on two posts in daylight. */
+.post { display: none; }
+:global(:root[data-theme='light']) .post {
+  display: block;
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  bottom: calc(-1 * var(--beam-gap));
+  width: 4px;
+  border-radius: 2px;
+  background: rgb(var(--ink) / 0.62);
+}
+.postL { left: 9%; }
+.postR { right: 9%; }
+
+/* ─── Deck: counter + projectionist controls ─────────────────────────────── */
+
+.deck {
+  grid-area: deck;
+  align-self: end;
+  justify-self: end;
+  display: grid;
+  justify-items: end;
+  gap: 14px;
+  text-align: right;
+}
+.counter { display: flex; align-items: baseline; gap: 10px; }
+.countMask { display: inline-block; overflow: hidden; line-height: 0.9; padding-top: 0.04em; }
+.countNum {
+  display: inline-block;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-variation-settings: 'wdth' 125;
+  font-weight: 800;
+  font-size: clamp(56px, 5.6vw, 84px);
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: var(--heading-shadow);
+  animation: roll 460ms var(--ease-out-expo) backwards;
+}
+@keyframes roll { from { transform: translateY(100%); } }
+.total { color: rgb(var(--ink-3)); }
+.reelName { color: rgb(var(--ink-2)); margin: 0; }
+.controls { display: flex; gap: 8px; }
+.progress {
+  width: 132px;
+  height: 2px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgb(var(--ink) / 0.16);
+}
+.progressFill {
+  height: 100%;
+  background: rgb(var(--accent));
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.progressRun { animation: fill var(--autoplay) linear forwards; }
+@keyframes fill { to { transform: scaleX(1); } }
+.hint { color: rgb(var(--ink-3)); margin: 0; }
+
+/* ─── Credits ───────────────────────────────────────────────────────────── */
+
+.credits { grid-area: credits; align-self: center; display: grid; gap: 14px; max-width: 400px; }
+.line { display: block; overflow: hidden; padding-bottom: 0.1em; margin-bottom: -0.1em; }
+.lineIn {
+  display: block;
+  animation: rise var(--dur-3) var(--ease-out-expo) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms + 60ms);
+}
+@keyframes rise { from { transform: translateY(105%); opacity: 0; } }
+.title { margin: 0; font-size: clamp(28px, 2.4vw, 38px); text-shadow: var(--heading-shadow); }
+.meta { margin: 0; color: rgb(var(--ink-2)); }
+.year { margin-left: 2px; }
+.tagline { margin: 0; font-size: 16px; text-shadow: var(--body-shadow); }
+.tech { display: flex; flex-wrap: wrap; gap: 4px 7px; margin: 0; padding: 0; list-style: none; color: rgb(var(--ink-3)); }
+.tech li:not(:last-child)::after { content: ','; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+
+/* ─── Film strip ────────────────────────────────────────────────────────── */
+
+.strip { grid-area: strip; position: relative; min-width: 0; }
+
+.track {
+  position: relative;
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  background: var(--film);
+  border-block: 1px solid var(--film-edge);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+}
+.track::-webkit-scrollbar { display: none; }
+.leader {
+  flex: 0 0 calc(50% - var(--frame-w) / 2);
+  display: grid;
+  grid-template-rows: auto var(--pic-h) auto;
+  gap: 6px;
+  padding: 8px 0 26px;
+  overflow: hidden;
+}
+.leaderHoles {
+  display: flex;
+  gap: calc(var(--frame-w) / 5 - var(--hole-w));
+  overflow: hidden;
+}
+.head .leaderHoles { justify-content: flex-end; padding-right: calc(var(--frame-w) / 10 - var(--hole-w) / 2); }
+.tail .leaderHoles { padding-left: calc(var(--frame-w) / 10 - var(--hole-w) / 2); }
+.leaderHoles i { flex: none; width: var(--hole-w); height: 10px; border-radius: 2.5px; background: var(--hole); }
+.dragging { scroll-snap-type: none; cursor: grabbing; }
+
+.cell { flex: 0 0 var(--frame-w); scroll-snap-align: center; scroll-snap-stop: always; }
+
+.frame {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 5px 6px;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.frame:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: -2px; border-radius: 4px; }
+.holes { display: flex; justify-content: space-around; margin: 0 -5px; }
+.holes i { width: var(--hole-w); height: 10px; border-radius: 2.5px; background: var(--hole); }
+.pic {
+  display: block;
+  width: 100%;
+  height: var(--pic-h);
+  object-fit: cover;
+  border-radius: 2px;
+  background: rgb(var(--space-1));
+  opacity: 0.46;
+  transition: opacity var(--dur-2) var(--ease-out);
+  pointer-events: none;
+}
+.edge { display: flex; justify-content: space-between; padding: 0 2px; color: var(--film-ink); line-height: 1.2; }
+.frame[aria-current='true'] .pic { opacity: 1; }
+.frame[aria-current='true'] .edgeNum { color: var(--film-ink-on); font-weight: 700; }
+
+/* The gate: a fixed ember hairline in the middle of the strip. */
+.gate {
+  position: absolute;
+  left: 50%;
+  top: 19px;
+  width: var(--frame-w);
+  height: calc(var(--pic-h) + 10px);
+  transform: translateX(-50%);
+  border: 1.5px solid rgb(var(--accent));
+  border-radius: 5px;
+  pointer-events: none;
+  animation: clunk 200ms var(--ease-out) backwards;
+}
+@keyframes clunk { from { transform: translate(-50%, 4px); } }
+
+@media (hover: hover) and (pointer: fine) {
+  .frame:hover .pic { opacity: 0.82; }
+  .screen:hover .shot { transform: scale(1.012); }
+  .screenCell:hover { --beam-boost: 1.4; }
+}
+
+/* ─── Stacked: tablets and phones ───────────────────────────────────────── */
+
+@media (max-width: 1080px) {
+  .root {
+    --screen-w: min(100%, 640px);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'screen' 'strip' 'deck' 'credits';
+    row-gap: 0;
+  }
+  .screenCell { width: var(--screen-w); justify-self: center; margin-bottom: var(--beam-gap); }
+  .deck {
+    justify-self: stretch;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    justify-items: start;
+    gap: 10px 16px;
+    text-align: left;
+    margin-top: 22px;
+  }
+  .counter { grid-column: 1; grid-row: 1; }
+  .controls { grid-column: 2; grid-row: 1; }
+  .reelName { grid-column: 1; grid-row: 2; }
+  .progress { grid-column: 2; grid-row: 2; justify-self: stretch; width: auto; }
+  .hint { display: none; }
+  .credits { max-width: 640px; margin-top: 22px; }
+}
+
+@media (max-width: 640px) {
+  .root { --frame-w: 124px; --beam-gap: 30px; }
+  .strip { margin-inline: calc(-1 * clamp(16px, 4vw, 40px)); }
+  .cell { scroll-snap-stop: normal; }
+  .root { --hole-w: 10px; }
+  .holes i, .leaderHoles i { height: 8px; }
+  .leader { padding-bottom: 24px; }
+  .gate { top: 17px; }
+  .countNum { font-size: 44px; }
+  .title { font-size: clamp(26px, 8vw, 34px); }
+  .screen::after { box-shadow: inset 0 0 50px 4px var(--vignette); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beam, .screen::after, .gate, .progressRun { animation: none; }
+  .shot, .lineIn, .countNum { animation: fade 200ms linear backwards; animation-delay: 0ms; }
+  .shot { transition: none; }
+}
+@keyframes fade { from { opacity: 0; } }
