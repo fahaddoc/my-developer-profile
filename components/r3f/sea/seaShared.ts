@@ -34,9 +34,11 @@ export function seaLookDir(from: THREE.Vector3, to: THREE.Vector3, out: THREE.Ve
 
 export type IslandId = 'hero' | 'about' | 'skills' | 'projects' | 'opensource' | 'experience' | 'contact'
 
-export interface Peak { x: number; z: number; h: number; r: number }
+/** The landform each island is sculpted as (see islandShapes.ts). */
+export type IslandKind = 'peak' | 'karst' | 'islet' | 'sandbar' | 'stacks' | 'terraces' | 'cove'
 
 export interface IslandShape {
+  kind: IslandKind
   /** screen x of the island centre, fraction of width (at rest at its station) */
   sx: number
   /** screen y of the waterline at its centre, fraction of height */
@@ -47,73 +49,47 @@ export interface IslandShape {
   widthPx: number
   /** x stretch of the footprint (1 = round) */
   stretch: number
-  /** peaks in unit footprint space (x, z in -1..1; h relative; r radius) */
-  peaks: Peak[]
-  /** surface noise amount (relative to the tallest peak) */
-  rugged: number
-  /** cliff steepness: 0 = rolling hills, 1 = sheer faces */
-  cliff: number
   seed: number
   /** circling birds that lift off on hover */
   birds: boolean
+  /** set dressing: round trees, palms, a lighthouse on the summit, a rock arch */
+  props: { trees: number; palms: number; lighthouse?: boolean; arch?: boolean }
 }
 
-// One shot per station, echoing the approved space framing (DESIGN.md §7):
-// hero mountain behind the portrait, a cliff island cropped bottom right at
-// About, an islet under the skills orbit, a far island at Open source, a low
-// island lower right under the Experience timeline, land ahead at Contact.
+// One shot per station, echoing the approved space framing (DESIGN.md §7),
+// and one landform each so no two islands read alike: a mountain with a cove
+// behind the portrait, karst cliffs cropped bottom right at About, a
+// lighthouse islet under the skills orbit, a far sandbar with palms at Work,
+// twin sea stacks with an arch at Open source, terraced hills under the
+// Experience timeline, and a palm cove ahead at Contact.
 export const ISLANDS: Record<IslandId, IslandShape> = {
   hero: {
-    sx: 0.8, wy: 0.6, peakPx: 380, widthPx: 920, stretch: 1.25,
-    peaks: [
-      { x: 0.12, z: -0.05, h: 1, r: 0.34 },
-      { x: -0.38, z: 0.18, h: 0.5, r: 0.32 },
-      { x: 0.5, z: 0.25, h: 0.32, r: 0.26 },
-    ],
-    rugged: 0.1, cliff: 0.45, seed: 11, birds: true,
+    kind: 'peak', sx: 0.8, wy: 0.6, peakPx: 400, widthPx: 940, stretch: 1.25,
+    seed: 11, birds: true, props: { trees: 46, palms: 3 },
   },
   about: {
-    sx: 0.97, wy: 0.985, peakPx: 430, widthPx: 1150, stretch: 1.2,
-    peaks: [
-      { x: -0.18, z: 0.05, h: 1, r: 0.5 },
-      { x: 0.32, z: -0.2, h: 0.82, r: 0.46 },
-    ],
-    rugged: 0.16, cliff: 0.85, seed: 23, birds: true,
+    kind: 'karst', sx: 0.96, wy: 0.985, peakPx: 440, widthPx: 1100, stretch: 1.15,
+    seed: 23, birds: true, props: { trees: 34, palms: 0 },
   },
   skills: {
-    sx: 0.7, wy: 0.63, peakPx: 120, widthPx: 300, stretch: 1.1,
-    peaks: [
-      { x: 0, z: 0, h: 1, r: 0.3 },
-      { x: -0.4, z: 0.3, h: 0.35, r: 0.25 },
-    ],
-    rugged: 0.12, cliff: 0.7, seed: 37, birds: true,
+    kind: 'islet', sx: 0.7, wy: 0.63, peakPx: 96, widthPx: 300, stretch: 1.15,
+    seed: 37, birds: true, props: { trees: 7, palms: 0, lighthouse: true },
   },
   projects: {
-    sx: 0.93, wy: 0.44, peakPx: 70, widthPx: 380, stretch: 1.6,
-    peaks: [{ x: 0.1, z: 0, h: 1, r: 0.45 }, { x: -0.45, z: 0.1, h: 0.6, r: 0.35 }],
-    rugged: 0.08, cliff: 0.3, seed: 41, birds: false,
+    kind: 'sandbar', sx: 0.93, wy: 0.44, peakPx: 26, widthPx: 420, stretch: 2.6,
+    seed: 41, birds: false, props: { trees: 0, palms: 6 },
   },
   opensource: {
-    sx: 0.8, wy: 0.46, peakPx: 80, widthPx: 300, stretch: 1.3,
-    peaks: [{ x: 0, z: 0, h: 1, r: 0.38 }],
-    rugged: 0.1, cliff: 0.5, seed: 53, birds: true,
+    kind: 'stacks', sx: 0.8, wy: 0.46, peakPx: 110, widthPx: 300, stretch: 1.2,
+    seed: 53, birds: true, props: { trees: 5, palms: 0, arch: true },
   },
   experience: {
-    sx: 0.87, wy: 0.87, peakPx: 170, widthPx: 640, stretch: 1.35,
-    peaks: [
-      { x: 0.2, z: 0, h: 1, r: 0.4 },
-      { x: -0.35, z: 0.15, h: 0.55, r: 0.35 },
-    ],
-    rugged: 0.1, cliff: 0.4, seed: 67, birds: true,
+    kind: 'terraces', sx: 0.87, wy: 0.87, peakPx: 170, widthPx: 660, stretch: 1.35,
+    seed: 67, birds: true, props: { trees: 40, palms: 0 },
   },
   contact: {
-    sx: 0.8, wy: 0.52, peakPx: 190, widthPx: 1000, stretch: 1.5,
-    peaks: [
-      { x: 0.25, z: -0.1, h: 1, r: 0.36 },
-      { x: -0.3, z: 0.05, h: 0.7, r: 0.4 },
-      { x: 0.65, z: 0.2, h: 0.4, r: 0.25 },
-    ],
-    rugged: 0.1, cliff: 0.5, seed: 79, birds: true,
+    kind: 'cove', sx: 0.8, wy: 0.52, peakPx: 180, widthPx: 1040, stretch: 1.5,
+    seed: 79, birds: true, props: { trees: 28, palms: 9 },
   },
 }
 
@@ -126,6 +102,8 @@ export interface IslandPlacement {
   radius: number
   /** world height of the tallest peak */
   height: number
+  /** world units per screen pixel at this island's station distance */
+  pxWorld: number
 }
 
 /**
@@ -165,6 +143,7 @@ export function placeIsland(
     yaw: Math.atan2(-flat.x, -flat.z),
     radius: ((shape.widthPx * k) / 2 * d) / f / shape.stretch,
     height: (shape.peakPx * k * d) / f,
+    pxWorld: d / f,
   }
 }
 

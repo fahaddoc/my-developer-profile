@@ -90,10 +90,20 @@ export interface SeaPalette {
   shallow:    string
   foam:       string
   sand:       string
+  sandWet:    string
   grass:      string
+  grassLight: string
   grassDark:  string
   rock:       string
+  rockLight:  string
   rockDark:   string
+  /** painterly shadow side: cool blue-violet, never grey */
+  shadowTint: string
+  foliage:     string
+  foliageDark: string
+  trunk:       string
+  palm:        string
+  lighthouse:  string
   bird:       string
   /** world-space direction TO the sun (sky glow + water glints, ahead-left) */
   sunDir:     [number, number, number]
@@ -201,14 +211,23 @@ export const PALETTES: Record<ThemeMode, ScenePalette> = {
       waterFar:   '#cfdfe8',
       shallow:    '#7cc4c1',
       foam:       '#ffffff',
-      sand:       '#e6d0a4',
-      grass:      '#86a85a',
-      grassDark:  '#618443',
-      rock:       '#a39280',
-      rockDark:   '#776a5a',
+      sand:       '#ecd8ae',
+      sandWet:    '#c9b48c',
+      grass:      '#7f9c56',
+      grassLight: '#b8c27c',
+      grassDark:  '#4c6c42',
+      rock:       '#b3a28c',
+      rockLight:  '#d8c8ad',
+      rockDark:   '#7d6f60',
+      shadowTint: '#6f74a8',
+      foliage:     '#6b8f45',
+      foliageDark: '#3e6239',
+      trunk:       '#7a5a42',
+      palm:        '#6aa04a',
+      lighthouse:  '#f4efe6',
       bird:       '#26303c',
       sunDir:     [-0.5, 0.62, -0.6],
-      keyDir:     [-0.55, 0.7, 0.45],
+      keyDir:     [-0.8, 0.46, 0.38],
       fog:        { color: '#e8e8e4', near: 70, far: 330 },
     },
   },

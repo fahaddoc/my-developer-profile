@@ -56,16 +56,14 @@ export function SeaWorld({ palette, preset, motion, curve, lookAhead, skillsSx, 
     [placed],
   )
 
-  const birds = preset.starCount >= 3000 ? 12 : preset.starCount >= 1500 ? 9 : 6
-  const key = useMemo(() => new THREE.Vector3(...sea.keyDir).normalize().multiplyScalar(120), [sea])
+  const birds  = preset.starCount >= 3000 ? 12 : preset.starCount >= 1500 ? 9 : 6
+  const detail = preset.starCount >= 3000 ? 1 : preset.starCount >= 1500 ? 0.7 : 0.4
 
   return (
     <>
       <SeaSky sea={sea} octaves={preset.nebulaOctaves} motion={motion} />
       <Ocean sea={sea} octaves={preset.nebulaOctaves} motion={motion} islands={oceanIslands} getCamT={getCamT} />
 
-      <hemisphereLight args={[sea.skyMid, sea.waterMid, 0.85]} />
-      <directionalLight position={key} color={sea.sun} intensity={1.35} />
 
       {placed.map((p) => (
         <Island
@@ -82,6 +80,7 @@ export function SeaWorld({ palette, preset, motion, curve, lookAhead, skillsSx, 
           stationT={p.t}
           getCamT={getCamT}
           last={p.id === placed[placed.length - 1].id}
+          detail={detail}
         />
       ))}
     </>

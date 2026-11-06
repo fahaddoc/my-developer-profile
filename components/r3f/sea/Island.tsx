@@ -1,140 +1,157 @@
 'use client'
 
-// Island — one sculpted island on the sea, plus the flock that lives on it.
+// Island — one sculpted, painterly island on the sea, its set dressing, and
+// the flock that lives on it.
 //
-// Geometry is built once per shape: a polar grid (rings × segments) whose
-// height is a sum of gaussian peaks, roughened with fbm, tapered to sink just
-// under the waterline at the rim, and steepened by `cliff`. Vertex colours
-// paint it by height and slope (sand at the waterline, grass on gentle
-// slopes, rock on steep faces and the summit); flat shading keeps the
-// sculpted, faceted look. It is lit by the sea world's sun + sky light.
+// The landform comes from islandShapes.ts (a different KIND per station:
+// mountain, karst, lighthouse islet, sandbar, sea stacks, terraces, cove) as
+// a dense, smooth mesh with baked material weights and occlusion. The shader
+// paints it Ghibli-like (paint.ts): warm key, cool violet shadows, painted
+// grass patches, rock strata on cliffs, wet sand at the waterline, a soft
+// sky rim and atmospheric haze. Props are placed on the same heightfield.
 //
-// The flock circles the highest peak. Hovering (or clicking) the island makes
-// every bird lift off outward and up, then settle back into the circle.
+// The flock circles the summit. Hovering (or clicking) the island makes every
+// bird lift off outward and up, then settle back into the circle. Once the
+// camera has flown past the island's station everything dissolves.
 
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { SeaPalette } from '@/lib/palette'
 import { islandVisibility, rng, type IslandShape } from './seaShared'
+import { buildIsland, scatter, type IslandMesh } from './islandShapes'
+import { PAINT_LIGHT_GLSL, PAINT_NOISE_GLSL, applyPaint, paintUniforms } from './paint'
+import { Arch, Lighthouse, Palms, Trees, type PlacedProp } from './IslandProps'
 
-const RINGS = 30
-const SEGS  = 72
-
-function noise2(seed: number) {
-  const r = rng(seed)
-  const perm = Array.from({ length: 256 }, () => r())
-  const at = (x: number, y: number) => perm[((x & 15) * 16 + (y & 15)) & 255]
-  return (x: number, y: number) => {
-    const xi = Math.floor(x), yi = Math.floor(y)
-    const xf = x - xi, yf = y - yi
-    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf)
-    const a = at(xi, yi), b = at(xi + 1, yi), c = at(xi, yi + 1), d = at(xi + 1, yi + 1)
-    return (a + (b - a) * u) + ((c + (d - c) * u) - (a + (b - a) * u)) * v
+// ─── painterly island material ─────────────────────────────────────────────
+const ISLAND_VERT = /* glsl */ `
+  attribute vec4 aMat;   // sand, grass, rock, wet
+  attribute float aAO;
+  varying vec3 vW;
+  varying vec3 vN;
+  varying vec4 vMat;
+  varying float vAO;
+  void main() {
+    vec4 w = modelMatrix * vec4(position, 1.0);
+    vW = w.xyz;
+    // the island is scaled non-uniformly (radius, height, radius)
+    vN = normalize(transpose(inverse(mat3(modelMatrix))) * normal);
+    vMat = aMat;
+    vAO = aAO;
+    gl_Position = projectionMatrix * viewMatrix * w;
   }
+`
+const ISLAND_FRAG = /* glsl */ `
+  ${PAINT_NOISE_GLSL}
+  ${PAINT_LIGHT_GLSL}
+  uniform vec3 uSand;
+  uniform vec3 uSandWet;
+  uniform vec3 uGrass;
+  uniform vec3 uGrassLight;
+  uniform vec3 uGrassDark;
+  uniform vec3 uRock;
+  uniform vec3 uRockLight;
+  uniform vec3 uRockDark;
+  uniform float uStrata;     // world units between rock strata
+  uniform float uPatch;      // world scale of the painted colour patches
+  varying vec3 vW;
+  varying vec3 vN;
+  varying vec4 vMat;
+  varying float vAO;
+  void main() {
+    vec3 N = normalize(vN);
+    vec3 L = normalize(uKeyDir);
+    float patchN = pFbm(vW / uPatch);
+    float grain = pNoise(vW * 2.4);
+
+    // grass: dark/light patches, warmer and lighter where the sun lands
+    vec3 grass = mix(uGrassDark, uGrass, smoothstep(0.28, 0.72, patchN + N.y * 0.22));
+    grass = mix(grass, uGrassLight, smoothstep(0.58, 0.9, patchN) * 0.55 * smoothstep(0.1, 0.8, dot(N, L)));
+
+    // rock: painted patches first; faint, broken strata only on steep faces
+    float steep = smoothstep(0.55, 0.9, 1.0 - abs(N.y));
+    float warp = pFbm(vW / (uPatch * 0.3)) * 6.0;
+    float strata = sin(vW.y / uStrata * 6.2831 + warp) * smoothstep(0.35, 0.75, pNoise(vW / (uPatch * 0.25)));
+    vec3 rock = mix(uRockDark, uRock, smoothstep(0.15, 0.8, patchN + grain * 0.2));
+    rock = mix(rock, uRockDark, max(0.0, strata) * 0.22 * steep);
+    rock = mix(rock, uRockLight, smoothstep(0.55, 0.95, pFbm(vW / (uPatch * 0.6) + 3.0)) * 0.45);
+
+    vec3 sand = mix(uSand, uSandWet, vMat.w);
+
+    float wsum = vMat.x + vMat.y + vMat.z + 1e-4;
+    vec3 albedo = (sand * vMat.x + grass * vMat.y + rock * vMat.z) / wsum;
+    albedo *= 0.93 + grain * 0.14;
+
+    // a little painted relief on rock (perturb the normal, not the mesh)
+    vec3 bump = vec3(pNoise(vW * 1.3) - 0.5, 0.0, pNoise(vW * 1.3 + 7.0) - 0.5);
+    N = normalize(N + bump * 0.35 * (vMat.z / wsum));
+
+    vec3 col = paint(albedo, N, vW, vAO);
+    gl_FragColor = vec4(col, uOpacity);
+    #include <colorspace_fragment>
+  }
+`
+
+function islandMaterial(sea: SeaPalette) {
+  const m = new THREE.ShaderMaterial({
+    uniforms: {
+      ...paintUniforms(),
+      uSand:       { value: new THREE.Color(sea.sand) },
+      uSandWet:    { value: new THREE.Color(sea.sandWet) },
+      uGrass:      { value: new THREE.Color(sea.grass) },
+      uGrassLight: { value: new THREE.Color(sea.grassLight) },
+      uGrassDark:  { value: new THREE.Color(sea.grassDark) },
+      uRock:       { value: new THREE.Color(sea.rock) },
+      uRockLight:  { value: new THREE.Color(sea.rockLight) },
+      uRockDark:   { value: new THREE.Color(sea.rockDark) },
+      uStrata:     { value: 1 },
+      uPatch:      { value: 4 },
+    },
+    vertexShader: ISLAND_VERT,
+    fragmentShader: ISLAND_FRAG,
+    // transparent only so it can dissolve after the camera passes; it still
+    // writes depth, so it sorts like a solid against the ocean
+    transparent: true,
+    depthWrite: true,
+    toneMapped: false,
+  })
+  applyPaint(m, sea)
+  return m
 }
 
-/** Unit island: footprint radius 1 (x stretched), tallest peak height 1. */
-export function buildIslandGeometry(shape: IslandShape, sea: SeaPalette) {
-  const n = noise2(shape.seed)
-  const fbm = (x: number, y: number) =>
-    n(x, y) * 0.5 + n(x * 2.1 + 5, y * 2.1 + 9) * 0.25 + n(x * 4.3 + 11, y * 4.3 + 3) * 0.125
+// ─── props per landform ────────────────────────────────────────────────────
+type Accept = (h: number, slope: number, x: number, z: number) => boolean
+const TREE_RULES: Record<IslandShape['kind'], Accept> = {
+  peak:     (h, s) => h > 0.06 && h < 0.55 && s < 0.5,
+  karst:    (h, s) => h > 0.62 && s < 0.3,
+  islet:    (h, s) => h > 0.18 && h < 0.75 && s < 0.5,
+  sandbar:  () => false,
+  stacks:   (h, s) => h > 0.6 && s < 0.32,
+  terraces: (h, s) => h > 0.06 && h < 0.9 && s < 0.4,
+  cove:     (h, s, _x, z) => h > 0.3 && s < 0.5 && z < 0.2,
+}
+const PALM_RULES: Record<IslandShape['kind'], Accept> = {
+  peak:     (h, s, x, z) => h > 0.015 && h < 0.09 && s < 0.35 && z > 0.3 && x < 0.1,
+  karst:    () => false,
+  islet:    () => false,
+  sandbar:  (h, s) => h > 0.3 && s < 0.4,
+  stacks:   () => false,
+  terraces: () => false,
+  cove:     (h, s, _x, z) => h > 0.02 && h < 0.2 && s < 0.35 && z > 0.05,
+}
 
-  const pos: number[] = []
-  const col: number[] = []
-  const heights: number[][] = []
-
-  const heightAt = (x: number, z: number, r: number) => {
-    let h = 0
-    for (const pk of shape.peaks) {
-      const dx = x - pk.x, dz = z - pk.z
-      h = Math.max(h, pk.h * Math.exp(-(dx * dx + dz * dz) / (pk.r * pk.r)))
-      h += pk.h * 0.25 * Math.exp(-(dx * dx + dz * dz) / (pk.r * pk.r * 3))
-    }
-    // cliffs: push mid heights up so faces get steeper
-    h = Math.pow(Math.min(1.4, h), 1 - shape.cliff * 0.45)
-    h += (fbm(x * 3 + shape.seed, z * 3) - 0.45) * shape.rugged * (0.4 + h)
-    // rim taper: the shore slides under the water
-    const taper = 1 - Math.pow(Math.min(1, Math.max(0, (r - 0.62) / 0.4)), 2)
-    return h * taper - Math.max(0, r - 0.9) * 0.6
-  }
-
-  for (let i = 0; i <= RINGS; i++) {
-    const r = (i / RINGS) * 1.08
-    const row: number[] = []
-    for (let j = 0; j < SEGS; j++) {
-      const a = (j / SEGS) * Math.PI * 2
-      // a little irregularity in the coastline
-      const wob = 1 + (fbm(Math.cos(a) * 2 + shape.seed, Math.sin(a) * 2) - 0.45) * 0.35 * Math.min(1, r)
-      const x = Math.cos(a) * r * wob
-      const z = Math.sin(a) * r * wob
-      row.push(heightAt(x, z, r))
-    }
-    heights.push(row)
-  }
-  let maxH = 0
-  for (const row of heights) for (const h of row) maxH = Math.max(maxH, h)
-  const norm = maxH > 0 ? 1 / maxH : 1
-
-  const cSand  = new THREE.Color(sea.sand)
-  const cGrass = new THREE.Color(sea.grass)
-  const cGrassD= new THREE.Color(sea.grassDark)
-  const cRock  = new THREE.Color(sea.rock)
-  const cRockD = new THREE.Color(sea.rockDark)
-  const tmp    = new THREE.Color()
-
-  const vtx = (i: number, j: number) => {
-    const jj = ((j % SEGS) + SEGS) % SEGS
-    const r = (i / RINGS) * 1.08
-    const a = (jj / SEGS) * Math.PI * 2
-    const wob = 1 + (fbm(Math.cos(a) * 2 + shape.seed, Math.sin(a) * 2) - 0.45) * 0.35 * Math.min(1, r)
-    return [Math.cos(a) * r * wob * shape.stretch, heights[i][jj] * norm, Math.sin(a) * r * wob]
-  }
-
-  const paint = (h: number, slope: number, x: number, z: number) => {
-    const v = (fbm(x * 6 + 3, z * 6 + 7) - 0.45) * 0.5
-    if (h < 0.05 + v * 0.03) return tmp.copy(cSand)
-    if (slope > 1.6 - shape.cliff * 0.4 || h > 0.88 + v * 0.1) {
-      return tmp.copy(cRock).lerp(cRockD, Math.min(1, Math.max(0, (slope - 1) * 0.6 + v)))
-    }
-    return tmp.copy(cGrass).lerp(cGrassD, Math.min(1, Math.max(0, 0.35 + v + (0.6 - h) * 0.4)))
-  }
-
-  const pushTri = (a: number[], b: number[], c: number[]) => {
-    const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
-    const ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
-    const nx = ab[1] * ac[2] - ab[2] * ac[1]
-    const ny = ab[2] * ac[0] - ab[0] * ac[2]
-    const nz = ab[0] * ac[1] - ab[1] * ac[0]
-    const len = Math.hypot(nx, ny, nz) || 1
-    const slope = Math.sqrt(Math.max(0, 1 - (ny / len) ** 2)) / Math.max(0.05, Math.abs(ny / len))
-    const cx = (a[0] + b[0] + c[0]) / 3, cy = (a[1] + b[1] + c[1]) / 3, cz = (a[2] + b[2] + c[2]) / 3
-    const k = paint(cy, slope, cx, cz)
-    for (const p of [a, b, c]) {
-      pos.push(p[0], p[1], p[2])
-      col.push(k.r, k.g, k.b)
-    }
-  }
-
-  for (let i = 0; i < RINGS; i++) {
-    for (let j = 0; j < SEGS; j++) {
-      const a = vtx(i, j), b = vtx(i + 1, j), c = vtx(i + 1, j + 1), d = vtx(i, j + 1)
-      // winding: counter-clockwise seen from above (normals up)
-      pushTri(a, c, b)
-      pushTri(a, d, c)
-    }
-  }
-
-  const geo = new THREE.BufferGeometry()
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3))
-  geo.computeVertexNormals()
-  geo.computeBoundingSphere()
-
-  // summit (for the flock), in unit space
-  let best = { x: 0, y: 0, z: 0 }
-  for (let i = 0; i < pos.length; i += 3) if (pos[i + 1] > best.y) best = { x: pos[i], y: pos[i + 1], z: pos[i + 2] }
-  return { geo, summit: new THREE.Vector3(best.x, best.y, best.z) }
+function placeProps(mesh: IslandMesh, shape: IslandShape, radius: number, height: number, n: number, rule: Accept, px: number, seed: number): PlacedProp[] {
+  if (n <= 0) return []
+  const r = rng(seed)
+  const size = (height * px) / shape.peakPx
+  return scatter(mesh, n, seed, rule).map((p) => ({
+    x: p.x * shape.stretch * radius,
+    y: p.h * height - size * 0.04,
+    z: p.z * radius,
+    scale: size * p.s,
+    yaw: r() * Math.PI * 2,
+    tint: p.tint,
+  }))
 }
 
 // ─── Flock ─────────────────────────────────────────────────────────────────
@@ -272,7 +289,7 @@ function Flock({ count, seed, sea, summit, scale, motion, launchRef }: {
 }
 
 // ─── Island ────────────────────────────────────────────────────────────────
-export function Island({ shape, sea, position, yaw, radius, height, birds, motion, onActive, stationT, getCamT, last }: {
+export function Island({ shape, sea, position, yaw, radius, height, birds, motion, onActive, stationT, getCamT, last, detail }: {
   shape: IslandShape
   sea: SeaPalette
   position: THREE.Vector3
@@ -285,29 +302,50 @@ export function Island({ shape, sea, position, yaw, radius, height, birds, motio
   stationT: number
   getCamT: () => number
   last: boolean
+  /** 0..1 mesh density (quality tier) */
+  detail: number
 }) {
-  const { geo, summit } = useMemo(() => buildIslandGeometry(shape, sea), [shape, sea])
-  useEffect(() => () => geo.dispose(), [geo])
+  const mesh = useMemo(() => buildIsland(shape, detail), [shape, detail])
+  useEffect(() => () => mesh.geo.dispose(), [mesh])
 
-  const mat = useMemo(() => new THREE.MeshStandardMaterial({
-    vertexColors: true,
-    flatShading:  true,
-    roughness:    0.92,
-    metalness:    0,
-    toneMapped:   false,
-    // transparent only so it can dissolve after the camera passes; it still
-    // writes depth, so it sorts like a solid against the ocean
-    transparent:  true,
-    depthWrite:   true,
-  }), [])
+  const mat = useMemo(() => islandMaterial(sea), [sea])
   useEffect(() => () => mat.dispose(), [mat])
+  useEffect(() => {
+    mat.uniforms.uStrata.value = Math.max(0.05, height * 0.075)
+    mat.uniforms.uPatch.value  = Math.max(0.5, radius * 0.35)
+  }, [mat, height, radius])
 
+  const trees = useMemo(
+    () => placeProps(mesh, shape, radius, height, shape.props.trees, TREE_RULES[shape.kind], 26, shape.seed * 3 + 1),
+    [mesh, shape, radius, height],
+  )
+  const palms = useMemo(
+    () => placeProps(mesh, shape, radius, height, shape.props.palms, PALM_RULES[shape.kind], 24, shape.seed * 5 + 2),
+    [mesh, shape, radius, height],
+  )
+  const summitWorld = useMemo(
+    () => new THREE.Vector3(mesh.summit.x * radius, mesh.summit.y * height, mesh.summit.z * radius),
+    [mesh, radius, height],
+  )
+  const arch = useMemo(() => {
+    if (!shape.props.arch) return null
+    const a = mesh.sample(-0.32, 0.04), b = mesh.sample(0.34, -0.06)
+    return {
+      from: new THREE.Vector3(-0.32 * shape.stretch * radius, a.h * height, 0.04 * radius),
+      to:   new THREE.Vector3(0.34 * shape.stretch * radius, b.h * height, -0.06 * radius),
+      base: Math.min(a.h, b.h) * height * 0.55,
+    }
+  }, [shape, mesh, radius, height])
+
+  const opacity  = useRef(1)
   const groupRef = useRef<THREE.Group>(null)
   const flockRef = useRef<THREE.Group>(null)
-  useFrame(() => {
+  useFrame(({ camera }) => {
+    ;(mat.uniforms.uCamPos.value as THREE.Vector3).copy(camera.position)
     if (last) return
     const vis = islandVisibility(getCamT(), stationT, last)
-    if (Math.abs(mat.opacity - vis) > 1e-3) mat.opacity = vis
+    opacity.current = vis
+    if (Math.abs(mat.uniforms.uOpacity.value - vis) > 1e-3) mat.uniforms.uOpacity.value = vis
     const g = groupRef.current
     if (g && g.visible !== vis > 0.002) g.visible = vis > 0.002
     if (flockRef.current) flockRef.current.visible = vis > 0.5
@@ -323,32 +361,37 @@ export function Island({ shape, sea, position, yaw, radius, height, birds, motio
     }
   }
 
-  // the flock lives in world units around the summit
-  const summitWorld = useMemo(
-    () => new THREE.Vector3(summit.x * radius, summit.y * height + height * 0.08, summit.z * radius),
-    [summit, radius, height],
+  const flockCenter = useMemo(
+    () => summitWorld.clone().add(new THREE.Vector3(0, height * 0.08, 0)),
+    [summitWorld, height],
   )
 
   return (
     <group ref={groupRef} position={position} rotation={[0, yaw, 0]}>
       <mesh
-        geometry={geo}
+        geometry={mesh.geo}
         material={mat}
         scale={[radius, height, radius]}
         onPointerOver={launch}
         onClick={launch}
       />
+      <Trees sea={sea} items={trees} opacity={opacity} />
+      <Palms sea={sea} items={palms} opacity={opacity} />
+      {shape.props.lighthouse && (
+        <Lighthouse sea={sea} at={summitWorld} size={(height * 46) / shape.peakPx} opacity={opacity} motion={motion} />
+      )}
+      {arch && <Arch sea={sea} from={arch.from} to={arch.to} base={arch.base} opacity={opacity} />}
       {shape.birds && birds > 0 && (
         <group ref={flockRef}>
-        <Flock
-          count={birds}
-          seed={shape.seed}
-          sea={sea}
-          summit={summitWorld}
-          scale={Math.max(radius * 0.55, height * 0.9)}
-          motion={motion}
-          launchRef={launchRef}
-        />
+          <Flock
+            count={birds}
+            seed={shape.seed}
+            sea={sea}
+            summit={shape.props.lighthouse ? flockCenter.clone().add(new THREE.Vector3(0, height * 0.35, 0)) : flockCenter}
+            scale={Math.max(radius * 0.55, height * 0.9)}
+            motion={motion}
+            launchRef={launchRef}
+          />
         </group>
       )}
     </group>
