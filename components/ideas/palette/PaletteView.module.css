@@ -1,0 +1,2 @@
+/* The page-wide material a palette can set with --page-bg (dark theme). */
+.backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--page-bg, transparent); }

@@ -7,7 +7,7 @@
 // what you see is what the site would look like, not a font sample sheet.
 
 import Link from 'next/link'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { STATIONS } from '@/lib/tunnel'
 import { skills } from '@/data/projects'
 import { AUTHOR } from '@/lib/seo/site'
@@ -25,7 +25,12 @@ function Display({ text, className, holo }: { text: string; className: string; h
   return holo ? <HoloText text={text} className={className} /> : <h2 className={className}>{lines(text)}</h2>
 }
 
-export function TypeSpecimen({ type }: { type: TypeStyle }) {
+export function TypeSpecimen({ type, nav, caption }: {
+  type: TypeStyle
+  /** replaces the type switcher (the palette pages switch palettes instead) */
+  nav?: ReactNode
+  caption?: { name: string; from: string; cast: string }
+}) {
   const vars = {
     ...(type.display && { '--font-display': type.display }),
     ...(type.body && { '--font-body': type.body }),
@@ -36,18 +41,20 @@ export function TypeSpecimen({ type }: { type: TypeStyle }) {
 
   return (
     <div className={s.spec} data-type={type.slug} style={vars}>
-      <nav className={s.switcher} aria-label="Type styles">
-        {TYPES.map((t) => (
-          <Link key={t.slug} href={`/ideas/type/${t.slug}`} className={s.chip} aria-current={t.slug === type.slug ? 'page' : undefined}>
-            {t.name}
-          </Link>
-        ))}
-      </nav>
+      {nav ?? (
+        <nav className={s.switcher} aria-label="Type styles">
+          {TYPES.map((t) => (
+            <Link key={t.slug} href={`/ideas/type/${t.slug}`} className={s.chip} aria-current={t.slug === type.slug ? 'page' : undefined}>
+              {t.name}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       <header className={s.caption}>
-        <h1 className={`t-title ${s.name}`}>{type.name}</h1>
-        <p className={s.from}>{type.from}</p>
-        <p className={`t-data ${s.cast}`}>{type.cast}</p>
+        <h1 className={`t-title ${s.name}`}>{caption?.name ?? type.name}</h1>
+        <p className={s.from}>{caption?.from ?? type.from}</p>
+        <p className={`t-data ${s.cast}`}>{caption?.cast ?? type.cast}</p>
       </header>
 
       {/* hero, with the flight-plan rail beside it */}

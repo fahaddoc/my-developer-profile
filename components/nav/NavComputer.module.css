@@ -13,7 +13,7 @@
   padding: 0;
   border: 1px solid rgb(var(--line));
   border-radius: 18px;
-  background: rgb(var(--surface));
+  background: var(--panel-bg-solid, rgb(var(--surface)));
   color: rgb(var(--ink));
   box-shadow: 0 30px 80px -20px rgb(0 0 0 / 0.65), 0 0 0 1px rgb(var(--accent) / 0.06);
   overflow: hidden;

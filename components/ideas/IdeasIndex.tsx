@@ -29,6 +29,11 @@ export function IdeasIndex() {
           <span className="t-lead">Six font directions on real pieces of the home page.</span>
           <span className="ix-arrow" aria-hidden="true">→</span>
         </Link>
+        <Link href="/ideas/palette" className="ix-type">
+          <span className="t-subtitle">Palettes</span>
+          <span className="t-lead">Batman-grade colour and material on the cockpit HUD type.</span>
+          <span className="ix-arrow" aria-hidden="true">→</span>
+        </Link>
       </section>
       <style>{`
         .ix { max-width: 860px; margin: 6vh auto 0; }

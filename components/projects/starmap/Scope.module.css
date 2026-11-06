@@ -156,10 +156,10 @@
 :global(:root[data-theme='light']) .view {
   background: rgb(214 228 236);
   box-shadow:
-    0 0 0 9px rgb(181 132 62),
-    0 0 0 10px rgb(120 82 32),
-    0 0 0 20px rgb(214 172 104),
-    0 0 0 21px rgb(120 82 32 / 0.6),
+    0 0 0 9px rgb(var(--brass, 181 132 62)),
+    0 0 0 10px rgb(var(--brass-dark, 120 82 32)),
+    0 0 0 20px rgb(var(--brass-light, 214 172 104)),
+    0 0 0 21px rgb(var(--brass-dark, 120 82 32) / 0.6),
     0 34px 70px -28px rgb(30 50 70 / 0.55);
 }
 :global(:root[data-theme='light']) .view::after {
@@ -168,7 +168,7 @@
     radial-gradient(circle at 30% 24%, rgb(255 255 255 / 0.35), transparent 32%);
 }
 :global(:root[data-theme='light']) .tick { stroke: rgb(255 255 255 / 0.55); }
-:global(:root[data-theme='light']) .tickLong { stroke: rgb(181 132 62); }
+:global(:root[data-theme='light']) .tickLong { stroke: rgb(var(--brass, 181 132 62)); }
 :global(:root[data-theme='light']) .cross { stroke: rgb(20 40 60 / 0.45); }
 
 /* ---------- phones: a full-screen sheet, lens on top, dossier below ---------- */

@@ -8,7 +8,7 @@
 // thumbnail grows into a telescope eyepiece (Scope). In the light theme the
 // same chart reads as a nautical chart with a brass spyglass.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties, KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
@@ -22,15 +22,17 @@ const shortTitle = (t: string) => t.split(' — ')[0]
 /** Default action: the global case-study drawer (ProjectDrawerProvider). */
 const openDrawer = (p: Project) => window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: p.id }))
 
+// Server and first client render agree on the wide chart (getServerSnapshot),
+// then phones switch to the tall one; a lazy useState read of matchMedia made
+// the first client render differ from the server and failed hydration.
+const TALL = '(max-width: 720px)'
+function subscribeTall(cb: () => void) {
+  const mq = window.matchMedia(TALL)
+  mq.addEventListener('change', cb)
+  return () => mq.removeEventListener('change', cb)
+}
 function useTall() {
-  const [tall, setTall] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches)
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 720px)')
-    const on = () => setTall(mq.matches)
-    mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
-  }, [])
-  return tall
+  return useSyncExternalStore(subscribeTall, () => window.matchMedia(TALL).matches, () => false)
 }
 
 /** The nearest star in an arrow-key direction (a cone around it). */

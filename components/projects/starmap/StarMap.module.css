@@ -30,9 +30,8 @@
   overflow: hidden;
   border-radius: 20px;
   border: 1px solid rgb(var(--line) / 0.7);
-  background:
-    radial-gradient(120% 90% at 50% 40%, rgb(var(--surface) / 0.5), rgb(var(--space-0) / 0.9) 70%),
-    rgb(var(--space-0) / 0.82);
+  /* --panel-bg: a palette's surface for panels (dark theme) */
+  background: var(--panel-bg, radial-gradient(120% 90% at 50% 40%, rgb(var(--surface) / 0.5), rgb(var(--space-0) / 0.9) 70%), rgb(var(--space-0) / 0.82));
 }
 /* faint right-ascension / declination grid */
 .frame::before {
@@ -40,9 +39,11 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* --panel-material: a palette's texture (carbon weave, brushed metal…) under the grid */
   background:
     repeating-linear-gradient(90deg, rgb(var(--ink) / 0.045) 0 1px, transparent 1px 10%),
-    repeating-linear-gradient(0deg, rgb(var(--ink) / 0.035) 0 1px, transparent 1px 12.5%);
+    repeating-linear-gradient(0deg, rgb(var(--ink) / 0.035) 0 1px, transparent 1px 12.5%),
+    var(--panel-material, linear-gradient(transparent, transparent));
   mask: radial-gradient(90% 90% at 50% 50%, #000 40%, transparent 100%);
 }
 
@@ -73,7 +74,7 @@
   border-radius: 50%;
   pointer-events: none;
   background:
-    radial-gradient(closest-side, rgb(140 160 255 / 0.16), transparent),
+    radial-gradient(closest-side, rgb(var(--nebula-glow, 140 160 255) / 0.16), transparent),
     radial-gradient(closest-side at 62% 58%, rgb(var(--accent) / 0.1), transparent);
 }
 
@@ -154,12 +155,12 @@
   aspect-ratio: 1;
   border-radius: 50%;
   pointer-events: none;
-  background: radial-gradient(closest-side, rgb(255 214 170 / 0.32), rgb(var(--accent) / 0.08) 60%, transparent);
+  background: radial-gradient(closest-side, rgb(var(--starlight, 255 214 170) / 0.32), rgb(var(--accent) / 0.08) 60%, transparent);
   animation: twinkle 4.2s ease-in-out infinite;
   animation-delay: var(--d);
 }
-.star[data-mag='2']::before { background: radial-gradient(closest-side, rgb(255 214 170 / 0.45), rgb(var(--accent) / 0.16) 60%, transparent); }
-.star[data-mag='0']::before { background: radial-gradient(closest-side, rgb(170 195 255 / 0.3), transparent); }
+.star[data-mag='2']::before { background: radial-gradient(closest-side, rgb(var(--starlight, 255 214 170) / 0.45), rgb(var(--accent) / 0.16) 60%, transparent); }
+.star[data-mag='0']::before { background: radial-gradient(closest-side, rgb(var(--starlight-lab, 190 210 255) / 0.3), transparent); }
 @keyframes twinkle { 50% { opacity: 0.55; transform: scale(0.9); } }
 
 /* diffraction spikes on the featured stars */
@@ -172,7 +173,7 @@
   top: 50%;
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(255 236 214 / 0.7), transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--starlight-hi, 255 240 225) / 0.7), transparent);
 }
 .spikes::after { rotate: 90deg; }
 
@@ -185,14 +186,14 @@
   overflow: hidden;
   background: rgb(var(--surface));
   box-shadow:
-    0 0 0 1.5px rgb(255 240 225 / 0.85),
+    0 0 0 1.5px rgb(var(--starlight-hi, 255 240 225) / 0.85),
     0 0 0 4px rgb(var(--space-0) / 0.85),
-    0 0 14px 4px rgb(255 214 170 / 0.25);
+    0 0 14px 4px rgb(var(--starlight, 255 214 170) / 0.25);
   transition: transform 360ms var(--ease-out), box-shadow 300ms var(--ease-out);
 }
 .thumb img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 22%; }
 .star[data-mag='2'] .thumb { box-shadow: 0 0 0 2px rgb(var(--accent)), 0 0 0 5px rgb(var(--space-0) / 0.85), 0 0 22px 6px rgb(var(--accent) / 0.35); }
-.star[data-mag='0'] .thumb { box-shadow: 0 0 0 1.5px rgb(190 210 255 / 0.8), 0 0 0 3.5px rgb(var(--space-0) / 0.85), 0 0 10px 3px rgb(170 195 255 / 0.3); }
+.star[data-mag='0'] .thumb { box-shadow: 0 0 0 1.5px rgb(var(--starlight-lab, 190 210 255) / 0.8), 0 0 0 3.5px rgb(var(--space-0) / 0.85), 0 0 10px 3px rgb(var(--starlight-lab, 190 210 255) / 0.3); }
 .star[data-mag='0'] .thumb img { object-position: left center; }
 
 .star[data-hot] .thumb {
@@ -229,9 +230,9 @@
 /* ---------- footer ---------- */
 .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; margin-top: 14px; font-size: 13px; color: rgb(var(--ink-2)); text-shadow: 0 0 4px rgb(var(--halo)), 0 0 12px rgb(var(--halo)); }
 .legend { display: inline-flex; align-items: center; gap: 8px; }
-.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-left: 6px; box-shadow: inset 0 0 0 1.5px rgb(255 240 225 / 0.85); }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-left: 6px; box-shadow: inset 0 0 0 1.5px rgb(var(--starlight-hi, 255 240 225) / 0.85); }
 .legend i[data-mag='2'] { width: 11px; height: 11px; margin-left: 0; box-shadow: inset 0 0 0 2px rgb(var(--accent)), 0 0 8px 1px rgb(var(--accent) / 0.45); }
-.legend i[data-mag='0'] { width: 7px; height: 7px; box-shadow: inset 0 0 0 1.5px rgb(190 210 255 / 0.8); }
+.legend i[data-mag='0'] { width: 7px; height: 7px; box-shadow: inset 0 0 0 1.5px rgb(var(--starlight-lab, 190 210 255) / 0.8); }
 
 /* ---------- compass rose (sea chart only) ---------- */
 .compass { display: none; position: absolute; width: 15%; aspect-ratio: 1; translate: -50% -50%; overflow: visible; pointer-events: none; }
