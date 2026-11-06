@@ -35,7 +35,7 @@ import { QualityToggleSlot } from '@/components/r3f/QualityToggle'
 import { lenisInstance } from '@/components/providers/SmoothScroll'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { experience, skills } from '@/data/projects'
-import { ProjectShowcase } from '@/components/projects/ProjectShowcase'
+import { StarMap } from '@/components/projects/starmap/StarMap'
 import { testimonials } from '@/data/testimonials'
 import { AUTHOR, SOCIALS } from '@/lib/seo/site'
 import styles from './TunnelHUD.module.css'
@@ -709,8 +709,8 @@ function HeroPortrait({ progress }: { progress: number }) {
   )
 }
 
-// The showcase is heavy; never re-render it just because progress moved.
-const Showcase = memo(ProjectShowcase)
+// The star map is heavy; never re-render it just because progress moved.
+const Showcase = memo(function Showcase() { return <StarMap title="Selected work." /> })
 
 // A readable project gallery takes over the station, then fades before OSS.
 function ProjectsGallery({ progress }: { progress: number }) {

@@ -18,17 +18,17 @@ const POS: Record<string, { wide: [number, number]; tall: [number, number] }> = 
   // web
   leavesystem:     { wide: [95, 300],  tall: [230, 70] },
   khawateen:       { wide: [180, 225], tall: [150, 160] },
-  reapagro:        { wide: [222, 335], tall: [300, 195] },
+  reapagro:        { wide: [222, 335], tall: [330, 205] },
   screening:       { wide: [305, 268], tall: [220, 270] },
   eocean:          { wide: [398, 196], tall: [250, 360] },
   kistpay:         { wide: [492, 288], tall: [200, 470] },
   'as-saqib':      { wide: [728, 214], tall: [180, 650] },
   'agent-shah-3d': { wide: [786, 306], tall: [290, 705] },
   // mobile
-  helpers:         { wide: [312, 446], tall: [452, 290] },
+  helpers:         { wide: [312, 446], tall: [452, 302] },
   opd:             { wide: [628, 420], tall: [440, 560] },
   // real-time
-  konnect:         { wide: [410, 112], tall: [70, 400] },
+  konnect:         { wide: [410, 112], tall: [104, 412] },
   // the lab
   voicetrace:      { wide: [902, 142], tall: [140, 830] },
   dealdesk:        { wide: [866, 208], tall: [245, 800] },
@@ -36,6 +36,12 @@ const POS: Record<string, { wide: [number, number]; tall: [number, number] }> = 
   sprintdock:      { wide: [852, 286], tall: [225, 890] },
   clientlane:      { wide: [912, 316], tall: [340, 900] },
   speakloop:       { wide: [934, 398], tall: [455, 870] },
+}
+
+/** Shorter star names for the narrow phone chart (the rest use the title). */
+export const PHONE_NAME: Record<string, string> = {
+  leavesystem: 'Leave System', khawateen: 'Khawateen', eocean: 'WhatsApp Bot', kistpay: 'Kistpay',
+  opd: 'OPD Entry', reapagro: 'Reap Agro', screening: 'Screening',
 }
 
 /** Constellation lines (pairs of ids), drawn in this order on load. */
@@ -54,7 +60,7 @@ const EDGES: { cat: Project['category']; a: string; b: string }[] = [
 export const LABELS: { id: string; text: string; sea: string; wide: [number, number]; tall: [number, number] }[] = [
   { id: 'web', text: 'Web', sea: 'Web route', wide: [238, 172], tall: [330, 118] },
   { id: 'mobile', text: 'Mobile', sea: 'Mobile route', wide: [470, 470], tall: [470, 248] },
-  { id: 'realtime', text: 'Real-time', sea: 'Real-time route', wide: [560, 102], tall: [100, 352] },
+  { id: 'realtime', text: 'Real-time', sea: 'Real-time route', wide: [560, 102], tall: [118, 346] },
   { id: 'lab', text: 'Lab · 6 demos', sea: 'Lab shoals · 6 demos', wide: [893, 462], tall: [300, 962] },
 ]
 

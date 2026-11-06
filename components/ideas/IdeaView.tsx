@@ -6,7 +6,7 @@ import { CONCEPTS } from './concepts'
 
 const VIEWS: Record<string, React.ComponentType> = {
   current:   dynamic(() => import('@/components/projects/ProjectShowcase').then((m) => m.ProjectShowcase), { ssr: false }),
-  stars:     dynamic(() => import('./StarMap').then((m) => m.StarMap), { ssr: false }),
+  stars:     dynamic(() => import('@/components/projects/starmap/StarMap').then((m) => m.StarMap), { ssr: false }),
   orbit:     dynamic(() => import('./Orbit').then((m) => m.Orbit), { ssr: false }),
   deck:      dynamic(() => import('./Deck').then((m) => m.Deck), { ssr: false }),
   postcards: dynamic(() => import('./Postcards').then((m) => m.Postcards), { ssr: false }),

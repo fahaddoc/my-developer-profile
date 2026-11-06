@@ -56,10 +56,10 @@ import { StarfieldBackground } from '@/components/mobile/StarfieldBackground'
 import { SeaBackground } from '@/components/mobile/SeaBackground'
 import { AboutIsle, Coast, HeroIsleBack, HeroIsleFront, SeaIslandStyles } from '@/components/mobile/SeaIslands'
 import { FeaturedAchievement } from '@/components/featured/FeaturedAchievement'
+import { StarMap } from '@/components/projects/starmap/StarMap'
 import { prefetchDrawer } from '@/components/ui/drawerPrefetch'
 import { projects, experience, skills } from '@/data/projects'
 import type { Project } from '@/data/projects'
-import { engineeringDemos } from '@/data/engineering-demos'
 import { testimonials } from '@/data/testimonials'
 import { openSourceStats } from '@/data/open-source'
 
@@ -73,18 +73,6 @@ const RESUME = '/Shah_Fahad_Resume.pdf'
 const CAL = 'https://cal.com/shahfahad'
 const INTRO_POSTER = '/videos/shah-intro-poster-360.webp'
 
-const DEMO_IDS = new Set(engineeringDemos.map((p) => p.id))
-const SHIPPED = projects.filter((p) => !DEMO_IDS.has(p.id))
-const DEMOS = projects.filter((p) => DEMO_IDS.has(p.id))
-// The lead project: the newest featured shipped product (the same one the
-// desktop showcase opens on, since `projects` is sorted newest first).
-const FEATURED: Project | undefined = SHIPPED.find((p) => p.featured) ?? SHIPPED[0] ?? projects[0]
-const WORK_GROUPS = [
-  { id: 'shipped', label: 'Shipped products', items: SHIPPED.filter((p) => p !== FEATURED) },
-  { id: 'demos', label: 'Engineering demos', items: DEMOS.filter((p) => p !== FEATURED) },
-].filter((g) => g.items.length > 0)
-// Derived from the data, in the wording the desktop library uses too.
-const WORK_COUNT = `${SHIPPED.length} shipped · ${DEMOS.length} ${DEMOS.length === 1 ? 'demo' : 'demos'}`
 const CATEGORY: Record<Project['category'], string> = { web: 'Web', mobile: 'Mobile', realtime: 'Real-time' }
 
 const shortTitle = (p: Project) => p.title.split(' — ')[0]
@@ -1545,68 +1533,15 @@ function Skills() {
 function Work({ onOpen }: { onOpen: (p: Project) => void }) {
   return (
     <>
-      <div className="ms-split">
-        <div className="ms-col-a">
-          <StationTitle i={3}>Selected work.</StationTitle>
-          <p className="t-lead ms-lead" data-reveal style={iv(1)}>
-            Shipped products and engineering demos.
-          </p>
-          <p className="t-data ms-work-count" data-reveal style={iv(2)}>{WORK_COUNT}</p>
-        </div>
-        {FEATURED && (
-          <div className="ms-col-b">
-            <div data-reveal style={iv(2)}>
-              <button type="button" className="ms-feat" aria-haspopup="dialog" onClick={() => onOpen(FEATURED)}>
-                <span className="ms-feat-media">
-                  <Image
-                    src={FEATURED.image}
-                    alt=""
-                    fill
-                    sizes="(min-width: 1024px) 600px, (min-width: 640px) 880px, 100vw"
-                    style={{ objectFit: 'cover', objectPosition: coverPosition(FEATURED) }}
-                  />
-                </span>
-                <span className="ms-feat-body">
-                  <span className="ms-feat-meta">
-                    {CATEGORY[FEATURED.category]} · <span className="t-data">{FEATURED.year}</span>
-                  </span>
-                  <span className="t-subtitle ms-feat-title">{shortTitle(FEATURED)}</span>
-                  <span className="ms-feat-tag">{FEATURED.tagline}</span>
-                </span>
-              </button>
-            </div>
-          </div>
-        )}
+      <StationTitle i={3}>Selected work.</StationTitle>
+      <p className="t-lead ms-lead" data-reveal style={iv(1)}>
+        Shipped products and engineering demos.
+      </p>
+      {/* the same star map as the desktop Work station; a star opens the
+          telescope, and "Explore case study" opens this page's project sheet */}
+      <div className="ms-starmap" data-reveal style={iv(2)}>
+        <StarMap onExplore={onOpen} />
       </div>
-
-      {WORK_GROUPS.map((g) => (
-        <div key={g.id} className="ms-group">
-          <h3 className="t-subtitle ms-group-h" data-reveal>{g.label}</h3>
-          <ul className="ms-rows" data-reveal="group">
-            {g.items.map((p, i) => (
-              <li key={p.id} className="ms-si" style={iv(i)}>
-                <button type="button" className="ms-row" aria-haspopup="dialog" onClick={() => onOpen(p)}>
-                  <span className="ms-row-thumb">
-                    <Image
-                      src={p.image}
-                      alt=""
-                      fill
-                      sizes="56px"
-                      style={{ objectFit: 'cover', objectPosition: coverPosition(p) }}
-                    />
-                  </span>
-                  <span className="ms-row-text">
-                    <span className="ms-row-title">{shortTitle(p)}</span>
-                    <span className="ms-row-meta">
-                      {CATEGORY[p.category]} · <span className="t-data">{p.year}</span>
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
     </>
   )
 }

@@ -1,0 +1,208 @@
+/* Scope — telescope eyepiece (dark) / brass spyglass (light) over the chart.
+   Timeline of an open (0 = click; the lens morph itself is WAAPI in Scope.tsx):
+     0–760ms    lens grows out of the star's thumbnail, sky dollies in (same curve)
+     0–900ms    the view racks focus: sharp → soft at the midpoint → sharp
+     360ms+     reticle and coordinates settle in, the ring slews to its bearing
+     380ms+     the dossier writes in, a line every 50ms                        */
+
+.sea { display: none; }
+:global(:root[data-theme='light']) .space { display: none; }
+:global(:root[data-theme='light']) .sea { display: inline; }
+
+.scope {
+  --cam: cubic-bezier(0.32, 0.72, 0, 1);
+  /* the frame is at most ~68dvh tall (StarMap caps its width at 122dvh) */
+  --d: min(470px, 38vw, 50dvh);
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(32px, 5vw, 72px);
+  padding: 32px clamp(24px, 4vw, 56px) 48px;
+  overflow-y: auto;
+}
+/* the dim around the lens, on its own layer so it can fade both ways */
+.scope::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(70% 90% at 34% 50%, transparent 0 26%, rgb(var(--space-0) / 0.8) 70%);
+  animation: fadeIn 600ms var(--ease-out) backwards;
+  transition: opacity 360ms var(--ease-out);
+}
+.leaving::before { opacity: 0; }
+@keyframes fadeIn { from { opacity: 0; } }
+
+.close { position: absolute; top: 16px; right: 16px; z-index: 1; display: none; }
+
+/* ---------- the lens ---------- */
+.lens { position: relative; width: var(--d); aspect-ratio: 1; flex: none; border-radius: 50%; }
+.view {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  background: rgb(4 6 10);
+  box-shadow:
+    0 0 0 10px rgb(13 17 25),
+    0 0 0 11px rgb(var(--accent) / 0.55),
+    0 0 0 24px rgb(13 17 25 / 0.55),
+    0 0 0 25px rgb(var(--ink) / 0.08),
+    0 40px 90px -30px rgb(0 0 0 / 0.9);
+  transition: box-shadow 300ms var(--ease-out);
+}
+.view:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 30px; }
+.view::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, transparent 52%, rgb(0 0 0 / 0.45) 76%, rgb(0 0 0 / 0.85) 100%),
+    radial-gradient(circle at 32% 26%, rgb(255 255 255 / 0.1), transparent 34%);
+}
+@media (hover: hover) and (pointer: fine) {
+  .view:hover { box-shadow: 0 0 0 10px rgb(13 17 25), 0 0 0 11px rgb(var(--accent) / 0.95), 0 0 0 24px rgb(13 17 25 / 0.55), 0 0 0 25px rgb(var(--ink) / 0.12), 0 40px 90px -30px rgb(0 0 0 / 0.9); }
+}
+
+.shot { display: block; width: 100%; height: 100%; object-fit: cover; scale: 1.12; }
+/* first open: rack focus while the lens travels, then the slow tracking drift */
+.focus { animation: rack 900ms var(--cam), drift 18s 900ms ease-in-out infinite alternate; }
+/* stepping to another star: a short slew in, then the drift */
+.slew { animation: slew 420ms var(--ease-out), drift 18s 420ms ease-in-out infinite alternate; }
+@keyframes rack {
+  0%   { filter: blur(0); }
+  40%  { filter: blur(5px); }
+  100% { filter: blur(0); }
+}
+@keyframes slew { from { opacity: 0; transform: translateX(-5%) scale(1.06); filter: blur(4px); } }
+@keyframes drift {
+  from { object-position: 28% 50%; translate: 0 -3%; }
+  to   { object-position: 72% 50%; translate: 0 3%; }
+}
+
+.reticle {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  animation: fadeIn 420ms var(--ease-out) 360ms backwards;
+  transition: opacity 140ms var(--ease-out);
+}
+.ring {
+  transform: rotate(var(--turn));
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 520ms var(--ease-out);
+  animation: ringIn 900ms var(--cam) 120ms backwards;
+}
+@keyframes ringIn { from { transform: rotate(calc(var(--turn) - 50deg)); } }
+.tick { stroke: rgb(255 255 255 / 0.32); stroke-width: 0.5; }
+.tickLong { stroke: rgb(var(--accent) / 0.85); stroke-width: 0.9; }
+.cross { fill: none; stroke: rgb(255 255 255 / 0.42); stroke-width: 0.5; }
+
+.coords {
+  position: absolute;
+  left: 50%;
+  bottom: -46px;
+  translate: -50% 0;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: rgb(var(--ink-3));
+  animation: fadeIn 420ms var(--ease-out) 520ms backwards;
+  transition: opacity 140ms var(--ease-out);
+}
+.leaving .reticle, .leaving .coords { opacity: 0; }
+
+/* ---------- the dossier ---------- */
+.info { width: min(380px, 100%); display: grid; gap: 14px; align-content: center; }
+.leaving .info { opacity: 0; transform: translateX(10px); transition: opacity 160ms var(--ease-out), transform 220ms var(--ease-out); }
+.copy { display: grid; gap: 10px; }
+.write > * { animation: rise 440ms var(--ease-out) backwards; animation-delay: calc(380ms + var(--k, 0) * 50ms); }
+.write > :nth-child(2) { --k: 1; }
+.write > :nth-child(3) { --k: 2; }
+.write > :nth-child(4) { --k: 3; }
+.write > :nth-child(5) { --k: 4; }
+.write > :nth-child(6) { --k: 5; }
+.navIn { animation: rise 440ms var(--ease-out) 680ms backwards; }
+.swap { animation: swap 240ms var(--ease-out); }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes swap { from { opacity: 0; transform: translateX(8px); } }
+
+.kind { margin: 0; color: rgb(var(--accent-text)); }
+.title { margin: 0; font-size: clamp(24px, 2.4vw, 34px); line-height: 1.08; text-wrap: balance; outline: none; }
+.meta { margin: 0; color: rgb(var(--ink-3)); }
+.tagline { margin: 4px 0 0; font-size: 15.5px; line-height: 1.5; color: rgb(var(--ink-2)); text-wrap: pretty; }
+.tech { margin: 0; font-size: 13px; line-height: 1.5; color: rgb(var(--ink-3)); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.nav { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.count { min-width: 60px; text-align: center; color: rgb(var(--ink-2)); }
+.back { margin-left: auto; }
+
+/* ---------- light theme: a brass spyglass ---------- */
+:global(:root[data-theme='light']) .scope::before {
+  background: radial-gradient(70% 90% at 34% 50%, transparent 0 26%, rgb(var(--space-0) / 0.86) 70%);
+}
+:global(:root[data-theme='light']) .view {
+  background: rgb(214 228 236);
+  box-shadow:
+    0 0 0 9px rgb(181 132 62),
+    0 0 0 10px rgb(120 82 32),
+    0 0 0 20px rgb(214 172 104),
+    0 0 0 21px rgb(120 82 32 / 0.6),
+    0 34px 70px -28px rgb(30 50 70 / 0.55);
+}
+:global(:root[data-theme='light']) .view::after {
+  background:
+    radial-gradient(circle, transparent 58%, rgb(20 40 60 / 0.28) 82%, rgb(20 40 60 / 0.55) 100%),
+    radial-gradient(circle at 30% 24%, rgb(255 255 255 / 0.35), transparent 32%);
+}
+:global(:root[data-theme='light']) .tick { stroke: rgb(255 255 255 / 0.55); }
+:global(:root[data-theme='light']) .tickLong { stroke: rgb(181 132 62); }
+:global(:root[data-theme='light']) .cross { stroke: rgb(20 40 60 / 0.45); }
+
+/* ---------- phones: a full-screen sheet, lens on top, dossier below ---------- */
+@media (max-width: 720px) {
+  .scope {
+    --d: min(62vw, 250px);
+    position: fixed;
+    /* just under the page's own sheets, so a project sheet opened from here lands on top */
+    z-index: calc(var(--z-sheet) - 1);
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 64px;
+    padding: 76px 20px 36px;
+    overscroll-behavior: contain;
+    background: rgb(var(--space-0) / 0.96);
+    animation: sheetIn 420ms var(--ease-out) backwards;
+    transition: background-color 360ms var(--ease-out);
+  }
+  .scope::before { display: none; }
+  .leaving { background-color: transparent; }
+  :global(:root[data-theme='light']) .scope { background-color: rgb(var(--space-0) / 0.97); }
+  :global(:root[data-theme='light']) .leaving { background-color: transparent; }
+  .close { display: inline-flex; position: fixed; }
+  .leaving .close { opacity: 0; transition: opacity 140ms var(--ease-out); }
+  .coords { bottom: -40px; font-size: 10.5px; }
+  .info { width: 100%; }
+  .title { font-size: 24px; }
+  .back { margin-left: 0; }
+}
+@keyframes sheetIn { from { background-color: transparent; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .scope, .scope::before, .reticle, .ring, .coords, .write > *, .navIn, .swap { animation: none; }
+  .focus, .slew { animation: none; }
+  .shot { object-position: 50% 50%; }
+  .ring { transition: none; }
+}

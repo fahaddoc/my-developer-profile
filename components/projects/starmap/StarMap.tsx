@@ -1,20 +1,26 @@
 'use client'
 
 // StarMap — the Work section as a star chart. Time runs across the sky
-// (2018 → 2026), every project is a star and each category is a constellation
-// joined in year order; the engineering demos sit in a small cluster ("the
-// lab"). Hovering a star draws lines to the projects that share its stack;
-// clicking it zooms the sky in and opens a telescope eyepiece on the project.
-// In the light theme the same chart reads as a nautical chart with a spyglass.
+// (2018 → 2026), every project is a star wearing its own screenshot and each
+// category is a constellation joined in year order; the engineering demos sit
+// in a small cluster ("the lab"). Hovering a star draws lines to the projects
+// that share its stack; clicking it dollies the sky in while the star's
+// thumbnail grows into a telescope eyepiece (Scope). In the light theme the
+// same chart reads as a nautical chart with a brass spyglass.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import type { CSSProperties, KeyboardEvent } from 'react'
-import { DEMOS, LABELS, LINES, RELATED, SHIPPED, STARS, YEARS, at, chart, type Star } from './starmap/layout'
-import { Scope } from './starmap/Scope'
+import { createPortal } from 'react-dom'
+import Image from 'next/image'
+import type { Project } from '@/data/projects'
+import { DEMOS, LABELS, LINES, PHONE_NAME, RELATED, SHIPPED, STARS, YEARS, at, chart, type Star } from './layout'
+import { Scope } from './Scope'
 import s from './StarMap.module.css'
 
 const shortTitle = (t: string) => t.split(' — ')[0]
+
+/** Default action: the global case-study drawer (ProjectDrawerProvider). */
+const openDrawer = (p: Project) => window.dispatchEvent(new CustomEvent('project-drawer-open', { detail: p.id }))
 
 function useTall() {
   const [tall, setTall] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches)
@@ -44,7 +50,11 @@ function step(from: number, dx: number, dy: number, tall: boolean) {
   return best
 }
 
-export function StarMap() {
+export function StarMap({ title, onExplore = openDrawer }: {
+  /** section heading (the home page); /ideas shows the chart without one */
+  title?: string
+  onExplore?: (p: Project) => void
+}) {
   const tall = useTall()
   const { w, h } = chart(tall)
   const [hover, setHover] = useState<number | null>(null)
@@ -52,6 +62,7 @@ export function StarMap() {
   const [open, setOpen] = useState<number | null>(null)
   const [closing, setClosing] = useState(false)
   const starRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const thumbRefs = useRef<(HTMLSpanElement | null)[]>([])
 
   const pct = useCallback((st: Star) => {
     const [x, y] = at(st, tall)
@@ -100,13 +111,20 @@ export function StarMap() {
   const origin = open != null ? pct(STARS[open]) : null
   const lab = tall ? { x: 300 / w, y: 855 / h } : { x: 893 / w, y: 275 / h }
 
+  const scope = open != null && (
+    <Scope i={open} getStar={() => thumbRefs.current[open]} closing={closing} onClose={close} onClosed={closed} onStep={stepOpen} onExplore={onExplore} />
+  )
+
   return (
-    <section className={s.root} aria-label="Projects as a star map">
-      <p className={s.hint}>
-        <span className={s.space}>Pick a star.</span>
-        <span className={s.sea}>Pick a port.</span>{' '}
-        {SHIPPED} shipped projects from 2018 to 2026, and {DEMOS} more in the lab.
-      </p>
+    <section className={`${s.root} ${title ? s.titled : ''}`} aria-label={title ?? 'Projects as a star map'}>
+      <header className={s.head}>
+        {title && <h2 className={`t-title ${s.title}`}>{title}</h2>}
+        <p className={s.hint}>
+          <span className={s.space}>Pick a star.</span>
+          <span className={s.sea}>Pick a port.</span>{' '}
+          {SHIPPED} shipped projects from 2018 to 2026, and {DEMOS} more in the lab.
+        </p>
+      </header>
 
       <div className={s.frame} style={{ aspectRatio: `${w} / ${h}` }}>
         <div
@@ -163,6 +181,7 @@ export function StarMap() {
                 data-side={p.x > 0.6 ? 'l' : 'r'}
                 data-hot={i === hover ? '' : undefined}
                 data-rel={rel.includes(i) ? '' : undefined}
+                data-open={i === open ? '' : undefined}
                 tabIndex={i === active ? 0 : -1}
                 style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%`, '--i': i, '--d': `${((i * 0.37) % 3).toFixed(2)}s` } as CSSProperties}
                 onClick={() => openStar(i)}
@@ -172,20 +191,20 @@ export function StarMap() {
                 onBlur={() => setHover((v) => (v === i ? null : v))}
                 aria-label={`${st.p.title}, ${st.p.year}${st.demo ? ', lab demo' : ''}. Take a closer look`}
               >
-                <span className={s.core} aria-hidden />
+                {st.mag === 2 && <span className={s.spikes} aria-hidden />}
+                <span className={s.thumb} ref={(el) => { thumbRefs.current[i] = el }} aria-hidden>
+                  <Image src={st.p.image} alt="" width={96} height={96} unoptimized={st.p.image.endsWith('.svg')} draggable={false} />
+                </span>
                 <span className={`${s.name} ${st.demo ? s.nameDemo : ''}`} aria-hidden>
-                  {shortTitle(st.p.title)}<em>{st.p.year}</em>
+                  {tall ? PHONE_NAME[st.p.id] ?? shortTitle(st.p.title) : shortTitle(st.p.title)}<em>{st.p.year}</em>
                 </span>
               </button>
             )
           })}
         </div>
 
-        {open != null && (() => {
-          const scope = <Scope i={open} getStar={() => starRefs.current[open]} closing={closing} onClose={close} onClosed={closed} onStep={stepOpen} />
-          // phones: a full-screen sheet, above the sticky page header
-          return tall ? createPortal(scope, document.body) : scope
-        })()}
+        {/* phones: a full-screen sheet, above the page's sticky chrome */}
+        {scope && (tall ? createPortal(scope, document.body) : scope)}
       </div>
 
       <div className={s.foot}>

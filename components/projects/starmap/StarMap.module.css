@@ -1,0 +1,303 @@
+/* StarMap — star chart in the dark theme, nautical chart in the light theme. */
+
+.root {
+  --halo: var(--space-0);
+  /* the camera curve, shared with Scope.tsx (CAM) */
+  --cam: cubic-bezier(0.32, 0.72, 0, 1);
+  width: min(1240px, 100%, 122dvh);
+  margin: 0 auto;
+}
+@media (max-width: 720px) { .root { width: 100%; } }
+:global(:root[data-theme='light']) .root { --halo: var(--surface); }
+
+/* theme-specific copy: both are rendered, CSS shows one */
+.sea { display: none; }
+:global(:root[data-theme='light']) .space { display: none; }
+:global(:root[data-theme='light']) .sea { display: inline; }
+
+.head { margin: 0 0 16px; text-align: center; }
+.hint { margin: 0; font-size: 15px; color: rgb(var(--ink-2)); text-wrap: balance; }
+.hint > span:first-child, .hint > span:nth-child(2) { color: rgb(var(--ink)); font-weight: 600; }
+/* with a title (home page): heading left, hint on the same line, right */
+.titled .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; text-align: left; }
+.title { margin: 0; font-size: clamp(26px, 2.4vw, 36px); }
+.head { text-shadow: 0 0 6px rgb(var(--halo)), 0 0 16px rgb(var(--halo)); }
+
+/* ---------- the chart frame ---------- */
+.frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgb(var(--line) / 0.7);
+  background:
+    radial-gradient(120% 90% at 50% 40%, rgb(var(--surface) / 0.5), rgb(var(--space-0) / 0.9) 70%),
+    rgb(var(--space-0) / 0.82);
+}
+/* faint right-ascension / declination grid */
+.frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg, rgb(var(--ink) / 0.045) 0 1px, transparent 1px 10%),
+    repeating-linear-gradient(0deg, rgb(var(--ink) / 0.035) 0 1px, transparent 1px 12.5%);
+  mask: radial-gradient(90% 90% at 50% 50%, #000 40%, transparent 100%);
+}
+
+/* The camera. Zooming in uses the open timing (Scope OPEN_MS), zooming out the
+   faster close timing; transform + opacity only, on its own layer. */
+.sky {
+  position: absolute;
+  inset: 0;
+  transition:
+    transform 560ms var(--cam),
+    transform-origin 760ms var(--cam),
+    opacity 420ms var(--ease-out);
+}
+.zoom {
+  transform: scale(2.2);
+  opacity: 0.22;
+  transition:
+    transform 760ms var(--cam),
+    transform-origin 760ms var(--cam),
+    opacity 520ms var(--ease-out) 80ms;
+}
+
+.nebula {
+  position: absolute;
+  width: 24%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(closest-side, rgb(140 160 255 / 0.16), transparent),
+    radial-gradient(closest-side at 62% 58%, rgb(var(--accent) / 0.1), transparent);
+}
+
+/* ---------- constellation lines ---------- */
+.lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.edge {
+  stroke: rgb(var(--ink) / 0.24);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  animation: draw 1s var(--ease-out) forwards;
+  animation-delay: calc(400ms + var(--k) * 70ms);
+  transition: stroke 300ms var(--ease-out), opacity 300ms var(--ease-out);
+}
+.edgeHot { stroke: rgb(var(--ink) / 0.6); }
+.sky[data-hover] .edge:not(.edgeHot) { opacity: 0.35; }
+.rel {
+  stroke: rgb(var(--accent) / 0.85);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  animation: draw 300ms var(--ease-out) forwards;
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+/* ---------- labels + year scale ---------- */
+.const {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  color: rgb(var(--ink-3));
+  pointer-events: none;
+  text-shadow: 0 0 4px rgb(var(--halo)), 0 0 10px rgb(var(--halo));
+}
+.years { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; pointer-events: none; }
+.years li {
+  position: absolute;
+  bottom: 12px;
+  transform: translateX(-50%);
+  font: 500 11px/1 var(--font-mono), ui-monospace, monospace;
+  color: rgb(var(--ink-3));
+  padding-top: 8px;
+}
+.years li::before { content: ''; position: absolute; top: 0; left: 50%; width: 1px; height: 5px; background: rgb(var(--ink-3) / 0.6); }
+
+/* ---------- stars: each one wears its project's screenshot ---------- */
+.star {
+  --tn: 34px;
+  position: absolute;
+  width: calc(var(--tn) + 12px);
+  height: calc(var(--tn) + 12px);
+  margin: calc(var(--tn) / -2 - 6px) 0 0 calc(var(--tn) / -2 - 6px);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  transition: opacity 300ms var(--ease-out);
+  animation: appear 700ms var(--ease-out) backwards;
+  animation-delay: calc(var(--i) * 45ms);
+}
+.star[data-mag='2'] { --tn: 46px; }
+.star[data-mag='0'] { --tn: 22px; }
+.star:focus-visible { outline: none; }
+.sky[data-hover] .star:not([data-hot]):not([data-rel]) { opacity: 0.4; }
+@keyframes appear { from { opacity: 0; transform: scale(0.6); } }
+
+/* the star's light: a soft twinkling halo behind the picture */
+.star::before {
+  content: '';
+  position: absolute;
+  width: calc(var(--tn) * 2.3);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgb(255 214 170 / 0.32), rgb(var(--accent) / 0.08) 60%, transparent);
+  animation: twinkle 4.2s ease-in-out infinite;
+  animation-delay: var(--d);
+}
+.star[data-mag='2']::before { background: radial-gradient(closest-side, rgb(255 214 170 / 0.45), rgb(var(--accent) / 0.16) 60%, transparent); }
+.star[data-mag='0']::before { background: radial-gradient(closest-side, rgb(170 195 255 / 0.3), transparent); }
+@keyframes twinkle { 50% { opacity: 0.55; transform: scale(0.9); } }
+
+/* diffraction spikes on the featured stars */
+.spikes { position: absolute; width: calc(var(--tn) * 2.6); height: calc(var(--tn) * 2.6); pointer-events: none; }
+.spikes::before,
+.spikes::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(255 236 214 / 0.7), transparent);
+}
+.spikes::after { rotate: 90deg; }
+
+.thumb {
+  position: relative;
+  display: block;
+  width: var(--tn);
+  height: var(--tn);
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgb(var(--surface));
+  box-shadow:
+    0 0 0 1.5px rgb(255 240 225 / 0.85),
+    0 0 0 4px rgb(var(--space-0) / 0.85),
+    0 0 14px 4px rgb(255 214 170 / 0.25);
+  transition: transform 360ms var(--ease-out), box-shadow 300ms var(--ease-out);
+}
+.thumb img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 22%; }
+.star[data-mag='2'] .thumb { box-shadow: 0 0 0 2px rgb(var(--accent)), 0 0 0 5px rgb(var(--space-0) / 0.85), 0 0 22px 6px rgb(var(--accent) / 0.35); }
+.star[data-mag='0'] .thumb { box-shadow: 0 0 0 1.5px rgb(190 210 255 / 0.8), 0 0 0 3.5px rgb(var(--space-0) / 0.85), 0 0 10px 3px rgb(170 195 255 / 0.3); }
+.star[data-mag='0'] .thumb img { object-position: left center; }
+
+.star[data-hot] .thumb {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 2px rgb(var(--accent)), 0 0 0 5px rgb(var(--space-0) / 0.85), 0 0 28px 8px rgb(var(--accent) / 0.45);
+}
+.star[data-rel] .thumb { transform: scale(1.12); }
+/* the lens has taken this thumbnail; it comes back the frame the lens lands */
+.star[data-open] .thumb { opacity: 0; transition: opacity 0s 90ms; }
+/* zoomed in, the sky is bokeh behind the eyepiece: no text to read through the dossier */
+.zoom .name, .zoom .const, .zoom .years { opacity: 0; transition: opacity 200ms var(--ease-out); }
+
+.name {
+  position: absolute;
+  top: 50%;
+  left: calc(50% + var(--tn) / 2 + 10px);
+  translate: 0 -50%;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgb(var(--ink-2));
+  opacity: 0.85;
+  pointer-events: none;
+  text-shadow: 0 0 3px rgb(var(--halo)), 0 0 8px rgb(var(--halo)), 0 0 14px rgb(var(--halo));
+  transition: opacity 250ms var(--ease-out), color 250ms var(--ease-out), translate 360ms var(--ease-out);
+}
+.star[data-side='l'] .name { left: auto; right: calc(50% + var(--tn) / 2 + 10px); }
+.star[data-hot] .name { translate: calc(var(--tn) * 0.15) -50%; }
+.star[data-hot][data-side='l'] .name { translate: calc(var(--tn) * -0.15) -50%; }
+.name em { margin-left: 6px; font: 500 10.5px/1 var(--font-mono), ui-monospace, monospace; font-style: normal; color: rgb(var(--ink-3)); }
+.nameDemo { opacity: 0; }
+.star[data-hot] .name, .star[data-rel] .name { opacity: 1; color: rgb(var(--ink)); }
+
+/* ---------- footer ---------- */
+.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; margin-top: 14px; font-size: 13px; color: rgb(var(--ink-2)); text-shadow: 0 0 4px rgb(var(--halo)), 0 0 12px rgb(var(--halo)); }
+.legend { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-left: 6px; box-shadow: inset 0 0 0 1.5px rgb(255 240 225 / 0.85); }
+.legend i[data-mag='2'] { width: 11px; height: 11px; margin-left: 0; box-shadow: inset 0 0 0 2px rgb(var(--accent)), 0 0 8px 1px rgb(var(--accent) / 0.45); }
+.legend i[data-mag='0'] { width: 7px; height: 7px; box-shadow: inset 0 0 0 1.5px rgb(190 210 255 / 0.8); }
+
+/* ---------- compass rose (sea chart only) ---------- */
+.compass { display: none; position: absolute; width: 15%; aspect-ratio: 1; translate: -50% -50%; overflow: visible; pointer-events: none; }
+.rhumb { stroke: rgb(var(--ink) / 0.06); stroke-width: 0.6; }
+.roseRing { fill: none; stroke: rgb(var(--ink) / 0.35); stroke-width: 1; }
+.rosePtA { fill: rgb(var(--accent) / 0.85); }
+.rosePtB { fill: rgb(var(--ink) / 0.55); }
+.roseN { font: 600 16px var(--font-mono), monospace; fill: rgb(var(--ink-2)); }
+
+/* ---------- light theme: a nautical chart ---------- */
+:global(:root[data-theme='light']) .frame {
+  background: radial-gradient(120% 90% at 50% 40%, rgb(var(--surface) / 0.9), rgb(222 236 244 / 0.86) 80%);
+  border-color: rgb(var(--line));
+  box-shadow: 0 20px 60px -30px rgb(30 60 90 / 0.35);
+}
+:global(:root[data-theme='light']) .frame::before {
+  background:
+    repeating-linear-gradient(90deg, rgb(40 80 110 / 0.07) 0 1px, transparent 1px 10%),
+    repeating-linear-gradient(0deg, rgb(40 80 110 / 0.06) 0 1px, transparent 1px 12.5%);
+}
+:global(:root[data-theme='light']) .compass { display: block; }
+:global(:root[data-theme='light']) .nebula {
+  background: radial-gradient(closest-side, rgb(120 170 190 / 0.22), transparent);
+  outline: 1px dashed rgb(40 80 110 / 0.25);
+  outline-offset: -18%;
+}
+:global(:root[data-theme='light']) .edge,
+:global(:root[data-theme='light']) .rel {
+  stroke-dasharray: 5 5;
+  stroke-dashoffset: 0;
+  animation: fade 900ms var(--ease-out) backwards;
+  animation-delay: calc(300ms + var(--k, 0) * 50ms);
+}
+:global(:root[data-theme='light']) .edge { stroke: rgb(40 70 100 / 0.32); }
+:global(:root[data-theme='light']) .edgeHot { stroke: rgb(40 70 100 / 0.75); }
+:global(:root[data-theme='light']) .rel { stroke: rgb(var(--accent)); stroke-width: 1.6; animation-delay: 0ms; animation-duration: 300ms; }
+@keyframes fade { from { opacity: 0; } }
+
+/* stars become photo pins on the chart */
+:global(:root[data-theme='light']) .star::before,
+:global(:root[data-theme='light']) .spikes { display: none; }
+:global(:root[data-theme='light']) .thumb { box-shadow: 0 0 0 2px rgb(var(--surface)), 0 0 0 3.5px rgb(40 70 100 / 0.45), 0 6px 14px -4px rgb(20 50 80 / 0.4); }
+:global(:root[data-theme='light']) .star[data-mag='2'] .thumb { box-shadow: 0 0 0 2.5px rgb(var(--surface)), 0 0 0 4.5px rgb(var(--accent)), 0 8px 18px -4px rgb(20 50 80 / 0.45); }
+:global(:root[data-theme='light']) .star[data-mag='0'] .thumb { box-shadow: 0 0 0 1.5px rgb(var(--surface)), 0 0 0 3px rgb(var(--ink-2) / 0.5); }
+:global(:root[data-theme='light']) .star[data-hot] .thumb { box-shadow: 0 0 0 2.5px rgb(var(--surface)), 0 0 0 4.5px rgb(var(--accent)), 0 10px 22px -4px rgb(20 50 80 / 0.5); }
+:global(:root[data-theme='light']) .legend i { box-shadow: inset 0 0 0 1.5px rgb(40 70 100 / 0.6); }
+:global(:root[data-theme='light']) .legend i[data-mag='2'] { box-shadow: inset 0 0 0 2px rgb(var(--accent)); }
+:global(:root[data-theme='light']) .legend i[data-mag='0'] { box-shadow: inset 0 0 0 1.5px rgb(var(--ink-2) / 0.6); }
+
+/* ---------- phones: the tall chart ---------- */
+@media (max-width: 720px) {
+  .frame { border-radius: 16px; }
+  .star { --tn: 28px; }
+  .star[data-mag='2'] { --tn: 34px; }
+  .star[data-mag='0'] { --tn: 18px; }
+  .name { font-size: 11px; left: calc(50% + var(--tn) / 2 + 7px); }
+  .name em { margin-left: 4px; }
+  .star[data-side='l'] .name { right: calc(50% + var(--tn) / 2 + 7px); }
+  .years li { bottom: auto; left: 6px; transform: translateY(-50%); padding: 0 0 0 9px; font-size: 10px; }
+  .years li::before { top: 50%; left: 0; width: 5px; height: 1px; }
+  .foot { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge, .rel, .star { animation: none; stroke-dashoffset: 0; }
+  .star::before { animation: none; }
+  .sky, .zoom { transition: opacity 300ms linear; }
+  .zoom { transform: none; }
+}
